@@ -1,0 +1,11 @@
+{
+  "name": "cursor-subscription-quick-switcher",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "spike": "node spike/auth-slice.mjs"
+  }
+}

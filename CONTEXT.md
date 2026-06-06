@@ -9,43 +9,55 @@ A Cursor subscription identity (email + OAuth tokens) that determines billing an
 _Avoid_: Profile, session, user
 
 **Saved Account**:
-A locally stored snapshot of the `cursorAuth/*` keys extracted from Cursor's `state.vscdb`, registered under a human-chosen label (e.g. "Work", "Personal").
+A locally stored full identity snapshot registered under a human-chosen label (e.g. "Work", "Personal"). The current validated snapshot includes `cursorAuth/*`, full `User/globalStorage/state.vscdb*`, root `Cookies`, root `Local Storage`, and root `Session Storage`.
 _Avoid_: Profile, preset
 
 **Switch**:
-Replace the live `cursorAuth/*` keys in `state.vscdb` with those from a Saved Account, then reload the window so Cursor picks up the new identity.
+Restore a Saved Account into Cursor's live user data while Cursor is fully quit, then reopen Cursor so it starts with the restored identity.
 _Avoid_: Log in, sign in
 
 **Auth slice**:
-The subset of `state.vscdb` keys under the `cursorAuth/` prefix (`accessToken`, `refreshToken`, `cachedEmail`, etc.). Only this slice changes on Switch; settings, extensions, and chat history are shared.
-_Avoid_: Full database, state backup
+The subset of `state.vscdb` keys under the `cursorAuth/` prefix (`accessToken`, `refreshToken`, `cachedEmail`, etc.). Spike result: this slice controls visible cached Account fields but is insufficient for working Cursor AI requests on its own.
+_Avoid_: Full identity, complete session
+
+**Full identity snapshot**:
+The persisted Cursor identity context needed for a working Switch: full `state.vscdb*` plus root Chromium session files/directories. Carries non-auth user/team state such as `applicationUser` and Statsig bootstrap alongside tokens.
+_Avoid_: Auth slice, profile
 
 **Hot-swap**:
-A Switch performed in-place within the current Cursor install (mechanism A). No `--user-data-dir`, no second Cursor instance.
+A Switch performed within the current Cursor install by replacing local persisted state, not by launching a second Cursor instance with a different `--user-data-dir`. Current spike requires Cursor to be fully quit before the write.
 _Avoid_: Instance, profile launch
 
 **Register**:
-Capture the live `cursorAuth/*` keys into a new Saved Account. Requires the target Account to already be signed in via Cursor's normal login flow.
+Capture the live Cursor identity state into a new Saved Account. Requires the target Account to already be signed in via Cursor's normal login flow, or repaired through Browser login link.
 _Avoid_: Add account, import, OAuth
 
 **Apply**:
-Write a Saved Account's auth slice into live `state.vscdb` and reload the window so Cursor recognizes the new Account.
+Write a Saved Account's full identity snapshot into Cursor's live user data while Cursor is quit.
 _Avoid_: Activate, load
 
 **Active Account**:
-The Account whose auth slice is currently written in live `state.vscdb`, identified by `cursorAuth/cachedEmail`.
+The Account whose identity snapshot is currently restored in Cursor's live user data, usually identified by `cursorAuth/cachedEmail`.
 _Avoid_: Current user, logged-in user
 
 **Account store**:
-The `~/.cursor-subscription-quick-switcher/` directory on the user's machine. Holds Saved Account JSON files under `accounts/` and pre-Switch auth-slice backups under `backups/`.
+The `~/.cursor-subscription-quick-switcher/` directory on the user's machine. Holds Saved Account JSON files and full snapshots under `accounts/`, pre-Switch backups under `backups/`, and label-specific browser profiles under `browser-profiles/`.
 _Avoid_: Extension storage, globalStorage, keychain
 
 **Refresh**:
 A network call to `POST https://api2.cursor.sh/oauth/token` that exchanges a Saved Account's `refreshToken` for a new `accessToken`. Updates the Saved Account JSON on success.
 _Avoid_: Re-login, re-auth, token sync
 
+**Browser login link**:
+A generated Cursor `loginDeepControl` PKCE URL plus in-process verifier/polling state. Used to repair or refresh a Saved Account without using Cursor Settings logout. The spike can open this in a label-specific Chrome profile with `--open-browser`.
+_Avoid_: Settings login, pasted login URL
+
+**Settings logout**:
+The logout action in Cursor Settings. Spike result: it revokes the active refresh token server-side and can make previously saved snapshots return `shouldLogout: true`; do not use it as a switching mechanism.
+_Avoid_: Switch, refresh
+
 **Stale Saved Account**:
-A Saved Account whose Refresh failed (`shouldLogout: true`, network error, or empty token). Cannot be Applied until the user Registers it again via normal Cursor login.
+A Saved Account whose Refresh failed (`shouldLogout: true`, network error, or empty token). Cannot be Applied until repaired with Browser login link or re-registered from a normal Cursor login.
 _Avoid_: Expired account, invalid account
 
 **Refresh schedule**:
@@ -53,7 +65,7 @@ Background Refresh runs for all non-stale Saved Accounts on activation and daily
 _Avoid_: Polling, cron, keepalive
 
 **Live sync**:
-When a Refresh succeeds for the Active Account, write the updated auth slice to both the Saved Account JSON and live `state.vscdb`.
+When a Refresh succeeds for the Active Account, write the updated tokens to both the Saved Account JSON and the saved/live `state.vscdb` as appropriate.
 _Avoid_: Push to Cursor, update session
 
 **Reference extension**:
