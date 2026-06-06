@@ -37,7 +37,7 @@ The Account whose auth slice is currently written in live `state.vscdb`, identif
 _Avoid_: Current user, logged-in user
 
 **Account store**:
-The `~/.cursor-account-switcher/` directory on the user's machine. Holds Saved Account JSON files under `accounts/` and pre-Switch auth-slice backups under `backups/`.
+The `~/.cursor-subscription-quick-switcher/` directory on the user's machine. Holds Saved Account JSON files under `accounts/` and pre-Switch auth-slice backups under `backups/`.
 _Avoid_: Extension storage, globalStorage, keychain
 
 **Refresh**:
@@ -57,5 +57,5 @@ When a Refresh succeeds for the Active Account, write the updated auth slice to 
 _Avoid_: Push to Cursor, update session
 
 **Reference extension**:
-The published VSIX `AliAldahmani.cursor-account-switcher` (v0.1.1). Its GitHub repo is dead (404). Use only as a negative/contrast reference — not a design template.
-_Avoid_: Marketplace extension, AliAldahmani fork
+The abandoned VSIX `AliAldahmani.cursor-account-switcher` (v0.1.1). Its GitHub repo is dead (404). Use only as a negative/contrast reference — not a design template.
+_Avoid_: Cursor Account Switcher, AliAldahmani fork
