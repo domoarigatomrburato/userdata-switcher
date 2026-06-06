@@ -62,8 +62,6 @@ Windows, but they are not a cross-platform named Userdata registry and launcher.
    launch in every Supported Host?
 2. Is `context.globalStorageUri.fsPath` reliable inside a real extension host on
    all supported platforms?
-3. Should managed launches pass an explicit shared `--extensions-dir`, or should
-   that remain host-specific based on validation?
 4. Can bundled CLI discovery be made robust across macOS, Linux, and Windows
    without requiring shell integration?
 5. Should the first implementation support only single-folder and saved
@@ -77,3 +75,6 @@ Resolved for MVP planning:
 - Runtime heartbeat is not required.
 - Launch-or-focus is optional; plain launch with `--user-data-dir` is the hard
   requirement.
+- Managed launches pass an explicit shared `--extensions-dir` when the Supported
+  Host adapter resolves a Shared Extensions Directory. The adapter owns the
+  per-host path; the generic launcher owns when the flag is added.

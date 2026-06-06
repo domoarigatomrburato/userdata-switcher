@@ -1,101 +1,12 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { describe, it } from "node:test";
-import { resolveEditorHost } from "./host";
 import {
   buildLaunchCommand,
-  discoverBundledCli,
-  discoverEditorCli,
   launchEditor,
   resolveWorkspaceArg,
 } from "./launcher";
 import type { UserdataEntry } from "./registry";
-
-const cursor = resolveEditorHost({ appName: "Cursor", uriScheme: "cursor" });
-const vscode = resolveEditorHost({
-  appName: "Visual Studio Code",
-  uriScheme: "vscode",
-});
-const insiders = resolveEditorHost({
-  appName: "Visual Studio Code - Insiders",
-  uriScheme: "vscode-insiders",
-});
-assert.ok(cursor);
-assert.ok(vscode);
-assert.ok(insiders);
-
-describe("discoverBundledCli", () => {
-  it("finds the bundled cursor CLI under appRoot", () => {
-    assert.equal(
-      discoverBundledCli(
-        cursor,
-        "/Applications/Cursor.app/Contents/Resources/app",
-        {
-          existsSync: (candidate) => candidate.endsWith("/bin/cursor"),
-          platform: "darwin",
-        },
-      ),
-      "/Applications/Cursor.app/Contents/Resources/app/bin/cursor",
-    );
-  });
-
-  it("finds the bundled VS Code CLI under appRoot", () => {
-    assert.equal(
-      discoverBundledCli(
-        vscode,
-        "/Applications/Visual Studio Code.app/Contents/Resources/app",
-        {
-          existsSync: (candidate) => candidate.endsWith("/bin/code"),
-          platform: "darwin",
-        },
-      ),
-      "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
-    );
-  });
-
-  it("finds a bundled Windows CLI with PATHEXT", () => {
-    assert.equal(
-      discoverBundledCli(
-        insiders,
-        "C:\\Users\\alice\\AppData\\Local\\Programs\\Microsoft VS Code Insiders\\resources\\app",
-        {
-          existsSync: (candidate) =>
-            candidate.endsWith("\\bin\\code-insiders.cmd"),
-          platform: "win32",
-        },
-      ),
-      "C:\\Users\\alice\\AppData\\Local\\Programs\\Microsoft VS Code Insiders\\resources\\app\\bin\\code-insiders.cmd",
-    );
-  });
-});
-
-describe("discoverEditorCli", () => {
-  it("prefers the bundled editor CLI under appRoot", () => {
-    assert.equal(
-      discoverEditorCli(
-        cursor,
-        "/Applications/Cursor.app/Contents/Resources/app",
-        {
-          env: { PATH: "/usr/local/bin" },
-          existsSync: (candidate) => candidate.endsWith("/bin/cursor"),
-          platform: "darwin",
-        },
-      ),
-      "/Applications/Cursor.app/Contents/Resources/app/bin/cursor",
-    );
-  });
-
-  it("falls back to the host CLI on PATH when the bundled CLI is unavailable", () => {
-    assert.equal(
-      discoverEditorCli(vscode, "/missing/Code.app/Contents/Resources/app", {
-        env: { PATH: "/usr/local/bin:/opt/bin" },
-        existsSync: (candidate) => candidate === "/opt/bin/code",
-        platform: "darwin",
-      }),
-      "/opt/bin/code",
-    );
-  });
-});
 
 describe("resolveWorkspaceArg", () => {
   it("returns a single-folder workspace path", () => {
@@ -152,6 +63,44 @@ describe("buildLaunchCommand", () => {
     );
   });
 
+  it("adds --extensions-dir for managed userdata when provided", () => {
+    assert.deepEqual(
+      buildLaunchCommand({
+        entry: managed,
+        storeRoot: "/store",
+        workspacePath: "/repo",
+        editorCli: "/app/bin/code",
+        sharedExtensionsDirectory: "/Users/alice/.vscode/extensions",
+      }),
+      {
+        command: "/app/bin/code",
+        args: [
+          "--user-data-dir",
+          "/store/userdata/personal/data",
+          "--extensions-dir",
+          "/Users/alice/.vscode/extensions",
+          "/repo",
+        ],
+      },
+    );
+  });
+
+  it("omits --extensions-dir when shared extensions directory is not provided", () => {
+    assert.deepEqual(
+      buildLaunchCommand({
+        entry: managed,
+        storeRoot: "/store",
+        workspacePath: "/repo",
+        editorCli: "/app/bin/code",
+        sharedExtensionsDirectory: null,
+      }),
+      {
+        command: "/app/bin/code",
+        args: ["--user-data-dir", "/store/userdata/personal/data", "/repo"],
+      },
+    );
+  });
+
   it("omits --user-data-dir for default userdata", () => {
     assert.deepEqual(
       buildLaunchCommand({
@@ -159,6 +108,7 @@ describe("buildLaunchCommand", () => {
         storeRoot: "/store",
         workspacePath: "/repo",
         editorCli: "/app/bin/code",
+        sharedExtensionsDirectory: "/Users/alice/.vscode/extensions",
       }),
       {
         command: "/app/bin/code",

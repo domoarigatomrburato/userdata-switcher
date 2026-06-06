@@ -30,11 +30,13 @@ The initial supported hosts are:
 Unsupported hosts are not guessed. The extension reports a clear unsupported
 host error instead of falling back to best-effort behavior.
 
-Supported-host behavior lives behind one adapter boundary:
+Supported-host behavior lives behind one adapter boundary in `src/host.ts`:
 
 - host display name
 - host storage namespace
-- default userdata directory name
+- Userdata Store Root resolution per platform
+- Default Userdata root resolution per platform
+- Shared Extensions Directory resolution per platform
 - CLI executable names
 - bundled CLI discovery inputs
 
@@ -44,7 +46,8 @@ The generic implementation owns:
 - Current Userdata detection from extension storage paths
 - status bar and Quick Pick behavior
 - Managed Userdata creation and rename
-- launch command construction with `--user-data-dir`
+- launch command construction with `--user-data-dir` and optional
+  `--extensions-dir` when the adapter supplies a Shared Extensions Directory
 - process spawning and startup error handling
 
 The Userdata Store Root is host-namespaced under a generic product directory:
@@ -71,8 +74,11 @@ the MVP requirement.
 For Managed Userdata:
 
 ```text
-<host-cli> --user-data-dir <managed-userdata-dir> <workspace?>
+<host-cli> --user-data-dir <managed-userdata-dir> --extensions-dir <shared-extensions-dir> <workspace?>
 ```
+
+The launcher adds `--extensions-dir` only when the Supported Host adapter
+resolves a Shared Extensions Directory for managed launches.
 
 For Default Userdata, omit `--user-data-dir`.
 
@@ -95,8 +101,8 @@ are not adopted in the MVP.
 ## Consequences
 
 Adding another editor host is a validation task: add an adapter entry only after
-confirming its default userdata path, CLI name, bundled CLI layout, and
-extension-directory behavior.
+confirming its default userdata path, CLI name, bundled CLI layout, and Shared
+Extensions Directory behavior.
 
 The registry format remains host-neutral. The storage location provides host
 separation, so no compatibility layer is required between supported hosts.

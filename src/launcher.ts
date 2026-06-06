@@ -1,7 +1,4 @@
 import { spawn } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
-import type { EditorHost } from "./host";
 import { resolveManagedDataDir } from "./paths";
 import type { UserdataEntry } from "./registry";
 
@@ -29,101 +26,6 @@ interface LaunchDeps {
   ): SpawnedEditorProcess;
 }
 
-interface CliDiscoveryDeps {
-  env?: NodeJS.ProcessEnv;
-  existsSync: (candidate: string) => boolean;
-  platform?: NodeJS.Platform;
-}
-
-export function discoverBundledCli(
-  host: EditorHost,
-  appRoot: string,
-  deps: CliDiscoveryDeps = fs,
-): string | null {
-  return findExecutableInDirectories({
-    directories: [
-      pathForPlatform(deps.platform ?? process.platform).join(appRoot, "bin"),
-    ],
-    env: deps.env ?? process.env,
-    existsSync: deps.existsSync,
-    names: host.cliNames,
-    platform: deps.platform ?? process.platform,
-  });
-}
-
-export function discoverEditorCli(
-  host: EditorHost,
-  appRoot: string,
-  deps: CliDiscoveryDeps = fs,
-): string | null {
-  const bundledCli = discoverBundledCli(host, appRoot, deps);
-  if (bundledCli) {
-    return bundledCli;
-  }
-  return findEditorOnPath({
-    env: deps.env ?? process.env,
-    existsSync: deps.existsSync,
-    names: host.cliNames,
-    platform: deps.platform ?? process.platform,
-  });
-}
-
-function findEditorOnPath(input: {
-  env: NodeJS.ProcessEnv;
-  existsSync: (candidate: string) => boolean;
-  names: string[];
-  platform: NodeJS.Platform;
-}): string | null {
-  const pathValue = input.env.PATH ?? input.env.Path ?? input.env.path;
-  if (!pathValue) {
-    return null;
-  }
-  const delimiter = input.platform === "win32" ? ";" : ":";
-  return findExecutableInDirectories({
-    directories: pathValue.split(delimiter).filter(Boolean),
-    env: input.env,
-    existsSync: input.existsSync,
-    names: input.names,
-    platform: input.platform,
-  });
-}
-
-function findExecutableInDirectories(input: {
-  directories: string[];
-  env: NodeJS.ProcessEnv;
-  existsSync: (candidate: string) => boolean;
-  names: string[];
-  platform: NodeJS.Platform;
-}): string | null {
-  const extensions = executableExtensions(input.platform, input.env);
-  const pathApi = pathForPlatform(input.platform);
-
-  for (const directory of input.directories) {
-    for (const name of input.names) {
-      for (const extension of extensions) {
-        const candidate = pathApi.join(directory, `${name}${extension}`);
-        if (input.existsSync(candidate)) {
-          return candidate;
-        }
-      }
-    }
-  }
-  return null;
-}
-
-function executableExtensions(
-  platform: NodeJS.Platform,
-  env: NodeJS.ProcessEnv,
-): string[] {
-  if (platform !== "win32") {
-    return [""];
-  }
-  return (env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD")
-    .split(";")
-    .filter(Boolean)
-    .map((extension) => extension.toLowerCase());
-}
-
 export function resolveWorkspaceArg(
   workspace: WorkspaceShape,
 ): string | undefined {
@@ -140,6 +42,7 @@ export function buildLaunchCommand(input: {
   workspacePath?: string;
   editorCli: string;
   reuseWindow?: boolean;
+  sharedExtensionsDirectory?: string | null;
 }): LaunchCommand {
   const args: string[] = [];
 
@@ -148,6 +51,9 @@ export function buildLaunchCommand(input: {
       "--user-data-dir",
       resolveManagedDataDir(input.storeRoot, input.entry.relativeDataDir),
     );
+    if (input.sharedExtensionsDirectory) {
+      args.push("--extensions-dir", input.sharedExtensionsDirectory);
+    }
     if (input.reuseWindow) {
       args.push("--reuse-window");
     }
@@ -194,8 +100,4 @@ export function launchEditor(
       }
     });
   });
-}
-
-function pathForPlatform(platform: NodeJS.Platform): typeof path.posix {
-  return platform === "win32" ? path.win32 : path.posix;
 }

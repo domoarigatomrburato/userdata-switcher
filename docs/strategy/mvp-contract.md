@@ -73,8 +73,11 @@ directories, or launch behavior.
 Managed Userdata launch:
 
 ```text
-<host-cli> --user-data-dir <managed-data-dir> <workspace?>
+<host-cli> --user-data-dir <managed-data-dir> --extensions-dir <shared-extensions-dir> <workspace?>
 ```
+
+The launcher adds `--extensions-dir` only when the Supported Host adapter
+resolves a Shared Extensions Directory for managed launches.
 
 Default Userdata launch omits `--user-data-dir`.
 
