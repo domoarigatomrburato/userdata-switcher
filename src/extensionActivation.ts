@@ -7,9 +7,8 @@ import {
   formatUserdataLabel,
 } from "./labels";
 import {
-  buildLaunchCommand,
-  launchEditor,
-  resolveWorkspaceArg,
+  type LaunchEditor,
+  openWithUserdata,
   type WorkspaceShape,
 } from "./launcher";
 import { buildOpenWithUserdataMenuItems } from "./menu";
@@ -18,6 +17,7 @@ export {
   CREATE_USERDATA_LABEL,
   RENAME_CURRENT_USERDATA_LABEL,
 } from "./menu";
+
 import { registryPath, resolveManagedDataDir } from "./paths";
 import {
   addManagedUserdata,
@@ -88,16 +88,24 @@ export interface UserdataSwitcherActivation {
   workspace: WorkspaceShape;
   subscribe(disposable: Disposable): void;
   ui: UserdataSwitcherUi;
-  launchEditorImpl?: typeof launchEditor;
+  launchEditorImpl?: LaunchEditor;
   mkdirSync?: typeof fs.mkdirSync;
 }
 
 export function activateUserdataSwitcher(
   input: UserdataSwitcherActivation,
 ): void {
-  const { host, globalStoragePath, appRoot, workspace, subscribe, ui } = input;
-  const launch = input.launchEditorImpl ?? launchEditor;
-  const mkdir = input.mkdirSync ?? fs.mkdirSync;
+  const {
+    host,
+    globalStoragePath,
+    appRoot,
+    workspace,
+    subscribe,
+    ui,
+    launchEditorImpl,
+    mkdirSync,
+  } = input;
+  const mkdir = mkdirSync ?? fs.mkdirSync;
 
   const storeRoot = host.resolveStoreRoot();
   const defaultUserdataRoot = host.resolveDefaultUserdataRoot();
@@ -140,31 +148,16 @@ export function activateUserdataSwitcher(
     return registry;
   };
 
-  const launchEntry = async (entry: UserdataEntry) => {
-    const editorCli = host.discoverEditorCli(appRoot);
-    if (!editorCli) {
-      throw new Error(
-        `Could not find ${host.displayName} CLI in this installation.`,
-      );
-    }
-    await launch(
-      buildLaunchCommand({
-        entry,
-        storeRoot,
-        workspacePath: resolveWorkspaceArg(workspace),
-        editorCli,
-        reuseWindow: entry.kind === "managed",
-        sharedExtensionsDirectory:
-          entry.kind === "managed"
-            ? host.resolveSharedExtensionsDirectory()
-            : null,
-      }),
-    );
-  };
-
   const launchEntrySafely = async (entry: UserdataEntry) => {
     try {
-      await launchEntry(entry);
+      await openWithUserdata({
+        entry,
+        host,
+        appRoot,
+        storeRoot,
+        workspace,
+        launchEditorImpl,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await ui.showErrorMessage(message);

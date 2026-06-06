@@ -16,10 +16,7 @@ import {
 } from "./extensionActivation";
 import type { SupportedHostAdapter } from "./host";
 import type { LaunchCommand } from "./launcher";
-import {
-  CREATE_USERDATA_LABEL,
-  RENAME_CURRENT_USERDATA_LABEL,
-} from "./menu";
+import { CREATE_USERDATA_LABEL, RENAME_CURRENT_USERDATA_LABEL } from "./menu";
 import { loadRegistry, saveRegistry } from "./registry";
 
 interface TestHarness {

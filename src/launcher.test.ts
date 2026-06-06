@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { describe, it } from "node:test";
+import type { SupportedHostAdapter } from "./host";
 import {
   buildLaunchCommand,
+  buildOpenWithUserdataCommand,
   launchEditor,
+  openWithUserdata,
   resolveWorkspaceArg,
 } from "./launcher";
 import type { UserdataEntry } from "./registry";
@@ -126,6 +129,121 @@ describe("buildLaunchCommand", () => {
       reuseWindow: true,
     });
     assert.deepEqual(launch.args, ["/repo"]);
+  });
+});
+
+describe("buildOpenWithUserdataCommand", () => {
+  const managed: UserdataEntry = {
+    id: "personal",
+    kind: "managed",
+    label: "Personal",
+    relativeDataDir: "userdata/personal/data",
+  };
+
+  const host: SupportedHostAdapter = {
+    id: "vscode",
+    displayName: "Visual Studio Code",
+    cliNames: ["code"],
+    resolveStoreRoot: () => "/store",
+    resolveDefaultUserdataRoot: () => "/default-userdata",
+    resolveSharedExtensionsDirectory: () => "/home/alice/.vscode/extensions",
+    discoverBundledCli: () => "/app/bin/code",
+    discoverEditorCli: () => "/app/bin/code",
+  };
+
+  it("builds the managed userdata launch from host and workspace policy", () => {
+    assert.deepEqual(
+      buildOpenWithUserdataCommand({
+        entry: managed,
+        host,
+        appRoot: "/app",
+        storeRoot: "/store",
+        workspace: {
+          workspaceFolders: [{ uri: { fsPath: "/repo" } }],
+        },
+      }),
+      {
+        command: "/app/bin/code",
+        args: [
+          "--user-data-dir",
+          "/store/userdata/personal/data",
+          "--extensions-dir",
+          "/home/alice/.vscode/extensions",
+          "--reuse-window",
+          "/repo",
+        ],
+      },
+    );
+  });
+
+  it("builds the default userdata launch without userdata flags", () => {
+    assert.deepEqual(
+      buildOpenWithUserdataCommand({
+        entry: { id: "default", kind: "default", label: "Work" },
+        host,
+        appRoot: "/app",
+        storeRoot: "/store",
+        workspace: {
+          workspaceFolders: [{ uri: { fsPath: "/repo" } }],
+        },
+      }),
+      {
+        command: "/app/bin/code",
+        args: ["/repo"],
+      },
+    );
+  });
+
+  it("throws a host-specific error when no editor CLI is available", () => {
+    assert.throws(
+      () =>
+        buildOpenWithUserdataCommand({
+          entry: managed,
+          host: {
+            ...host,
+            discoverEditorCli: () => null,
+          },
+          appRoot: "/missing-app",
+          storeRoot: "/store",
+          workspace: {},
+        }),
+      /Could not find Visual Studio Code CLI in this installation\./,
+    );
+  });
+});
+
+describe("openWithUserdata", () => {
+  it("launches the command built from the selected userdata", async () => {
+    const launched: unknown[] = [];
+
+    await openWithUserdata({
+      entry: {
+        id: "default",
+        kind: "default",
+        label: "Work",
+      },
+      host: {
+        id: "vscode",
+        displayName: "Visual Studio Code",
+        cliNames: ["code"],
+        resolveStoreRoot: () => "/store",
+        resolveDefaultUserdataRoot: () => "/default-userdata",
+        resolveSharedExtensionsDirectory: () =>
+          "/home/alice/.vscode/extensions",
+        discoverBundledCli: () => "/app/bin/code",
+        discoverEditorCli: () => "/app/bin/code",
+      },
+      appRoot: "/app",
+      storeRoot: "/store",
+      workspace: {
+        workspaceFolders: [{ uri: { fsPath: "/repo" } }],
+      },
+      launchEditorImpl: async (command) => {
+        launched.push(command);
+      },
+    });
+
+    assert.deepEqual(launched, [{ command: "/app/bin/code", args: ["/repo"] }]);
   });
 });
 

@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import type { SupportedHostAdapter } from "./host";
 import { resolveManagedDataDir } from "./paths";
 import type { UserdataEntry } from "./registry";
 
@@ -11,6 +12,8 @@ export interface LaunchCommand {
   command: string;
   args: string[];
 }
+
+export type LaunchEditor = (command: LaunchCommand) => Promise<void>;
 
 interface SpawnedEditorProcess {
   once(event: "error", listener: (error: Error) => void): this;
@@ -67,6 +70,45 @@ export function buildLaunchCommand(input: {
     command: input.editorCli,
     args,
   };
+}
+
+export function buildOpenWithUserdataCommand(input: {
+  entry: UserdataEntry;
+  host: SupportedHostAdapter;
+  appRoot: string;
+  storeRoot: string;
+  workspace: WorkspaceShape;
+}): LaunchCommand {
+  const editorCli = input.host.discoverEditorCli(input.appRoot);
+  if (!editorCli) {
+    throw new Error(
+      `Could not find ${input.host.displayName} CLI in this installation.`,
+    );
+  }
+
+  return buildLaunchCommand({
+    entry: input.entry,
+    storeRoot: input.storeRoot,
+    workspacePath: resolveWorkspaceArg(input.workspace),
+    editorCli,
+    reuseWindow: input.entry.kind === "managed",
+    sharedExtensionsDirectory:
+      input.entry.kind === "managed"
+        ? input.host.resolveSharedExtensionsDirectory()
+        : null,
+  });
+}
+
+export async function openWithUserdata(input: {
+  entry: UserdataEntry;
+  host: SupportedHostAdapter;
+  appRoot: string;
+  storeRoot: string;
+  workspace: WorkspaceShape;
+  launchEditorImpl?: LaunchEditor;
+}): Promise<void> {
+  const launch = input.launchEditorImpl ?? launchEditor;
+  await launch(buildOpenWithUserdataCommand(input));
 }
 
 export function launchEditor(
