@@ -7,6 +7,9 @@
   },
   "scripts": {
     "research:sqlite-spike": "node spike/auth-slice.mjs",
-    "research:userdata-launcher": "node spike/userdata-launcher-verify.mjs"
+    "research:userdata-launcher": "node spike/userdata-launcher-verify.mjs",
+    "test": "npm run test --prefix extension",
+    "build:extension": "npm run build --prefix extension",
+    "package:vsix": "npm run package:vsix --prefix extension"
   }
 }
