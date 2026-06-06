@@ -2,6 +2,7 @@
   "name": "userdata-switcher",
   "displayName": "Userdata Switcher",
   "description": "Open VS Code-family editors with named isolated userdata roots.",
+  "icon": "media/icon.png",
   "version": "0.1.2",
   "type": "commonjs",
   "publisher": "domoarigatomrburato",
