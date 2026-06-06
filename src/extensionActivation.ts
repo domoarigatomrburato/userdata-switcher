@@ -12,7 +12,12 @@ import {
   resolveWorkspaceArg,
   type WorkspaceShape,
 } from "./launcher";
-import { buildOpenWithUserdataMenuItems, type UserdataMenuItem } from "./menu";
+import { buildOpenWithUserdataMenuItems } from "./menu";
+
+export {
+  CREATE_USERDATA_LABEL,
+  RENAME_CURRENT_USERDATA_LABEL,
+} from "./menu";
 import { registryPath, resolveManagedDataDir } from "./paths";
 import {
   addManagedUserdata,
@@ -24,7 +29,6 @@ import {
   updateRegistry,
 } from "./registry";
 
-export const CREATE_USERDATA_LABEL = "Create New Userdata...";
 export const COMMAND_OPEN_WITH_USERDATA = "userdataSwitcher.openWithUserdata";
 export const COMMAND_CREATE_USERDATA = "userdataSwitcher.createUserdata";
 export const COMMAND_RENAME_CURRENT_USERDATA =
@@ -36,7 +40,7 @@ export interface QuickPickItem {
   label: string;
   description?: string;
   kind?: number;
-  action?: "create";
+  action?: "create" | "rename";
   userdataId?: string;
   alwaysShow?: boolean;
 }
@@ -175,8 +179,13 @@ export function activateUserdataSwitcher(
       const items = buildOpenWithUserdataMenuItems(
         currentRegistry,
         current,
-        CREATE_USERDATA_LABEL,
-      ).map(toQuickPickItem(ui));
+      ).map((item) => {
+        if (item.kind === "separator") {
+          return { label: item.label, kind: ui.QuickPickItemKind.Separator };
+        }
+        const { kind: _kind, ...quickPickItem } = item;
+        return quickPickItem;
+      });
 
       const selected = await ui.showQuickPick(items, {
         title: formatOpenWithUserdataPickerTitle(current),
@@ -185,9 +194,13 @@ export function activateUserdataSwitcher(
       if (!selected || selected.kind === ui.QuickPickItemKind.Separator) {
         return;
       }
-      if (selected.action === "create") {
-        await ui.executeCommand(COMMAND_CREATE_USERDATA);
-        return;
+      switch (selected.action) {
+        case "create":
+          await ui.executeCommand(COMMAND_CREATE_USERDATA);
+          return;
+        case "rename":
+          await ui.executeCommand(COMMAND_RENAME_CURRENT_USERDATA);
+          return;
       }
       const entry = currentRegistry.userdatas.find(
         (candidate) => candidate.id === selected.userdataId,
@@ -254,14 +267,4 @@ export function activateUserdataSwitcher(
   );
 
   refreshStatusBar();
-}
-
-function toQuickPickItem(ui: UserdataSwitcherUi) {
-  return (item: UserdataMenuItem): QuickPickItem => {
-    if (item.kind === "separator") {
-      return { label: item.label, kind: ui.QuickPickItemKind.Separator };
-    }
-    const { kind: _kind, ...quickPickItem } = item;
-    return quickPickItem;
-  };
 }

@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "node20",
     "target": "ES2022",
     "lib": ["ES2022"],
     "outDir": "out",
@@ -8,8 +8,11 @@
     "sourceMap": true,
     "strict": true,
     "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmitOnError": true,
     "skipLibCheck": true,
-    "moduleResolution": "node"
+    "types": ["node"]
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts"]
 }

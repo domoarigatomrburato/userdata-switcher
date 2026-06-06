@@ -46,13 +46,15 @@ Clicking the status bar opens a Quick Pick:
 
 1. The title shows `Current: <label>`.
 2. Items list other known Userdata entries only.
-3. The final item is `Create New Userdata...`.
+3. When Current Userdata is known, a `Rename Current Userdata...` action appears
+   above `Create New Userdata...`.
+4. When Current Userdata is unknown, only `Create New Userdata...` appears.
 
-The current userdata is not a selectable item. The create CTA is identified by
-structured action data, not by matching its label text.
+The current userdata is not a selectable item. Action CTAs are identified by
+structured action data, not by matching their label text.
 
-If there are no other userdatas yet, the menu still opens and shows only the
-create CTA.
+If there are no other userdatas yet, the menu still opens and shows the rename
+and create CTAs when Current Userdata is known.
 
 ## Create And Rename
 

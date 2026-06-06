@@ -56,7 +56,8 @@ _Avoid_: Switch account, apply account
 
 **Userdata Menu**:
 The status-bar menu whose title shows the Current Userdata and whose items list
-other known Userdata choices plus actions such as creating a new Userdata.
+other known Userdata choices plus actions such as renaming the Current Userdata
+or creating a new Userdata.
 _Avoid_: account menu, profile selector
 
 **Running Userdata Instance**:

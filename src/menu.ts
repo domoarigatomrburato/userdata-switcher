@@ -1,10 +1,13 @@
 import { formatUserdataLabel } from "./labels";
 import type { Registry, UserdataEntry } from "./registry";
 
+export const CREATE_USERDATA_LABEL = "Create New Userdata...";
+export const RENAME_CURRENT_USERDATA_LABEL = "Rename Current Userdata...";
+
 export type MenuItemKind = "item" | "separator";
 
 export interface UserdataMenuItem {
-  action?: "create";
+  action?: "create" | "rename";
   label: string;
   description?: string;
   kind?: MenuItemKind;
@@ -15,7 +18,8 @@ export interface UserdataMenuItem {
 export function buildOpenWithUserdataMenuItems(
   registry: Registry,
   current: UserdataEntry | null,
-  createUserdataLabel: string,
+  createUserdataLabel: string = CREATE_USERDATA_LABEL,
+  renameCurrentUserdataLabel: string = RENAME_CURRENT_USERDATA_LABEL,
 ): UserdataMenuItem[] {
   const otherUserdatas = registry.userdatas
     .filter((entry) => entry.id !== current?.id)
@@ -32,6 +36,13 @@ export function buildOpenWithUserdataMenuItems(
     items.push({ kind: "separator", label: "" });
   }
 
+  if (current) {
+    items.push({
+      action: "rename",
+      label: renameCurrentUserdataLabel,
+      alwaysShow: true,
+    });
+  }
   items.push({
     action: "create",
     label: createUserdataLabel,

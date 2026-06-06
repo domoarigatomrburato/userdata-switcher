@@ -2,7 +2,8 @@
   "name": "userdata-switcher",
   "displayName": "Userdata Switcher",
   "description": "Open VS Code-family editors with named isolated userdata roots.",
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "type": "commonjs",
   "publisher": "userdata-switcher",
   "license": "MIT",
   "repository": {
@@ -44,11 +45,12 @@
     ]
   },
   "scripts": {
+    "vscode:prepublish": "npm run build",
     "compile": "tsc -p .",
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
     "test": "npm run typecheck:test && tsx --test src/**/*.test.ts",
     "build": "npm run test && npm run compile",
-    "package:vsix": "npm run compile && vsce package --no-dependencies",
+    "package:vsix": "vsce package --no-dependencies",
     "check": "biome check --write .",
     "check:ci": "biome check .",
     "format": "biome format --write .",
@@ -56,10 +58,10 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.16",
-    "@types/node": "^22.13.10",
+    "@types/node": "^25.9.2",
     "@types/vscode": "^1.85.0",
-    "@vscode/vsce": "^3.7.1",
-    "tsx": "^4.19.3",
-    "typescript": "^5.8.2"
+    "@vscode/vsce": "^3.9.2",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
   }
 }

@@ -16,6 +16,10 @@ import {
 } from "./extensionActivation";
 import type { SupportedHostAdapter } from "./host";
 import type { LaunchCommand } from "./launcher";
+import {
+  CREATE_USERDATA_LABEL,
+  RENAME_CURRENT_USERDATA_LABEL,
+} from "./menu";
 import { loadRegistry, saveRegistry } from "./registry";
 
 interface TestHarness {
@@ -216,10 +220,30 @@ describe("activateUserdataSwitcher", () => {
     ]);
   });
 
+  it("routes the rename action in the open menu to rename current userdata", async () => {
+    const harness = createTestHarness({
+      quickPickSelection: {
+        label: RENAME_CURRENT_USERDATA_LABEL,
+        action: "rename",
+      },
+      inputBoxValue: "Work",
+    });
+    harnesses.push(harness);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_OPEN_WITH_USERDATA);
+
+    const registry = loadRegistry(
+      path.join(harness.storeRoot, "registry.json"),
+    );
+    assert.equal(registry.userdatas[0]?.label, "Work");
+    assert.equal(harness.statusBar.text, "$(layers) Userdata: Work (default)");
+  });
+
   it("routes the create action in the open menu to create userdata", async () => {
     const harness = createTestHarness({
       quickPickSelection: {
-        label: "Create New Userdata...",
+        label: CREATE_USERDATA_LABEL,
         action: "create",
       },
       inputBoxValue: "Work",
