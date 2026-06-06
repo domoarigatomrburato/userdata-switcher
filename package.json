@@ -4,7 +4,7 @@
   "description": "Open VS Code-family editors with named isolated userdata roots.",
   "version": "0.1.2",
   "type": "commonjs",
-  "publisher": "userdata-switcher",
+  "publisher": "domoarigatomrburato",
   "license": "MIT",
   "repository": {
     "type": "git",
