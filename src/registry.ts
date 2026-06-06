@@ -34,7 +34,19 @@ export function loadRegistry(registryFile: string): Registry {
 
 export function saveRegistry(registryFile: string, registry: Registry): void {
   fs.mkdirSync(path.dirname(registryFile), { recursive: true });
-  fs.writeFileSync(registryFile, `${JSON.stringify(registry, null, 2)}\n`, "utf8");
+  const tempFile = `${registryFile}.${process.pid}.tmp`;
+  fs.writeFileSync(tempFile, `${JSON.stringify(registry, null, 2)}\n`, "utf8");
+  fs.renameSync(tempFile, registryFile);
+}
+
+export function updateRegistry(
+  registryFile: string,
+  update: (latest: Registry) => Registry,
+): Registry {
+  const latest = ensureDefaultUserdata(loadRegistry(registryFile));
+  const updated = update(latest);
+  saveRegistry(registryFile, updated);
+  return updated;
 }
 
 export function ensureDefaultUserdata(registry: Registry): Registry {
@@ -47,7 +59,10 @@ export function ensureDefaultUserdata(registry: Registry): Registry {
   };
 }
 
-export function addManagedUserdata(registry: Registry, label: string): Registry {
+export function addManagedUserdata(
+  registry: Registry,
+  label: string,
+): Registry {
   const trimmed = label.trim();
   if (!trimmed) {
     throw new Error("Userdata label is required");
@@ -95,7 +110,9 @@ function createUniqueId(registry: Registry, baseId: string): string {
     return baseId;
   }
   let index = 2;
-  while (registry.userdatas.some((entry) => entry.id === `${baseId}-${index}`)) {
+  while (
+    registry.userdatas.some((entry) => entry.id === `${baseId}-${index}`)
+  ) {
     index += 1;
   }
   return `${baseId}-${index}`;

@@ -4,6 +4,7 @@ import type { Registry, UserdataEntry } from "./registry";
 export type MenuItemKind = "item" | "separator";
 
 export interface UserdataMenuItem {
+  action?: "create";
   label: string;
   description?: string;
   kind?: MenuItemKind;
@@ -20,7 +21,8 @@ export function buildOpenWithUserdataMenuItems(
     .filter((entry) => entry.id !== current?.id)
     .map((entry) => ({
       label: formatUserdataLabel(entry),
-      description: entry.kind === "default" ? "Default Userdata" : "Managed Userdata",
+      description:
+        entry.kind === "default" ? "Default Userdata" : "Managed Userdata",
       userdataId: entry.id,
     }));
 
@@ -31,6 +33,7 @@ export function buildOpenWithUserdataMenuItems(
   }
 
   items.push({
+    action: "create",
     label: createUserdataLabel,
     alwaysShow: true,
   });

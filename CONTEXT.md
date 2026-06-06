@@ -1,95 +1,93 @@
-# Cursor Userdata Switcher
+# Userdata Switcher
 
-Glossary for a local Cursor extension and launcher that opens Cursor with named,
-isolated userdata roots.
+Glossary for a local VS Code-family extension and launcher that opens a
+supported editor with named, isolated userdata roots.
 
 ## Language
 
-**Cursor Userdata**:
-A named, isolated Cursor data root for one intended sign-in context, such as
-"Work" or "Personal".
-_Avoid_: Profile, Account, Saved Account, session
+**Editor Host**:
+A supported VS Code-family desktop application that can run this extension and
+be launched with a userdata root, such as Cursor, Visual Studio Code, or Visual
+Studio Code Insiders.
+_Avoid_: arbitrary fork, guessed host
+
+**Editor Userdata**:
+A named, isolated editor data root for one intended sign-in or configuration
+context, such as "Work" or "Personal".
+_Avoid_: Profile, Account, Saved Account
+
+**Supported Host**:
+An Editor Host with explicit path and CLI behavior known to this tool.
+_Avoid_: guessed fork, best-effort host
 
 **Managed Userdata**:
-A Cursor Userdata registered and named by this tool.
+An Editor Userdata registered and named by this tool.
 _Avoid_: Saved Account, preset, profile
 
 **Unmanaged Userdata**:
-The Cursor userdata used by the current window when it is not yet known to this
-tool.
+The userdata used by the current window when it is not yet known to this tool.
 _Avoid_: Unknown account, invalid profile
 
 **Default Userdata**:
-The vanilla Cursor userdata used when Cursor is launched normally. It exists
-without user setup. In UI, show it as `<label> (default)`, for example
+The vanilla no-flag userdata used when an Editor Host is launched normally. It
+exists without user setup. In UI, show it as `<label> (default)`, for example
 `Work (default)`.
 _Avoid_: Default profile, built-in profile
 
 **Userdata Label**:
-The user-facing name assigned to a Cursor Userdata, such as `Work`,
+The user-facing name assigned to an Editor Userdata, such as `Work`,
 `Personal`, or `Client A`.
-_Avoid_: account email, token name, profile name
+_Avoid_: account email, profile name
 
 **Userdata Registry**:
 The tool-owned record of Managed Userdata entries, labels, and launcher
-preferences.
-_Avoid_: Extension globalState, Cursor profile settings
+preferences for one Supported Host.
+_Avoid_: Extension globalState, editor profile settings
 
 **Userdata Store Root**:
 The platform-specific app data location where this tool stores its registry and
-automatically created Managed Userdata.
+automatically created Managed Userdata for one Supported Host.
 _Avoid_: hard-coded absolute path, extension globalStorage
 
 **Open With Userdata**:
-Open or focus Cursor using a selected Managed Userdata, usually for the current
-workspace.
-_Avoid_: Switch account, apply account, login
+Open or focus the current Editor Host using a selected known Userdata, usually
+for the current workspace.
+_Avoid_: Switch account, apply account
 
 **Userdata Menu**:
-The status-bar menu that shows the Current Userdata first, other known
-Cursor Userdata choices, and actions such as creating a new Cursor Userdata.
+The status-bar menu whose title shows the Current Userdata and whose items list
+other known Userdata choices plus actions such as creating a new Userdata.
 _Avoid_: account menu, profile selector
 
 **Running Userdata Instance**:
-A live Cursor window or process associated with a Cursor Userdata.
+A live editor window or process associated with an Editor Userdata.
 _Avoid_: Running profile, active account
 
 **Current Userdata**:
-The Cursor Userdata used by a specific currently running Cursor window.
+The Editor Userdata used by a specific currently running editor window.
 _Avoid_: Active Account, current profile
 
 **Userdata Boundary**:
-The process/data boundary that makes a Cursor process belong to one Cursor
+The process/data boundary that makes an editor process belong to one Editor
 Userdata until it exits.
 _Avoid_: Reload Window, hot-swap
 
 **Launcher Helper**:
-A local helper invoked by the extension to start Cursor with the selected Cursor
-Userdata.
-_Avoid_: DB switcher, token helper
+A local helper invoked by the extension to start the current Editor Host with
+the selected Editor Userdata.
+_Avoid_: profile switcher, account switcher
 
 **Shared Extensions Directory**:
-The normal Cursor extension install location shared by Cursor Userdata roots.
-_Avoid_: Cursor Profile, account extensions
+The normal extension install location used by an Editor Host outside its
+userdata root.
+_Avoid_: Profile extensions, account extensions
 
 **First-Run Sign-In**:
-The normal Cursor login performed the first time a new Cursor Userdata is opened.
-_Avoid_: Token repair, login-link, browser PKCE
+The normal editor or product login performed the first time a new Userdata is
+opened.
+_Avoid_: setup automation, credential management
 
-**Cursor Profile**:
-Cursor's built-in profile feature for settings, keybindings, snippets, and
-extension configuration. It does not isolate Cursor subscription identity.
-_Avoid as synonym for_: Cursor Userdata
-
-**Cursor Accounts Menu**:
-The sidebar accounts menu backed by VS Code's Authentication API for extension
-auth providers. It is not Cursor subscription identity.
-_Avoid as synonym for_: Cursor Userdata, Cursor sign-in
-
-**Archived SQLite Spike**:
-The research under `spike/` that tested auth-slice and full-DB mutation.
-_Avoid_: production path, recovery path, alternate implementation
-
-**Launcher Runtime Verifier**:
-The repeatable checks under `spike/userdata-launcher-verify.mjs` and
-`spike/LAUNCHER-FINDINGS.md` that validate `--user-data-dir` launch behavior.
+**Editor Profile**:
+A VS Code-family profile feature for settings, keybindings, snippets, and
+extension configuration. It is not an Editor Userdata boundary.
+_Avoid as synonym for_: Editor Userdata

@@ -4,9 +4,8 @@
     {
       "type": "npm",
       "script": "compile",
-      "path": "extension",
       "group": "build",
-      "label": "compile-extension",
+      "label": "compile",
       "problemMatcher": "$tsc"
     }
   ]

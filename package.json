@@ -1,15 +1,65 @@
 {
-  "name": "cursor-userdata-switcher",
-  "private": true,
-  "type": "module",
+  "name": "userdata-switcher",
+  "displayName": "Userdata Switcher",
+  "description": "Open VS Code-family editors with named isolated userdata roots.",
+  "version": "0.1.0",
+  "publisher": "userdata-switcher",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/domoarigatomrburato/userdata-switcher.git"
+  },
   "engines": {
-    "node": ">=22.13"
+    "node": ">=22.13",
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "userdataSwitcher.openWithUserdata",
+        "title": "Userdata Switcher: Open With Userdata"
+      },
+      {
+        "command": "userdataSwitcher.createUserdata",
+        "title": "Userdata Switcher: Create Userdata"
+      },
+      {
+        "command": "userdataSwitcher.renameCurrentUserdata",
+        "title": "Userdata Switcher: Rename Current Userdata"
+      },
+      {
+        "command": "userdataSwitcher.showCurrentUserdata",
+        "title": "Userdata Switcher: Show Current Userdata"
+      }
+    ]
   },
   "scripts": {
-    "research:sqlite-spike": "node spike/auth-slice.mjs",
-    "research:userdata-launcher": "node spike/userdata-launcher-verify.mjs",
-    "test": "npm run test --prefix extension",
-    "build:extension": "npm run build --prefix extension",
-    "package:vsix": "npm run package:vsix --prefix extension"
+    "compile": "tsc -p .",
+    "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
+    "test": "npm run typecheck:test && tsx --test src/**/*.test.ts",
+    "build": "npm run test && npm run compile",
+    "package:vsix": "npm run compile && vsce package --no-dependencies",
+    "check": "biome check --write .",
+    "check:ci": "biome check .",
+    "format": "biome format --write .",
+    "lint": "biome lint ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.16",
+    "@types/node": "^22.13.10",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.7.1",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
   }
 }

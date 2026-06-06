@@ -9,9 +9,12 @@ import {
   loadRegistry,
   renameUserdata,
   saveRegistry,
-} from "../src/registry";
+  updateRegistry,
+} from "./registry";
 
-const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "cursor-uds-registry-test-"));
+const tempDir = fs.mkdtempSync(
+  path.join(os.tmpdir(), "userdata-switcher-registry-test-"),
+);
 const registryFile = path.join(tempDir, "registry.json");
 
 after(() => {
@@ -46,5 +49,27 @@ describe("registry", () => {
     const updated = renameUserdata(registry, "default", "Work");
     assert.equal(updated.userdatas[0]?.label, "Work");
     assert.equal(updated.userdatas[0]?.id, "default");
+  });
+
+  it("reloads the latest registry before persisting an update", () => {
+    const staleRegistryFile = path.join(tempDir, "stale-registry.json");
+    const staleRegistry = ensureDefaultUserdata(
+      loadRegistry(staleRegistryFile),
+    );
+    const otherWindowRegistry = addManagedUserdata(staleRegistry, "Personal");
+    saveRegistry(staleRegistryFile, otherWindowRegistry);
+
+    const updated = updateRegistry(staleRegistryFile, (latest) =>
+      renameUserdata(latest, "default", "Work"),
+    );
+
+    assert.deepEqual(
+      updated.userdatas.map((entry) => entry.label),
+      ["Work", "Personal"],
+    );
+    assert.deepEqual(
+      loadRegistry(staleRegistryFile).userdatas.map((entry) => entry.label),
+      ["Work", "Personal"],
+    );
   });
 });

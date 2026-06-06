@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  formatCurrentUserdataMenuHeader,
   formatOpenWithUserdataPickerTitle,
   formatStatusBarText,
   formatUserdataLabel,
-} from "../src/labels";
+} from "./labels";
 
 describe("formatUserdataLabel", () => {
   it("shows default userdata with the default suffix", () => {
@@ -32,19 +31,14 @@ describe("formatUserdataLabel", () => {
   });
 });
 
-describe("formatCurrentUserdataMenuHeader", () => {
-  it("labels the non-actionable current userdata header", () => {
-    assert.equal(
-      formatCurrentUserdataMenuHeader({ id: "default", kind: "default", label: "Work" }),
-      "Current: Work (default)",
-    );
-  });
-});
-
 describe("formatOpenWithUserdataPickerTitle", () => {
   it("shows the current userdata in the picker title", () => {
     assert.equal(
-      formatOpenWithUserdataPickerTitle({ id: "default", kind: "default", label: "Default" }),
+      formatOpenWithUserdataPickerTitle({
+        id: "default",
+        kind: "default",
+        label: "Default",
+      }),
       "Open With Userdata — Current: Default (default)",
     );
   });

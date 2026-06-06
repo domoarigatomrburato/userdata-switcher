@@ -6,7 +6,9 @@ export type CurrentUserdataMatch =
   | { kind: "known"; entry: UserdataEntry }
   | { kind: "unmanaged" };
 
-export function deriveUserdataRootFromGlobalStorage(globalStoragePath: string): string | null {
+export function deriveUserdataRootFromGlobalStorage(
+  globalStoragePath: string,
+): string | null {
   const marker = `${path.sep}User${path.sep}globalStorage${path.sep}`;
   const index = globalStoragePath.indexOf(marker);
   return index === -1 ? null : globalStoragePath.slice(0, index);
@@ -18,14 +20,18 @@ export function matchCurrentUserdata(input: {
   storeRoot: string;
   registry: Registry;
 }): CurrentUserdataMatch {
-  const derivedRoot = deriveUserdataRootFromGlobalStorage(input.globalStoragePath);
+  const derivedRoot = deriveUserdataRootFromGlobalStorage(
+    input.globalStoragePath,
+  );
   if (!derivedRoot) {
     return { kind: "unmanaged" };
   }
 
   const normalizedDerived = path.resolve(derivedRoot);
   if (pathsEqual(normalizedDerived, input.defaultUserdataRoot)) {
-    const defaultEntry = input.registry.userdatas.find((entry) => entry.kind === "default");
+    const defaultEntry = input.registry.userdatas.find(
+      (entry) => entry.kind === "default",
+    );
     if (defaultEntry) {
       return { kind: "known", entry: defaultEntry };
     }
@@ -35,7 +41,10 @@ export function matchCurrentUserdata(input: {
     if (entry.kind !== "managed" || !entry.relativeDataDir) {
       continue;
     }
-    const managedRoot = resolveManagedDataDir(input.storeRoot, entry.relativeDataDir);
+    const managedRoot = resolveManagedDataDir(
+      input.storeRoot,
+      entry.relativeDataDir,
+    );
     if (pathsEqual(normalizedDerived, managedRoot)) {
       return { kind: "known", entry };
     }

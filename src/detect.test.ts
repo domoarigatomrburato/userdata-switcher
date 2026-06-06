@@ -3,13 +3,13 @@ import { describe, it } from "node:test";
 import {
   deriveUserdataRootFromGlobalStorage,
   matchCurrentUserdata,
-} from "../src/detect";
-import type { Registry } from "../src/registry";
+} from "./detect";
+import type { Registry } from "./registry";
 
 describe("deriveUserdataRootFromGlobalStorage", () => {
   it("derives the userdata root from an extension global storage path", () => {
     const root = deriveUserdataRootFromGlobalStorage(
-      "/tmp/custom/User/globalStorage/publisher.ext/globalStorage/state.vscdb",
+      "/tmp/custom/User/globalStorage/publisher.ext/globalStorage/settings.json",
     );
     assert.equal(root, "/tmp/custom");
   });
@@ -45,7 +45,8 @@ describe("matchCurrentUserdata", () => {
 
   it("matches a managed userdata under the store root", () => {
     const match = matchCurrentUserdata({
-      globalStoragePath: "/store/userdata/personal/data/User/globalStorage/publisher.ext/globalStorage",
+      globalStoragePath:
+        "/store/userdata/personal/data/User/globalStorage/publisher.ext/globalStorage",
       defaultUserdataRoot: "/Users/alice/Library/Application Support/Cursor",
       storeRoot: "/store",
       registry,
@@ -58,7 +59,8 @@ describe("matchCurrentUserdata", () => {
 
   it("reports unmanaged userdata for unknown external roots", () => {
     const match = matchCurrentUserdata({
-      globalStoragePath: "/external/User/globalStorage/publisher.ext/globalStorage",
+      globalStoragePath:
+        "/external/User/globalStorage/publisher.ext/globalStorage",
       defaultUserdataRoot: "/Users/alice/Library/Application Support/Cursor",
       storeRoot: "/store",
       registry,

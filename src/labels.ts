@@ -13,10 +13,8 @@ export function formatStatusBarText(entry: UserdataEntry | null): string {
   return `${STATUS_BAR_ICON} Userdata: ${formatUserdataLabel(entry)}`;
 }
 
-export function formatCurrentUserdataMenuHeader(entry: UserdataEntry | null): string {
-  return `Current: ${formatUserdataLabel(entry)}`;
-}
-
-export function formatOpenWithUserdataPickerTitle(entry: UserdataEntry | null): string {
-  return `Open With Userdata — ${formatCurrentUserdataMenuHeader(entry)}`;
+export function formatOpenWithUserdataPickerTitle(
+  entry: UserdataEntry | null,
+): string {
+  return `Open With Userdata — Current: ${formatUserdataLabel(entry)}`;
 }
