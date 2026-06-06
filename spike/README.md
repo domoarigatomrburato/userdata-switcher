@@ -1,138 +1,63 @@
-# Cursor account switch spike
+# Archived SQLite account-switch spike
 
-Validates whether swapping `cursorAuth/*` keys in `state.vscdb`, or a broader full-DB session bundle, is enough to change the active Cursor subscription.
+This directory contains historical research from 2026-06-06.
 
-## Validated checkpoint
+It tested whether Cursor's active subscription could be changed by mutating
+`state.vscdb`, cookies, and related persisted state. The result was useful, but
+the approach is rejected for the product.
 
-On 2026-06-06, the working path was validated for both accounts:
+## Product Decision
 
-- `personal` restored as `ale.burato@icloud.com`, plan `pro`, `identity match: yes`; Cursor chat worked.
-- `work` restored as `alessandro.burato@imagicle.com`, plan `enterprise`, team `23576005`, `identity match: yes`; Cursor chat worked after a short load.
+Do **not** use this spike as a recovery path, product option, or implementation
+template.
 
-The viable switch mechanism is:
+The product direction is now:
 
-1. Keep a Saved Account with full `state.vscdb*` plus root browser session bundle.
-2. Refresh or repair saved tokens with `login-link`, not Cursor Settings logout.
-3. Fully quit Cursor.
-4. Restore the full Saved Account snapshot with `switch <label> --offline --full-db`.
-5. Reopen Cursor.
-
-Auth-slice-only switching is retained only as a negative test.
-
-Two UX constraints are also validated:
-
-- `Developer: Reload Window` is not a sufficient process boundary. A running Cursor
-  process can keep using the old Account even after disk has been restored to the
-  new Account.
-- Open chat editors can point at composer ids owned by the previous Account. The
-  switch command now saves the current Account before switching away, then clears
-  only orphaned composer editor pointers after restoring the target Account.
-
-## Prerequisites
-
-- Node.js 22+ (uses built-in `node:sqlite`)
-- Cursor signed in to your **first** account
-
-## Manual test procedure
-
-### 1. Snapshot account A (e.g. Personal)
-
-While signed in as Personal:
-
-```bash
-npm run spike -- status
-npm run spike -- save personal
-npm run spike -- save personal --force --full-db
+```text
+open Cursor with a selected --user-data-dir
 ```
 
-### 2. Snapshot account B (e.g. Work)
+Each named Cursor Userdata has its own isolated Cursor data root and is signed in
+through Cursor normally once. The extension/launcher should orchestrate launching
+Cursor with the right userdata root. It should not edit Cursor auth databases.
 
-During the first capture, sign in as Work normally and save the full DB:
+## What This Spike Proved
 
-```bash
-npm run spike -- status
-npm run spike -- save work
-npm run spike -- save work --force --full-db
-```
+- `cursorAuth/*` rows are not enough for a working account switch.
+- Cursor persists non-auth identity context such as `applicationUser` and Statsig
+  state outside the auth slice.
+- A full Cursor process restart is required; `Developer: Reload Window` is not a
+  sufficient boundary.
+- Full DB/session mutation can work in a controlled test, but it is too broad and
+  risky for the product.
+- Existing chat editors can point at account-specific composer data and become
+  stuck on `Loading Chat` when state is mixed.
 
-After both accounts have full-DB snapshots, avoid Cursor Settings logout during token
-refresh tests. Settings logout revokes the saved refresh token server-side. Instead,
-generate a Cursor browser login URL from the spike and open it in a private/dedicated
-browser session:
+These findings support the `--user-data-dir` architecture: account identity
+belongs to the whole Cursor userdata root.
 
-```bash
-npm run spike -- login-link work --open-browser
-```
+## Why The Spike Is Rejected
 
-The command keeps the PKCE verifier locally, polls Cursor auth, validates the new
-refresh token, and updates the saved `work` snapshot in place.
+The mutation path touches sensitive and unstable Cursor internals:
 
-`--open-browser` opens Chrome with a label-specific profile under
-`~/.cursor-subscription-quick-switcher/browser-profiles/<label>` and first-run
-suppression flags. That avoids the annoying fresh-profile prompts for Google sign-in,
-default browser, and search engine selection during repeated tests. If Chrome is not
-available, the command falls back to the default browser.
+- OAuth tokens and refresh tokens
+- `User/globalStorage/state.vscdb`
+- Chromium cookies and session storage
+- workspace UI state
+- chat/composer persistence
 
-### 3. Switch without browser login
+It also depends on SQLite internals and Cursor storage layouts that can change
+between Cursor releases. The current product must not rely on this.
 
-**Quit Cursor first** (`Cmd+Q`), then:
+## Running The Spike
 
-```bash
-npm run spike -- switch personal --offline
-```
-
-Reopen Cursor and check **Cursor Settings → Account**.
-
-If Settings changes but AI requests fail with `Authentication error`, retry the broader VSIX-equivalent path:
+Prefer not to run these commands during product development. They remain only for
+historical reproduction and should be treated as unsafe research tooling.
 
 ```bash
-npm run spike -- switch personal --offline --full-db
+npm run research:sqlite-spike -- diagnose
+npm run research:sqlite-spike -- list
 ```
 
-Optional: retry with Cursor running is intentionally not supported by `switch`; Cursor keeps auth and identity context in memory and may overwrite disk state on quit/reload.
-
-The spike includes an explicit negative-test path:
-
-```bash
-npm run spike -- switch personal --unsafe-running --reload-window --full-db
-```
-
-Use it only to test process-boundary behavior. The validated product path remains
-`--offline --full-db`.
-
-### 4. Record the result
-
-| Outcome | Meaning |
-|--------|---------|
-| Email/plan changed and AI works after reopen | Full switch path works — proceed with extension design |
-| Email/plan changed but AI fails | `cursorAuth/*` is not enough; run `diagnose` and test `--full-db` |
-| Unchanged after reopen | Revisit spec (full DB, partitions, wider user-data bundle) |
-| Broken / signed out | Spike failed — document and adjust approach |
-
-### Known spike bug (fixed)
-
-Early versions used `db.transaction()`, which `node:sqlite` does not support — `switch` backed up but **never wrote**. The script now uses `BEGIN IMMEDIATE` / `COMMIT` and verifies the email on disk after write.
-
-Switch back when done:
-
-```bash
-npm run spike -- switch work --offline --full-db
-# reopen Cursor
-```
-
-## Commands
-
-```bash
-npm run spike -- status
-npm run spike -- list
-npm run spike -- save <label> [--force]
-npm run spike -- show <label>
-npm run spike -- refresh <label>
-npm run spike -- login-link <label> [--open-browser]
-npm run spike -- switch <label> --offline
-npm run spike -- switch <label> --offline --full-db
-npm run spike -- switch <label> --unsafe-running --reload-window --full-db
-npm run spike -- diagnose
-```
-
-Snapshots live in `~/.cursor-subscription-quick-switcher/accounts/`. Pre-switch backups go to `backups/`.
+Commands that save, switch, refresh, or repair accounts mutate or depend on local
+Cursor auth/session state and are outside the product path.

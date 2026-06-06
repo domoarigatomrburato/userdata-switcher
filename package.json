@@ -1,11 +1,11 @@
 {
-  "name": "cursor-subscription-quick-switcher",
+  "name": "cursor-userdata-switcher",
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13"
   },
   "scripts": {
-    "spike": "node spike/auth-slice.mjs"
+    "research:sqlite-spike": "node spike/auth-slice.mjs"
   }
 }

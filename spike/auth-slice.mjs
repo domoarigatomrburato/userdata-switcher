@@ -39,7 +39,7 @@ const DEFAULT_CURSOR_CREDS = {
 };
 
 function usage() {
-  console.log(`Usage: npm run spike -- <command> [args]
+  console.log(`Usage: npm run research:sqlite-spike -- <command> [args]
 
 Commands:
   status              Show live auth slice (email + plan)
@@ -62,13 +62,13 @@ Options:
   --keep-chat-tabs    Do not clear account-orphaned chat editor tabs
 
 Examples:
-  npm run spike -- status
-  npm run spike -- save personal
-  npm run spike -- save work
-  npm run spike -- save personal --force --full-db
-  npm run spike -- login-link work --open-browser
-  npm run spike -- switch personal --offline --full-db
-  npm run spike -- switch personal --unsafe-running --reload-window --full-db
+  npm run research:sqlite-spike -- status
+  npm run research:sqlite-spike -- save personal
+  npm run research:sqlite-spike -- save work
+  npm run research:sqlite-spike -- save personal --force --full-db
+  npm run research:sqlite-spike -- login-link work --open-browser
+  npm run research:sqlite-spike -- switch personal --offline --full-db
+  npm run research:sqlite-spike -- switch personal --unsafe-running --reload-window --full-db
 `);
 }
 
@@ -265,7 +265,7 @@ function assertCursorState({ offline }) {
       "Warning: Cursor is running. It may overwrite disk auth from memory on reload.",
     );
     console.warn(
-      "Prefer: quit Cursor, then: npm run spike -- switch <label> --offline",
+      "Prefer: quit Cursor, then: npm run research:sqlite-spike -- switch <label> --offline",
     );
   }
 }
@@ -1139,7 +1139,7 @@ async function cmdRefresh(label) {
 
   if (result.body?.shouldLogout === true) {
     throw new Error(
-      `Saved refresh token for '${label}' is invalid/revoked. Re-login without Settings logout: npm run spike -- login-link ${label}`,
+      `Saved refresh token for '${label}' is invalid/revoked. Re-login without Settings logout: npm run research:sqlite-spike -- login-link ${label}`,
     );
   }
   if (!result.ok) {
@@ -1230,7 +1230,7 @@ async function cmdLoginLink(label, { openBrowser }) {
         console.log(`  full DB:      ${result.updatedFullDb ? accountFullDbDir(label) : "(none)"}`);
         console.log("");
         console.log(
-          `Next: quit Cursor, then npm run spike -- switch ${label} --offline --full-db`,
+          `Next: quit Cursor, then npm run research:sqlite-spike -- switch ${label} --offline --full-db`,
         );
         return;
       }
@@ -1314,7 +1314,7 @@ function cmdSwitch(label, { offline, authOnly, fullDb, unsafeRunning, reloadWind
       console.log(`Restored full state DB from ${fullState.source} (${fullState.copied} files)`);
     } else {
       throw new Error(
-        `No full DB snapshot for '${label}'. Re-save while signed in: npm run spike -- save ${label} --force --full-db`,
+        `No full DB snapshot for '${label}'. Re-save while signed in: npm run research:sqlite-spike -- save ${label} --force --full-db`,
       );
     }
     if (!keepChatTabs) {
@@ -1357,7 +1357,7 @@ function cmdSwitch(label, { offline, authOnly, fullDb, unsafeRunning, reloadWind
       console.log(`Restored session bundle from ${session.source}`);
     } else {
       console.warn(
-        `No session bundle for '${label}'. Re-save while signed in: npm run spike -- save ${label} --force`,
+        `No session bundle for '${label}'. Re-save while signed in: npm run research:sqlite-spike -- save ${label} --force`,
       );
     }
   }
