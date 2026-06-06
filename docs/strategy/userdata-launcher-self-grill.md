@@ -118,39 +118,38 @@ directory. Treat that as an empirical Cursor finding, not a generic VS Code
 guarantee. Validate Linux and Windows before shipping; if needed, resolve and
 pass an explicit shared Cursor extensions directory at launch time.
 
-## 11. How does launch-or-focus work?
+## 11. How does launch work?
 
-**Question:** What should happen when the selected Userdata is already open?
+**Question:** What should happen when the user opens another Userdata?
 
-**Answer:** The MVP must not open a duplicate window for an already-running
-target Userdata. `Open With Userdata` is launch-or-focus:
-
-- If a Running Userdata Instance exists, focus/reuse it.
-- If no Running Userdata Instance exists, launch Cursor with that Userdata.
+**Answer:** `Open With Userdata` must launch Cursor with the selected userdata
+root and the current workspace when known. That launch correctness is the hard
+requirement.
 
 Prefer Cursor's bundled CLI discovered from the running Cursor installation.
 Fallback to a `cursor` executable on `PATH`. The user should not have to install
-shell integration manually for the happy path. For a Managed Userdata,
-launch/reuse with:
+shell integration manually for the happy path.
+
+For a Managed Userdata:
 
 ```text
-cursor --user-data-dir <managed-data-dir> --reuse-window <workspace>
+cursor --user-data-dir <managed-data-dir> <workspace?>
 ```
 
 For Default Userdata, omit `--user-data-dir`.
 
-Because `--reuse-window` is broad, the extension should also maintain a runtime
-heartbeat under the Userdata Store Root for each running extension instance. The
-heartbeat records Userdata id, workspace identity, process id when available, and
-last-seen time. This lets the command decide whether it is focusing an existing
-Userdata or launching a missing one.
+`--reuse-window` is optional. macOS validation on 2026-06-06 showed it can reuse
+an existing window within the same userdata, but duplicate windows are acceptable
+for MVP. Never call `--reuse-window` without `--user-data-dir` from the switcher.
+
+No runtime heartbeat is required for MVP. See `spike/LAUNCHER-FINDINGS.md`.
 
 ## 12. Should switching close the current window?
 
 **Question:** Should `Open With Userdata` close the current window automatically?
 
-**Answer:** No. The MVP focuses/reuses the target Userdata if it is already
-running, or launches it if it is not. It does not auto-close the source window.
+**Answer:** No. The MVP launches the target Userdata and leaves the source
+window open. It does not auto-close the source window.
 Automatic close can come later behind an explicit setting after launch behavior
 is validated.
 
@@ -207,6 +206,7 @@ VS Code Authentication API.
 5. Auto-seed the Default Userdata entry when the registry is missing it.
 6. Add `Rename Current Userdata`.
 7. Add `Create Userdata`.
-8. Add runtime heartbeat for Running Userdata Instances.
-9. Add `Open Current Workspace With Userdata` as launch-or-focus.
-10. Validate on macOS first, then Linux/Windows path and launch behavior.
+8. Add `Open With Userdata` launch via bundled CLI discovery.
+9. Optionally append `--reuse-window` as a duplicate-avoidance optimization.
+10. Validate on macOS with `npm run research:userdata-launcher -- all`, then
+    Linux/Windows path and launch behavior.

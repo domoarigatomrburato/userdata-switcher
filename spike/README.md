@@ -1,15 +1,38 @@
-# Archived SQLite account-switch spike
+# Spike directory
 
-This directory contains historical research from 2026-06-06.
+Research scripts for Cursor Userdata launcher assumptions and archived SQLite
+account-switch experiments.
 
-It tested whether Cursor's active subscription could be changed by mutating
-`state.vscdb`, cookies, and related persisted state. The result was useful, but
-the approach is rejected for the product.
+## Active launcher validation
 
-## Product Decision
+`userdata-launcher-verify.mjs` checks runtime assumptions for the product launcher.
+See `LAUNCHER-FINDINGS.md` for the latest macOS results.
 
-Do **not** use this spike as a recovery path, product option, or implementation
-template.
+```bash
+npm run research:userdata-launcher -- all
+npm run research:userdata-launcher -- cleanup
+```
+
+Commands:
+
+- `all` — run every check; may open brief test Cursor windows
+- `cli` — bundled CLI discovery and supported flags
+- `extensions` — compare `--list-extensions` for default vs custom userdata
+- `launch` — launch a custom userdata window and verify isolation
+- `reuse-window` — test `--reuse-window` with isolated temp userdatas only
+- `detect` — verify `globalStorageUri` path derivation
+- `cleanup` — quit test Cursor instances and remove temp dirs
+
+The verifier never runs `--reuse-window` against the default Cursor userdata.
+
+## Archived SQLite account-switch spike
+
+`auth-slice.mjs` tested whether Cursor's active subscription could be changed by
+mutating `state.vscdb`, cookies, and related persisted state. The result was
+useful, but the approach is rejected for the product.
+
+Do **not** use the SQLite spike as a recovery path, product option, or
+implementation template.
 
 The product direction is now:
 
@@ -21,7 +44,7 @@ Each named Cursor Userdata has its own isolated Cursor data root and is signed i
 through Cursor normally once. The extension/launcher should orchestrate launching
 Cursor with the right userdata root. It should not edit Cursor auth databases.
 
-## What This Spike Proved
+### What the SQLite spike proved
 
 - `cursorAuth/*` rows are not enough for a working account switch.
 - Cursor persists non-auth identity context such as `applicationUser` and Statsig
@@ -36,20 +59,7 @@ Cursor with the right userdata root. It should not edit Cursor auth databases.
 These findings support the `--user-data-dir` architecture: account identity
 belongs to the whole Cursor userdata root.
 
-## Why The Spike Is Rejected
-
-The mutation path touches sensitive and unstable Cursor internals:
-
-- OAuth tokens and refresh tokens
-- `User/globalStorage/state.vscdb`
-- Chromium cookies and session storage
-- workspace UI state
-- chat/composer persistence
-
-It also depends on SQLite internals and Cursor storage layouts that can change
-between Cursor releases. The current product must not rely on this.
-
-## Running The Spike
+### Running the archived SQLite spike
 
 Prefer not to run these commands during product development. They remain only for
 historical reproduction and should be treated as unsafe research tooling.

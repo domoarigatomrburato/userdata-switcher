@@ -78,10 +78,14 @@ The extension must run in the local UI extension host (`extensionKind: ["ui"]`).
 It launches local Cursor processes and resolves local app-data paths, so running
 as a remote/workspace extension would put the launcher on the wrong machine.
 
-`Open With Userdata` should be launch-or-focus. If the selected Cursor Userdata
-already has a running instance, the MVP should focus or reuse it rather than
-opening a duplicate window. It should launch a new process only when no running
-instance is known.
+`Open With Userdata` must launch Cursor with the selected userdata root and the
+current workspace when known. That launch correctness is the MVP requirement.
+
+`--reuse-window` is an optional optimization to avoid duplicate windows within
+the same userdata. It is not an MVP guarantee. The launcher must always pass
+`--user-data-dir` for Managed Userdata and must never call `--reuse-window`
+without `--user-data-dir`, because on default userdata it can hijack the active
+window.
 
 The status bar must describe the Current Userdata for the specific window that
 is rendering it. It must not describe the last selected target, a global default,
@@ -106,7 +110,6 @@ The extension must be able to:
 - rename Userdata labels
 - create named Managed Userdata entries
 - detect the Current Userdata from runtime paths and registry markers
-- track Running Userdata Instances with a lightweight heartbeat
 - launch Cursor with a selected `--user-data-dir`
 - optionally open the current workspace in the selected userdata
 - preserve access to installed extensions for managed userdatas
@@ -114,10 +117,20 @@ The extension must be able to:
 The archived SQLite spike remains useful only as historical evidence for this
 decision.
 
-Local macOS Cursor validation on 2026-06-06 showed that omitting
-`--extensions-dir` while passing a custom `--user-data-dir` still used the
-normal shared Cursor extensions directory (`~/.cursor/extensions`). This must be
-validated on Linux and Windows before treating it as a cross-platform guarantee.
-If a platform does not share extensions by default, the launcher should resolve
-and pass an explicit shared Cursor extensions directory rather than requiring
-users to reinstall the switcher in every managed userdata.
+Local macOS Cursor validation on 2026-06-06 showed that:
+
+- `cursor --user-data-dir <tmp> --new-window <workspace>` boots an isolated
+  userdata with its own `state.vscdb`
+- omitting `--extensions-dir` while passing a custom `--user-data-dir` still uses
+  the normal shared Cursor extensions directory (`~/.cursor/extensions`)
+- user extensions activate in the new userdata window, not only in CLI list output
+- same userdata + `--reuse-window` reuses the existing instance; different
+  userdata + `--reuse-window` launches separately and does not affect default
+  userdata
+
+See `spike/LAUNCHER-FINDINGS.md` and `npm run research:userdata-launcher -- all`.
+
+Linux and Windows still need the same checks. If a platform does not share
+extensions by default, the launcher should resolve and pass an explicit shared
+Cursor extensions directory rather than requiring users to reinstall the switcher
+in every managed userdata.

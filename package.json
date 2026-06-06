@@ -6,6 +6,7 @@
     "node": ">=22.13"
   },
   "scripts": {
-    "research:sqlite-spike": "node spike/auth-slice.mjs"
+    "research:sqlite-spike": "node spike/auth-slice.mjs",
+    "research:userdata-launcher": "node spike/userdata-launcher-verify.mjs"
   }
 }

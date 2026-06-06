@@ -110,7 +110,7 @@ The current architecture is mostly VS Code-family generic under the hood:
 - Quick Pick menu
 - registry outside editor userdata
 - `--user-data-dir` launch
-- `--reuse-window` launch-or-focus attempt
+- optional `--reuse-window` duplicate-avoidance within the target userdata
 - per-window Current Userdata detection
 
 Cursor-specific pieces should be isolated behind an adapter:
@@ -167,38 +167,67 @@ Interpretation: on this macOS Cursor build, omitting `--extensions-dir` while
 passing custom `--user-data-dir` appears to preserve access to the shared Cursor
 extensions directory.
 
-This must be validated on Linux and Windows. If Cursor differs by platform, the
+Follow-up launcher validation on 2026-06-06 also showed that user extensions
+activate in a newly launched custom userdata window, not only in CLI list output.
+Repeatable checks live in `spike/userdata-launcher-verify.mjs` and
+`spike/LAUNCHER-FINDINGS.md`.
+
+Linux and Windows still need the same checks. If Cursor differs by platform, the
 launcher should resolve and pass an explicit shared Cursor extensions directory
 for managed launches. The MVP should not require users to manually reinstall the
 switcher extension in every new Cursor Userdata.
 
+## Launcher Runtime Validation (macOS, 2026-06-06)
+
+Validated with `npm run research:userdata-launcher -- all`.
+
+| Claim | Status |
+|-------|--------|
+| Launch with correct `--user-data-dir` | Verified |
+| Custom userdata gets isolated `state.vscdb` | Verified |
+| Shared extensions list matches default userdata | Verified |
+| User extensions activate in new userdata window | Verified |
+| Bundled CLI discovery from app install | Verified |
+| `globalStorageUri` path derives back to userdata root | Verified (logic) |
+| Same userdata + `--reuse-window` avoids duplicate main process | Verified |
+| Different userdata + `--reuse-window` stays isolated from default | Verified |
+| Switcher extension activates in new managed userdata | Not tested yet |
+| Linux / Windows behavior | Not tested yet |
+
+Product priority: launch correctness is required; `--reuse-window` is a
+nice-to-have duplicate-avoidance optimization within the target userdata. Never
+call `--reuse-window` without `--user-data-dir` from the switcher.
+
 ## Open Questions For Review
 
-1. Is launch-or-focus with `--reuse-window` scoped strongly enough by
-   `--user-data-dir` to avoid duplicate windows for already-running managed
-   userdatas on macOS, Linux, and Windows?
-2. Should the heartbeat be only diagnostic/stale-state metadata, or should it
-   actively influence launch decisions?
-3. Is Current Userdata detection via `context.globalStorageUri.fsPath` reliable
-   for both Default Userdata and managed custom roots?
-4. Does a new managed Cursor Userdata actually activate the switcher extension
-   after UI launch, not only show it in `--list-extensions`?
-5. Should the implementation pass an explicit `--extensions-dir` even on macOS
+1. Does the switcher extension activate in a new managed userdata after UI launch,
+   once the extension exists?
+2. Is `context.globalStorageUri.fsPath` reliable inside a real extension host on
+   all supported platforms?
+3. Should the implementation pass an explicit `--extensions-dir` even on macOS
    for consistency, or leave it omitted where Cursor already shares extensions?
-6. Can bundled CLI discovery be made robust across Cursor stable/nightly/lab and
+4. Can bundled CLI discovery be made robust across Cursor stable/nightly/lab and
    across macOS, Linux, and Windows without requiring shell integration?
-7. Should the first implementation support only single-folder and saved
+5. Should the first implementation support only single-folder and saved
    workspace-file reopening, leaving untitled multi-root workspaces as
    launch-without-workspace?
-8. Should the MVP include delete/remove userdata, or defer it to avoid accidental
+6. Should the MVP include delete/remove userdata, or defer it to avoid accidental
    data loss?
+
+Resolved for MVP planning:
+
+- Runtime heartbeat is not required.
+- Launch-or-focus is optional; plain launch with `--user-data-dir` is the hard
+  requirement.
 
 ## Recommended Next Step
 
 Build a minimal Cursor-only extension with a clean internal adapter boundary.
-Before adding polish, validate these three runtime facts:
+Before adding polish, validate these runtime facts:
 
-1. Status bar Current Userdata detection is correct per window.
-2. Launch-or-focus does not duplicate windows for already-running userdatas.
-3. New managed userdatas can see and activate the switcher extension without
+1. Status bar Current Userdata detection is correct per window in a real
+   extension host.
+2. New managed userdatas can see and activate the switcher extension without
    manual reinstall.
+3. Linux and Windows repeat the launcher verifier checks from
+   `spike/userdata-launcher-verify.mjs`.

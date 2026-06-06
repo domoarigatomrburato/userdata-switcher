@@ -89,3 +89,7 @@ _Avoid as synonym for_: Cursor Userdata, Cursor sign-in
 **Archived SQLite Spike**:
 The research under `spike/` that tested auth-slice and full-DB mutation.
 _Avoid_: production path, recovery path, alternate implementation
+
+**Launcher Runtime Verifier**:
+The repeatable checks under `spike/userdata-launcher-verify.mjs` and
+`spike/LAUNCHER-FINDINGS.md` that validate `--user-data-dir` launch behavior.

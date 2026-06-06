@@ -14,7 +14,7 @@ launcher surface?
 - a status bar item showing the Current Userdata for that window
 - a Userdata Menu opened from that status bar item
 - creation of new Managed Userdata roots
-- launch-or-focus for an existing known Cursor Userdata
+- launch for an existing known Cursor Userdata with the correct `--user-data-dir`
 - first-run Cursor sign-in through Cursor's normal flow
 
 It does not mutate auth state, manage Cursor Profiles, integrate with the
@@ -115,21 +115,34 @@ the MVP. The user can still open any known Managed Userdata or create a new one.
 
 This avoids storing absolute platform-dependent paths.
 
-## 10. How strong is launch-or-focus?
+## 10. How strong is launch behavior?
 
-**Question:** What does "do not open a duplicate window" mean technically?
+**Question:** What must the launcher guarantee?
 
-**Answer:** For a selected known Cursor Userdata, the launcher invokes Cursor's
-CLI with that userdata root and `--reuse-window`. The matching userdata root is
-part of the launch request, so an already-running target userdata should receive
-the request instead of creating a second window.
+**Answer:** The MVP must launch Cursor with the selected userdata root and the
+current workspace when known. That launch correctness is the hard requirement.
 
-The runtime heartbeat records known running instances and helps the extension
-decide what it expects to happen, clean stale state, and produce better errors.
-The heartbeat is not the focus primitive by itself; the Cursor CLI is.
+For Managed Userdata:
 
-If the launcher cannot find a usable Cursor CLI or the CLI fails, the MVP reports
-that error. It must not fall back to SQLite/token/session mutation.
+```text
+cursor --user-data-dir <managed-data-dir> <workspace?>
+```
+
+For Default Userdata, omit `--user-data-dir`.
+
+`--reuse-window` is optional. macOS validation on 2026-06-06 showed it can reuse
+an existing window within the same userdata without creating a duplicate main
+process, but focus/reuse is a nice-to-have, not an MVP guarantee. Use
+`--new-window` when the product explicitly wants another window.
+
+The launcher must never call `--reuse-window` without `--user-data-dir`, because
+on default userdata it can hijack the active window.
+
+No runtime heartbeat is required for MVP. If the launcher cannot find a usable
+Cursor CLI or the CLI fails, the MVP reports that error. It must not fall back to
+SQLite/token/session mutation.
+
+See `spike/LAUNCHER-FINDINGS.md`.
 
 ## 11. Does selecting the current userdata do anything?
 
@@ -173,12 +186,14 @@ the user's tooling remain available in newly created userdatas.
 Local macOS Cursor validation on 2026-06-06 showed that this works when the CLI
 is launched with `--user-data-dir` and without `--extensions-dir`: both default
 and custom userdata launches reported the same installed extension list, backed
-by `~/.cursor/extensions`.
+by `~/.cursor/extensions`. A follow-up UI launch also activated user extensions
+in the new userdata window.
 
 This is a Cursor-specific empirical finding, not a generic VS Code guarantee.
-Before shipping cross-platform, validate Linux and Windows. If either platform
-does not share extensions by default, the launcher should pass an explicit
-runtime-resolved shared Cursor extensions directory for managed launches.
+Repeatable checks live in `npm run research:userdata-launcher -- all`. Before
+shipping cross-platform, validate Linux and Windows. If either platform does not
+share extensions by default, the launcher should pass an explicit runtime-resolved
+shared Cursor extensions directory for managed launches.
 
 ## 15. What is the cross-platform storage contract?
 
@@ -230,6 +245,7 @@ view, or Cursor Accounts menu integration is part of MVP.
 7. Implement `Rename Current Userdata`.
 8. Implement `Create Userdata`.
 9. Implement bundled CLI discovery plus PATH fallback.
-10. Implement launch-or-focus with `--reuse-window`.
-11. Add runtime heartbeat and stale cleanup.
-12. Validate macOS behavior, then add Linux/Windows path and launcher tests.
+10. Implement launch with `--user-data-dir` and workspace resolution.
+11. Optionally append `--reuse-window` as a duplicate-avoidance optimization.
+12. Validate macOS behavior with `npm run research:userdata-launcher -- all`,
+    then add Linux/Windows path and launcher tests.
