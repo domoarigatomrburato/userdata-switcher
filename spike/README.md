@@ -19,6 +19,15 @@ The viable switch mechanism is:
 
 Auth-slice-only switching is retained only as a negative test.
 
+Two UX constraints are also validated:
+
+- `Developer: Reload Window` is not a sufficient process boundary. A running Cursor
+  process can keep using the old Account even after disk has been restored to the
+  new Account.
+- Open chat editors can point at composer ids owned by the previous Account. The
+  switch command now saves the current Account before switching away, then clears
+  only orphaned composer editor pointers after restoring the target Account.
+
 ## Prerequisites
 
 - Node.js 22+ (uses built-in `node:sqlite`)
@@ -82,6 +91,15 @@ npm run spike -- switch personal --offline --full-db
 
 Optional: retry with Cursor running is intentionally not supported by `switch`; Cursor keeps auth and identity context in memory and may overwrite disk state on quit/reload.
 
+The spike includes an explicit negative-test path:
+
+```bash
+npm run spike -- switch personal --unsafe-running --reload-window --full-db
+```
+
+Use it only to test process-boundary behavior. The validated product path remains
+`--offline --full-db`.
+
 ### 4. Record the result
 
 | Outcome | Meaning |
@@ -113,6 +131,7 @@ npm run spike -- refresh <label>
 npm run spike -- login-link <label> [--open-browser]
 npm run spike -- switch <label> --offline
 npm run spike -- switch <label> --offline --full-db
+npm run spike -- switch <label> --unsafe-running --reload-window --full-db
 npm run spike -- diagnose
 ```
 

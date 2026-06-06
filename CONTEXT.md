@@ -16,6 +16,10 @@ _Avoid_: Profile, preset
 Restore a Saved Account into Cursor's live user data while Cursor is fully quit, then reopen Cursor so it starts with the restored identity.
 _Avoid_: Log in, sign in
 
+**Process boundary**:
+The full Cursor process exit/restart required for a Switch to take effect. Spike result: `Developer: Reload Window` can leave an already-running process on the previous Account even when disk has been restored to the target Account.
+_Avoid_: Window reload, renderer reload
+
 **Auth slice**:
 The subset of `state.vscdb` keys under the `cursorAuth/` prefix (`accessToken`, `refreshToken`, `cachedEmail`, etc.). Spike result: this slice controls visible cached Account fields but is insufficient for working Cursor AI requests on its own.
 _Avoid_: Full identity, complete session
@@ -67,6 +71,10 @@ _Avoid_: Polling, cron, keepalive
 **Live sync**:
 When a Refresh succeeds for the Active Account, write the updated tokens to both the Saved Account JSON and the saved/live `state.vscdb` as appropriate.
 _Avoid_: Push to Cursor, update session
+
+**Orphaned composer pointer**:
+Workspace UI state that references a chat/composer id not present in the active Account's global composer store. It can reopen as an infinite `Loading Chat` tab after a Switch. The switcher should preserve chats by saving the current Account before switching away, then remove only orphaned workspace pointers after restoring the target Account.
+_Avoid_: Chat deletion, composer cleanup
 
 **Reference extension**:
 The abandoned VSIX `AliAldahmani.cursor-account-switcher` (v0.1.1). Its GitHub repo is dead (404). Use only as a negative/contrast reference — not a design template.

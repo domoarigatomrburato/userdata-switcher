@@ -125,3 +125,67 @@ It is an offline full identity snapshot restore: full `state.vscdb*` plus root
 browser PKCE `loginDeepControl` flow and no Settings logout.
 
 No `Partitions/*` expansion was needed for this checkpoint.
+
+## Negative result: running process + Reload Window is insufficient
+
+Tested `work -> personal` while Cursor was still running:
+
+```bash
+npm run spike -- switch personal --unsafe-running --reload-window --full-db
+```
+
+Observed behavior:
+
+- The CLI restored disk to Personal and verified `state.vscdb`.
+- An already-running Cursor process with an open Work window kept using Work in UI
+  and chat.
+- Manual `Developer: Reload Window` still kept that window on Work.
+- `npm run spike -- diagnose` showed disk was Personal and internally coherent.
+- Quitting Cursor did not revert disk back to Work.
+- Reopening Cursor started on Personal and chat worked.
+
+**Conclusion:** a full Cursor process restart is the validated switch boundary.
+Window reload is not enough. A future VSIX should not rely on in-process reload for
+the actual identity swap; it needs a helper/orchestration path that exits Cursor,
+restores state, then reopens Cursor.
+
+## Chat editor restore finding
+
+After switching from Work to Personal and reopening Cursor, an existing Work chat tab
+could remain open and show `Loading Chat` forever. Closing that stale tab and opening
+a new chat worked.
+
+Root cause found with a marker chat named `CSSW_PERSONAL_MARKER_20260606`:
+
+- Account-specific chat/composer records live in global `state.vscdb`, including:
+  - `ItemTable` key `composer.composerHeaders`
+  - `cursorDiskKV` keys like `composerData:<composerId>`,
+    `bubbleId:<composerId>:<bubbleId>`, and `checkpointId:<composerId>:<checkpointId>`
+- Workspace UI state can still point at the previous Account's composer id:
+  - per-workspace `composer.composerData`
+  - per-workspace `workbench.parts.embeddedAuxBarEditor.state`
+  - editor id `workbench.editor.composer.input`
+
+When the target Account's global composer store does not contain the composer id
+referenced by workspace UI state, Cursor reopens a chat editor that cannot resolve
+its backing composer data and sits at `Loading Chat`.
+
+The spike now handles this on full switch:
+
+1. Before switching away, if the current disk Account matches a saved Account, save
+   its full snapshot so newly created chats are preserved.
+2. Restore the target Account full snapshot.
+3. Scan workspace storage and remove only composer editor pointers whose composer id
+   is absent from the target Account's global composer store.
+
+Validated behavior:
+
+- A Personal marker chat was preserved after switching back to Personal.
+- Switching from Personal to Work then logged:
+
+```text
+Cleared orphaned chat editor state in 1 workspace(s) (1 composer id(s))
+```
+
+- After reopening Work, the Personal marker composer id was absent from live global
+  and workspace state, Work identity was coherent, and chat worked.

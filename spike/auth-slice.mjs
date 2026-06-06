@@ -18,6 +18,7 @@ const STORE_DIR = path.join(
 const ACCOUNTS_DIR = path.join(STORE_DIR, "accounts");
 const BACKUPS_DIR = path.join(STORE_DIR, "backups");
 const BROWSER_PROFILES_DIR = path.join(STORE_DIR, "browser-profiles");
+const WORKSPACE_STORAGE_DIR = path.join(cursorAppPath(), "User", "workspaceStorage");
 
 /** Chromium session files the abandoned VSIX also swapped (unverified here). */
 const SESSION_FILES = ["Cookies", "Cookies-journal"];
@@ -56,6 +57,9 @@ Options:
   --auth-only         Save/switch auth slice only (skip session files)
   --full-db           Save/switch full state.vscdb* like the marketplace VSIX
   --open-browser      Open login-link in a label-specific Chrome profile
+  --unsafe-running    Experimental: switch while Cursor is running
+  --reload-window     After --unsafe-running switch, ask Cursor to reload
+  --keep-chat-tabs    Do not clear account-orphaned chat editor tabs
 
 Examples:
   npm run spike -- status
@@ -64,6 +68,7 @@ Examples:
   npm run spike -- save personal --force --full-db
   npm run spike -- login-link work --open-browser
   npm run spike -- switch personal --offline --full-db
+  npm run spike -- switch personal --unsafe-running --reload-window --full-db
 `);
 }
 
@@ -181,6 +186,12 @@ function parseJsonItem(db, key) {
   } catch {
     return undefined;
   }
+}
+
+function tableExists(db, table) {
+  return !!db
+    .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`)
+    .get(table);
 }
 
 function decodeJwtPayload(token) {
@@ -395,6 +406,198 @@ function restoreFullStateDb(label) {
   return { restored: true, source, copied };
 }
 
+function workspaceStateDbPaths() {
+  if (!fs.existsSync(WORKSPACE_STORAGE_DIR)) {
+    return [];
+  }
+  return fs
+    .readdirSync(WORKSPACE_STORAGE_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(WORKSPACE_STORAGE_DIR, entry.name, "state.vscdb"))
+    .filter((dbPath) => fs.existsSync(dbPath));
+}
+
+function readGlobalComposerIds() {
+  const db = openDb({ readonly: true });
+  try {
+    const ids = new Set();
+    const headers = parseJsonItem(db, "composer.composerHeaders");
+    for (const composer of headers?.allComposers ?? []) {
+      if (composer?.composerId) {
+        ids.add(composer.composerId);
+      }
+    }
+    if (tableExists(db, "cursorDiskKV")) {
+      const rows = db
+        .prepare(`SELECT key FROM cursorDiskKV WHERE key LIKE 'composerData:%'`)
+        .all();
+      for (const row of rows) {
+        const [, composerId] = String(row.key).split(":");
+        if (composerId) {
+          ids.add(composerId);
+        }
+      }
+    }
+    return ids;
+  } finally {
+    db.close();
+  }
+}
+
+function parseComposerEditorValue(value) {
+  if (typeof value !== "string") return undefined;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function pruneComposerEditorsFromNode(node, validComposerIds, removedComposerIds) {
+  if (!node || typeof node !== "object") {
+    return false;
+  }
+
+  let changed = false;
+  if (Array.isArray(node.editors)) {
+    const nextEditors = [];
+    for (const editor of node.editors) {
+      const editorValue = parseComposerEditorValue(editor?.value);
+      const composerId = editorValue?.composerId;
+      const isOrphanedComposerEditor =
+        editor?.id === "workbench.editor.composer.input" &&
+        composerId &&
+        !validComposerIds.has(composerId);
+
+      if (isOrphanedComposerEditor) {
+        removedComposerIds.add(composerId);
+        changed = true;
+      } else {
+        nextEditors.push(editor);
+      }
+    }
+
+    if (changed) {
+      node.editors = nextEditors;
+      node.mru = nextEditors.map((_, index) => index);
+    }
+  }
+
+  if (Array.isArray(node.data)) {
+    for (const child of node.data) {
+      changed =
+        pruneComposerEditorsFromNode(child, validComposerIds, removedComposerIds) ||
+        changed;
+    }
+  } else if (node.data && typeof node.data === "object") {
+    changed =
+      pruneComposerEditorsFromNode(node.data, validComposerIds, removedComposerIds) ||
+      changed;
+  }
+
+  if (node.serializedGrid?.root) {
+    changed =
+      pruneComposerEditorsFromNode(node.serializedGrid.root, validComposerIds, removedComposerIds) ||
+      changed;
+  }
+
+  return changed;
+}
+
+function cleanupOrphanedComposerWorkspaceState({ backupDir } = {}) {
+  const validComposerIds = readGlobalComposerIds();
+  const backups = [];
+  const removedComposerIds = new Set();
+  let changedWorkspaceCount = 0;
+
+  for (const dbPath of workspaceStateDbPaths()) {
+    const db = new DatabaseSync(dbPath, {
+      readonly: false,
+      enableForeignKeyConstraints: false,
+    });
+    db.exec("PRAGMA busy_timeout = 5000");
+    let changedThisWorkspace = false;
+
+    try {
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        const composerDataRaw = readItem(db, "composer.composerData");
+        if (composerDataRaw) {
+          const composerData = JSON.parse(composerDataRaw);
+          const original = JSON.stringify(composerData);
+          for (const key of ["selectedComposerIds", "lastFocusedComposerIds"]) {
+            if (!Array.isArray(composerData[key])) continue;
+            composerData[key] = composerData[key].filter((composerId) => {
+              const keep = validComposerIds.has(composerId);
+              if (!keep) {
+                removedComposerIds.add(composerId);
+              }
+              return keep;
+            });
+          }
+          const next = JSON.stringify(composerData);
+          if (next !== original) {
+            backups.push({ dbPath, key: "composer.composerData", value: composerDataRaw });
+            upsertItem(db, "composer.composerData", next);
+            changedThisWorkspace = true;
+          }
+        }
+
+        const embeddedEditorRaw = readItem(
+          db,
+          "workbench.parts.embeddedAuxBarEditor.state",
+        );
+        if (embeddedEditorRaw) {
+          const embeddedEditorState = JSON.parse(embeddedEditorRaw);
+          if (
+            pruneComposerEditorsFromNode(
+              embeddedEditorState,
+              validComposerIds,
+              removedComposerIds,
+            )
+          ) {
+            backups.push({
+              dbPath,
+              key: "workbench.parts.embeddedAuxBarEditor.state",
+              value: embeddedEditorRaw,
+            });
+            upsertItem(
+              db,
+              "workbench.parts.embeddedAuxBarEditor.state",
+              JSON.stringify(embeddedEditorState),
+            );
+            changedThisWorkspace = true;
+          }
+        }
+
+        db.exec("COMMIT");
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
+    } finally {
+      db.close();
+    }
+
+    if (changedThisWorkspace) {
+      changedWorkspaceCount += 1;
+    }
+  }
+
+  if (backupDir && backups.length > 0) {
+    fs.writeFileSync(
+      path.join(backupDir, "orphan-composer-workspace-state.json"),
+      `${JSON.stringify({ savedAt: new Date().toISOString(), rows: backups }, null, 2)}\n`,
+      { mode: 0o600 },
+    );
+  }
+
+  return {
+    changedWorkspaceCount,
+    removedComposerIds: [...removedComposerIds],
+  };
+}
+
 function hasSessionBundle(label) {
   return fs.existsSync(accountSessionDir(label));
 }
@@ -413,6 +616,50 @@ function loadSavedAccount(label) {
     throw new Error(`Malformed account file: ${file}`);
   }
   return data;
+}
+
+function findSavedAccountLabelByEmail(email) {
+  if (!email || !fs.existsSync(ACCOUNTS_DIR)) {
+    return undefined;
+  }
+
+  for (const file of fs
+    .readdirSync(ACCOUNTS_DIR)
+    .filter((entry) => entry.endsWith(".json"))) {
+    const account = JSON.parse(fs.readFileSync(path.join(ACCOUNTS_DIR, file), "utf8"));
+    if (account.email === email) {
+      return account.label ?? path.basename(file, ".json");
+    }
+  }
+  return undefined;
+}
+
+function saveCurrentAccountSnapshotIfKnown({ liveKeys, targetLabel, fullDb, authOnly, unsafeRunning }) {
+  if (!fullDb || unsafeRunning) {
+    return { saved: false, reason: fullDb ? "unsafe-running" : "not-full-db" };
+  }
+
+  const liveEmail = liveKeys[`${AUTH_PREFIX}cachedEmail`];
+  const currentLabel = findSavedAccountLabelByEmail(liveEmail);
+  if (!currentLabel || currentLabel === targetLabel) {
+    return {
+      saved: false,
+      reason: currentLabel ? "target-is-current" : "unknown-current-account",
+    };
+  }
+
+  const account = saveAccountFile(currentLabel, liveKeys);
+  const session = authOnly ? undefined : saveSessionBundle(currentLabel);
+  const fullState = saveFullStateDb(currentLabel);
+
+  return {
+    saved: true,
+    label: currentLabel,
+    email: account.email,
+    accountFile: account.file,
+    session,
+    fullState,
+  };
 }
 
 function savedCursorCreds(label) {
@@ -619,6 +866,25 @@ function openLoginUrlInBrowser(label, loginUrl) {
 
   execFileSync("xdg-open", [url], { stdio: "ignore" });
   return { opened: true, profileDir: undefined, browser: "default" };
+}
+
+function reloadCursorWindow() {
+  if (process.platform !== "darwin") {
+    throw new Error("--reload-window is only implemented for macOS in this spike");
+  }
+
+  execFileSync(
+    "osascript",
+    [
+      "-e",
+      'tell application "Cursor" to activate',
+      "-e",
+      "delay 0.4",
+      "-e",
+      'tell application "System Events" to keystroke "r" using command down',
+    ],
+    { stdio: "ignore" },
+  );
 }
 
 function shortenIdentity(value) {
@@ -986,13 +1252,28 @@ async function cmdLoginLink(label, { openBrowser }) {
   throw new Error("Timed out waiting for browser login");
 }
 
-function cmdSwitch(label, { offline, authOnly, fullDb }) {
-  if (!offline) {
+function cmdSwitch(label, { offline, authOnly, fullDb, unsafeRunning, reloadWindow, keepChatTabs }) {
+  if (offline && unsafeRunning) {
+    throw new Error("Use either --offline or --unsafe-running, not both.");
+  }
+  if (!offline && !unsafeRunning) {
     throw new Error(
-      "switch requires --offline. Quit Cursor (Cmd+Q), run switch, then reopen.",
+      "switch requires --offline. For the running-window experiment, use --unsafe-running.",
     );
   }
-  assertCursorState({ offline });
+  if (offline) {
+    assertCursorState({ offline });
+  }
+  if (unsafeRunning) {
+    const running = isCursorRunning();
+    if (!running) {
+      console.warn("--unsafe-running supplied, but Cursor does not appear to be running.");
+    } else {
+      console.warn(
+        "Experimental: restoring persisted state while Cursor is running. Cursor may overwrite this from memory.",
+      );
+    }
+  }
 
   const saved = loadSavedAccount(label);
 
@@ -1014,6 +1295,18 @@ function cmdSwitch(label, { offline, authOnly, fullDb }) {
   }
 
   const backup = fullDb ? backupLiveFullSession(live) : backupLiveSlice(live);
+  const currentSnapshot = saveCurrentAccountSnapshotIfKnown({
+    liveKeys: live,
+    targetLabel: label,
+    fullDb,
+    authOnly,
+    unsafeRunning,
+  });
+  if (currentSnapshot.saved) {
+    console.log(
+      `Updated current saved account '${currentSnapshot.label}' (${currentSnapshot.email}) before switching away`,
+    );
+  }
 
   if (fullDb) {
     const fullState = restoreFullStateDb(label);
@@ -1023,6 +1316,16 @@ function cmdSwitch(label, { offline, authOnly, fullDb }) {
       throw new Error(
         `No full DB snapshot for '${label}'. Re-save while signed in: npm run spike -- save ${label} --force --full-db`,
       );
+    }
+    if (!keepChatTabs) {
+      const cleanup = cleanupOrphanedComposerWorkspaceState({
+        backupDir: typeof backup === "object" ? backup.dir : undefined,
+      });
+      if (cleanup.removedComposerIds.length > 0) {
+        console.log(
+          `Cleared orphaned chat editor state in ${cleanup.changedWorkspaceCount} workspace(s) (${cleanup.removedComposerIds.length} composer id(s))`,
+        );
+      }
     }
   } else {
     const writeDb = openDb({ readonly: false });
@@ -1067,10 +1370,26 @@ function cmdSwitch(label, { offline, authOnly, fullDb }) {
   console.log(`Applied ${fullDb ? "full DB" : "auth"} '${label}' (${targetEmail ?? "?"}) to state.vscdb`);
   console.log(`Verified on disk: ${writtenEmail}`);
   console.log("");
+  if (reloadWindow) {
+    try {
+      reloadCursorWindow();
+      console.log("Requested Cursor window reload via Cmd+R.");
+    } catch (error) {
+      console.warn(`Could not request Cursor reload automatically: ${error.message}`);
+      console.warn("Manually run Developer: Reload Window in Cursor.");
+    }
+  }
   console.log("Next steps:");
-  console.log("  1. Reopen Cursor");
-  console.log("  2. Cmd+Shift+J → Cursor Settings → Account");
-  console.log(`  3. Confirm email is ${targetEmail}`);
+  if (unsafeRunning) {
+    console.log("  1. Wait for Cursor to finish reloading");
+    console.log("  2. Cmd+Shift+J → Cursor Settings → Account");
+    console.log(`  3. Confirm email is ${targetEmail}`);
+    console.log("  4. Run a simple AI request");
+  } else {
+    console.log("  1. Reopen Cursor");
+    console.log("  2. Cmd+Shift+J → Cursor Settings → Account");
+    console.log(`  3. Confirm email is ${targetEmail}`);
+  }
 }
 
 async function main() {
@@ -1080,13 +1399,19 @@ async function main() {
   const authOnly = argv.includes("--auth-only");
   const fullDb = argv.includes("--full-db");
   const openBrowser = argv.includes("--open-browser");
+  const unsafeRunning = argv.includes("--unsafe-running");
+  const reloadWindow = argv.includes("--reload-window");
+  const keepChatTabs = argv.includes("--keep-chat-tabs");
   const args = argv.filter(
     (a) =>
       a !== "--force" &&
       a !== "--offline" &&
       a !== "--auth-only" &&
       a !== "--full-db" &&
-      a !== "--open-browser",
+      a !== "--open-browser" &&
+      a !== "--unsafe-running" &&
+      a !== "--reload-window" &&
+      a !== "--keep-chat-tabs",
   );
 
   if (args.length === 0 || args[0] === "help" || args[0] === "--help") {
@@ -1126,7 +1451,7 @@ async function main() {
       break;
     case "switch":
       if (!label) throw new Error("switch requires a label");
-      cmdSwitch(label, { offline, authOnly, fullDb });
+      cmdSwitch(label, { offline, authOnly, fullDb, unsafeRunning, reloadWindow, keepChatTabs });
       break;
     default:
       throw new Error(`Unknown command: ${command}`);
