@@ -10,9 +10,24 @@ export interface UserdataEntry {
   relativeDataDir?: string;
 }
 
+export interface ManagedUserdataEntry extends UserdataEntry {
+  kind: "managed";
+  relativeDataDir: string;
+}
+
 export interface Registry {
   version: 1;
   userdatas: UserdataEntry[];
+}
+
+export interface ManagedUserdataCreation {
+  registry: Registry;
+  entry: ManagedUserdataEntry;
+}
+
+interface RegistryUpdateResult<T> {
+  registry: Registry;
+  result: T;
 }
 
 const DEFAULT_ENTRY: UserdataEntry = {
@@ -43,9 +58,19 @@ export function updateRegistry(
   registryFile: string,
   update: (latest: Registry) => Registry,
 ): Registry {
+  return updateRegistryWithResult(registryFile, (latest) => {
+    const registry = update(latest);
+    return { registry, result: registry };
+  }).result;
+}
+
+function updateRegistryWithResult<T>(
+  registryFile: string,
+  update: (latest: Registry) => RegistryUpdateResult<T>,
+): RegistryUpdateResult<T> {
   const latest = ensureDefaultUserdata(loadRegistry(registryFile));
   const updated = update(latest);
-  saveRegistry(registryFile, updated);
+  saveRegistry(registryFile, updated.registry);
   return updated;
 }
 
@@ -63,21 +88,17 @@ export function addManagedUserdata(
   registry: Registry,
   label: string,
 ): Registry {
-  const trimmed = label.trim();
-  if (!trimmed) {
-    throw new Error("Userdata label is required");
-  }
-  const id = createUniqueId(registry, slugifyLabel(trimmed));
-  const entry: UserdataEntry = {
-    id,
-    kind: "managed",
-    label: trimmed,
-    relativeDataDir: `userdata/${id}/data`,
-  };
-  return {
-    version: 1,
-    userdatas: [...registry.userdatas, entry],
-  };
+  return buildManagedUserdataCreation(registry, label).registry;
+}
+
+export function createManagedUserdata(
+  registryFile: string,
+  label: string,
+): ManagedUserdataCreation {
+  return updateRegistryWithResult(registryFile, (latest) => {
+    const creation = buildManagedUserdataCreation(latest, label);
+    return { registry: creation.registry, result: creation };
+  }).result;
 }
 
 export function renameUserdata(
@@ -103,6 +124,37 @@ function slugifyLabel(label: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
   return slug || "userdata";
+}
+
+function buildManagedUserdataEntry(
+  registry: Registry,
+  label: string,
+): ManagedUserdataEntry {
+  const trimmed = label.trim();
+  if (!trimmed) {
+    throw new Error("Userdata label is required");
+  }
+  const id = createUniqueId(registry, slugifyLabel(trimmed));
+  return {
+    id,
+    kind: "managed",
+    label: trimmed,
+    relativeDataDir: `userdata/${id}/data`,
+  };
+}
+
+function buildManagedUserdataCreation(
+  registry: Registry,
+  label: string,
+): ManagedUserdataCreation {
+  const entry = buildManagedUserdataEntry(registry, label);
+  return {
+    registry: {
+      version: 1,
+      userdatas: [...registry.userdatas, entry],
+    },
+    entry,
+  };
 }
 
 function createUniqueId(registry: Registry, baseId: string): string {

@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, describe, it } from "node:test";
 import {
   addManagedUserdata,
+  createManagedUserdata,
   ensureDefaultUserdata,
   loadRegistry,
   renameUserdata,
@@ -42,6 +43,39 @@ describe("registry", () => {
     assert.equal(managed?.label, "Personal");
     assert.match(managed?.relativeDataDir ?? "", /^userdata\/personal\/data$/);
     saveRegistry(registryFile, updated);
+  });
+
+  it("creates, persists, and returns the managed userdata entry", () => {
+    const creationRegistryFile = path.join(tempDir, "create-registry.json");
+    saveRegistry(creationRegistryFile, {
+      version: 1,
+      userdatas: [
+        { id: "default", kind: "default", label: "Default" },
+        {
+          id: "personal",
+          kind: "managed",
+          label: "Personal",
+          relativeDataDir: "userdata/personal/data",
+        },
+      ],
+    });
+
+    const { entry, registry } = createManagedUserdata(
+      creationRegistryFile,
+      "Personal",
+    );
+
+    assert.deepEqual(entry, {
+      id: "personal-2",
+      kind: "managed",
+      label: "Personal",
+      relativeDataDir: "userdata/personal-2/data",
+    });
+    assert.deepEqual(
+      registry.userdatas.map((userdata) => userdata.id),
+      ["default", "personal", "personal-2"],
+    );
+    assert.deepEqual(loadRegistry(creationRegistryFile), registry);
   });
 
   it("renames a userdata label without changing ids", () => {

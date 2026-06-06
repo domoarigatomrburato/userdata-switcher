@@ -20,7 +20,7 @@ export {
 
 import { registryPath, resolveManagedDataDir } from "./paths";
 import {
-  addManagedUserdata,
+  createManagedUserdata,
   ensureDefaultUserdata,
   loadRegistry,
   type Registry,
@@ -216,13 +216,12 @@ export function activateUserdataSwitcher(
       if (!label) {
         return;
       }
-      const updated = persistRegistry((latest) =>
-        addManagedUserdata(latest, label),
+      const { entry: created, registry: updated } = createManagedUserdata(
+        registryFile,
+        label,
       );
-      const created = updated.userdatas.at(-1);
-      if (!created?.relativeDataDir) {
-        return;
-      }
+      registry = updated;
+      refreshStatusBar();
       mkdir(resolveManagedDataDir(storeRoot, created.relativeDataDir), {
         recursive: true,
       });
