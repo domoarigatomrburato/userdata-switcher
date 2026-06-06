@@ -5,6 +5,10 @@
   "version": "0.1.0",
   "publisher": "cursor-userdata-switcher",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/domoarigatomrburato/cursor-subscription-quick-switcher.git"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },

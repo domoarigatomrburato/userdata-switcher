@@ -27,10 +27,7 @@ export function resolveWorkspaceArg(workspace: WorkspaceShape): string | undefin
     return workspace.workspaceFile.fsPath;
   }
   const folders = workspace.workspaceFolders ?? [];
-  if (folders.length === 1) {
-    return folders[0]?.uri.fsPath;
-  }
-  return undefined;
+  return folders.length === 1 ? folders[0]?.uri.fsPath : undefined;
 }
 
 export function buildLaunchCommand(input: {

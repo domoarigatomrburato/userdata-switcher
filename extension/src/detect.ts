@@ -9,10 +9,7 @@ export type CurrentUserdataMatch =
 export function deriveUserdataRootFromGlobalStorage(globalStoragePath: string): string | null {
   const marker = `${path.sep}User${path.sep}globalStorage${path.sep}`;
   const index = globalStoragePath.indexOf(marker);
-  if (index === -1) {
-    return null;
-  }
-  return globalStoragePath.slice(0, index);
+  return index === -1 ? null : globalStoragePath.slice(0, index);
 }
 
 export function matchCurrentUserdata(input: {

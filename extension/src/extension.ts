@@ -1,7 +1,12 @@
 import fs from "node:fs";
 import vscode from "vscode";
 import { matchCurrentUserdata } from "./detect";
-import { formatStatusBarText, formatUserdataLabel } from "./labels";
+import {
+  formatOpenWithUserdataPickerTitle,
+  formatStatusBarText,
+  formatUserdataLabel,
+} from "./labels";
+import { buildOpenWithUserdataMenuItems, type UserdataMenuItem } from "./menu";
 import {
   buildLaunchCommand,
   discoverBundledCli,
@@ -28,7 +33,6 @@ const CREATE_USERDATA_LABEL = "Create New Userdata...";
 
 type UserdataQuickPickItem = vscode.QuickPickItem & {
   userdataId?: string;
-  isCurrent?: boolean;
 };
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -39,8 +43,15 @@ export function activate(context: vscode.ExtensionContext): void {
   let registry = ensureDefaultUserdata(loadRegistry(registryFile));
   saveRegistry(registryFile, registry);
 
-  const getCurrent = () =>
-    getCurrentEntry(context, registry, storeRoot, defaultUserdataRoot);
+  const getCurrent = (): UserdataEntry | null => {
+    const match = matchCurrentUserdata({
+      globalStoragePath: context.globalStorageUri.fsPath,
+      defaultUserdataRoot,
+      storeRoot,
+      registry,
+    });
+    return match.kind === "known" ? match.entry : null;
+  };
 
   const statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
@@ -51,9 +62,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const refreshStatusBar = () => {
     const current = getCurrent();
     statusBarItem.text = formatStatusBarText(current);
-    statusBarItem.tooltip = current
-      ? `Current Cursor Userdata: ${formatUserdataLabel(current)}`
-      : "Current Cursor Userdata: Unmanaged";
+    statusBarItem.tooltip = `Current Cursor Userdata: ${formatUserdataLabel(current)}`;
     statusBarItem.show();
   };
 
@@ -63,7 +72,7 @@ export function activate(context: vscode.ExtensionContext): void {
     refreshStatusBar();
   };
 
-  const launchEntry = async (entry: UserdataEntry) => {
+  const launchEntry = (entry: UserdataEntry) => {
     const bundledCli = discoverBundledCli(vscode.env.appRoot);
     if (!bundledCli) {
       throw new Error("Could not find Cursor bundled CLI in this installation.");
@@ -81,7 +90,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const launchEntrySafely = async (entry: UserdataEntry) => {
     try {
-      await launchEntry(entry);
+      launchEntry(entry);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await vscode.window.showErrorMessage(message);
@@ -92,31 +101,17 @@ export function activate(context: vscode.ExtensionContext): void {
     statusBarItem,
     vscode.commands.registerCommand("cursorUserdata.openWithUserdata", async () => {
       const current = getCurrent();
-      const items: UserdataQuickPickItem[] = [
-        {
-          label: formatUserdataLabel(current),
-          description: "Current",
-          detail: "Selecting the current userdata does nothing.",
-          isCurrent: true,
-        },
-        ...registry.userdatas
-          .filter((entry) => entry.id !== current?.id)
-          .map((entry) => ({
-            label: formatUserdataLabel(entry),
-            description: entry.kind === "default" ? "Default Userdata" : "Managed Userdata",
-            userdataId: entry.id,
-          })),
-        {
-          label: CREATE_USERDATA_LABEL,
-          alwaysShow: true,
-        },
-      ];
+      const items = buildOpenWithUserdataMenuItems(
+        registry,
+        current,
+        CREATE_USERDATA_LABEL,
+      ).map(toQuickPickItem);
 
       const selected = await vscode.window.showQuickPick(items, {
-        title: "Open With Userdata",
-        placeHolder: "Select a Cursor Userdata to open",
+        title: formatOpenWithUserdataPickerTitle(current),
+        placeHolder: "Select a userdata to open",
       });
-      if (!selected || selected.isCurrent) {
+      if (!selected || selected.kind === vscode.QuickPickItemKind.Separator) {
         return;
       }
       if (selected.label === CREATE_USERDATA_LABEL) {
@@ -166,13 +161,8 @@ export function activate(context: vscode.ExtensionContext): void {
       persistRegistry(renameUserdata(registry, current.id, label));
     }),
     vscode.commands.registerCommand("cursorUserdata.showCurrentUserdata", async () => {
-      const current = getCurrent();
-      if (!current) {
-        await vscode.window.showInformationMessage("Current Cursor Userdata: Unmanaged");
-        return;
-      }
       await vscode.window.showInformationMessage(
-        `Current Cursor Userdata: ${formatUserdataLabel(current)}`,
+        `Current Cursor Userdata: ${formatUserdataLabel(getCurrent())}`,
       );
     }),
   );
@@ -180,19 +170,12 @@ export function activate(context: vscode.ExtensionContext): void {
   refreshStatusBar();
 }
 
-function getCurrentEntry(
-  context: vscode.ExtensionContext,
-  registry: Registry,
-  storeRoot: string,
-  defaultUserdataRoot: string,
-): UserdataEntry | null {
-  const match = matchCurrentUserdata({
-    globalStoragePath: context.globalStorageUri.fsPath,
-    defaultUserdataRoot,
-    storeRoot,
-    registry,
-  });
-  return match.kind === "known" ? match.entry : null;
-}
-
 export function deactivate(): void {}
+
+function toQuickPickItem(item: UserdataMenuItem): UserdataQuickPickItem {
+  if (item.kind === "separator") {
+    return { label: item.label, kind: vscode.QuickPickItemKind.Separator };
+  }
+  const { kind: _kind, ...quickPickItem } = item;
+  return quickPickItem;
+}

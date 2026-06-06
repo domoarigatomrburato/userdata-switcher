@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { formatStatusBarText, formatUserdataLabel } from "../src/labels";
+import {
+  formatCurrentUserdataMenuHeader,
+  formatOpenWithUserdataPickerTitle,
+  formatStatusBarText,
+  formatUserdataLabel,
+} from "../src/labels";
 
 describe("formatUserdataLabel", () => {
   it("shows default userdata with the default suffix", () => {
@@ -27,11 +32,29 @@ describe("formatUserdataLabel", () => {
   });
 });
 
+describe("formatCurrentUserdataMenuHeader", () => {
+  it("labels the non-actionable current userdata header", () => {
+    assert.equal(
+      formatCurrentUserdataMenuHeader({ id: "default", kind: "default", label: "Work" }),
+      "Current: Work (default)",
+    );
+  });
+});
+
+describe("formatOpenWithUserdataPickerTitle", () => {
+  it("shows the current userdata in the picker title", () => {
+    assert.equal(
+      formatOpenWithUserdataPickerTitle({ id: "default", kind: "default", label: "Default" }),
+      "Open With Userdata — Current: Default (default)",
+    );
+  });
+});
+
 describe("formatStatusBarText", () => {
   it("prefixes the compact UI label", () => {
     assert.equal(
       formatStatusBarText({ id: "default", kind: "default", label: "Work" }),
-      "Userdata: Work (default)",
+      "$(layers) Userdata: Work (default)",
     );
   });
 });
