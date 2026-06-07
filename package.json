@@ -7,10 +7,27 @@
   "type": "commonjs",
   "publisher": "domoarigatomrburato",
   "license": "MIT",
+  "homepage": "https://github.com/domoarigatomrburato/userdata-switcher#readme",
+  "bugs": {
+    "url": "https://github.com/domoarigatomrburato/userdata-switcher/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/domoarigatomrburato/userdata-switcher.git"
   },
+  "keywords": [
+    "userdata",
+    "profile",
+    "profiles",
+    "cursor",
+    "launcher",
+    "vscode"
+  ],
+  "galleryBanner": {
+    "color": "#1f1f1f",
+    "theme": "dark"
+  },
+  "pricing": "Free",
   "engines": {
     "node": ">=22.13",
     "vscode": "^1.85.0"
@@ -51,11 +68,11 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run build",
-    "compile": "tsc -p .",
-    "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
-    "test": "npm run typecheck:test && tsx --test src/**/*.test.ts",
+    "compile": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p .",
+    "test": "npm run typecheck && tsx --test src/**/*.test.ts",
     "build": "npm run test && npm run compile",
-    "package:vsix": "vsce package --no-dependencies",
+    "package:vsix": "node -e \"require('node:fs').mkdirSync('dist', { recursive: true })\" && vsce package --no-dependencies --out dist/userdata-switcher-${npm_package_version}.vsix",
     "check": "biome check --write .",
     "check:ci": "biome check .",
     "format": "biome format --write .",

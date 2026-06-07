@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  ACTIONS_SEPARATOR_LABEL,
   buildOpenWithUserdataMenuItems,
   CREATE_USERDATA_LABEL,
   RENAME_CURRENT_USERDATA_LABEL,
   resolveOpenWithUserdataMenuIntent,
+  type UserdataMenuItem,
 } from "./menu";
 import type { Registry } from "./registry";
 
@@ -172,18 +174,24 @@ describe("resolveOpenWithUserdataMenuIntent", () => {
   });
 
   it("resolves empty, separator, and stale selections to cancel", () => {
+    const separatorSelection: UserdataMenuItem = {
+      kind: "separator",
+      label: ACTIONS_SEPARATOR_LABEL,
+    };
+    const staleSelection: UserdataMenuItem = {
+      intent: { kind: "open", userdataId: "missing" },
+      label: "Missing",
+    };
+
     assert.deepEqual(resolveOpenWithUserdataMenuIntent(registry, undefined), {
       kind: "cancel",
     });
     assert.deepEqual(
-      resolveOpenWithUserdataMenuIntent(registry, { kind: "separator" }),
+      resolveOpenWithUserdataMenuIntent(registry, separatorSelection),
       { kind: "cancel" },
     );
     assert.deepEqual(
-      resolveOpenWithUserdataMenuIntent(registry, {
-        intent: { kind: "open", userdataId: "missing" },
-        label: "Missing",
-      }),
+      resolveOpenWithUserdataMenuIntent(registry, staleSelection),
       { kind: "cancel" },
     );
   });

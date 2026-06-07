@@ -10,9 +10,15 @@ interface CommandContribution {
 }
 
 interface ExtensionManifest {
+  bugs?: { url?: string };
   contributes?: {
     commands?: CommandContribution[];
   };
+  galleryBanner?: { color?: string; theme?: string };
+  homepage?: string;
+  keywords?: string[];
+  pricing?: string;
+  scripts?: Record<string, string>;
 }
 
 describe("extension manifest", () => {
@@ -43,5 +49,39 @@ describe("extension manifest", () => {
         category: "Userdata Switcher",
       },
     ]);
+  });
+
+  it("keeps marketplace metadata and packaging output publish-ready", () => {
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"),
+    ) as ExtensionManifest;
+
+    assert.equal(
+      manifest.homepage,
+      "https://github.com/domoarigatomrburato/userdata-switcher#readme",
+    );
+    assert.equal(
+      manifest.bugs?.url,
+      "https://github.com/domoarigatomrburato/userdata-switcher/issues",
+    );
+    assert.deepEqual(manifest.galleryBanner, {
+      color: "#1f1f1f",
+      theme: "dark",
+    });
+    assert.equal(manifest.pricing, "Free");
+    assert.deepEqual(manifest.keywords, [
+      "userdata",
+      "profile",
+      "profiles",
+      "cursor",
+      "launcher",
+      "vscode",
+    ]);
+    assert.equal(
+      manifest.scripts?.["package:vsix"],
+      "node -e \"require('node:fs').mkdirSync('dist', { recursive: true })\" && " +
+        "vsce package --no-dependencies --out dist/userdata-switcher-$" +
+        "{npm_package_version}.vsix",
+    );
   });
 });

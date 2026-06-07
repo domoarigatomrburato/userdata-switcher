@@ -14,7 +14,7 @@ The MVP is a small launcher surface:
 - rename for the Current Userdata label
 - launch of known Userdata roots with the current workspace when known
 
-The MVP does not manage editor Profiles, integrate with sidebar Accounts menus,
+The MVP does not manage editor Profiles, integrate with sidebar sign-in menus,
 or close source windows automatically.
 
 ## Startup
