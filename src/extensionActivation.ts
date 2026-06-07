@@ -11,7 +11,12 @@ import {
   openWithUserdata,
   type WorkspaceShape,
 } from "./launcher";
-import { buildOpenWithUserdataMenuItems } from "./menu";
+import {
+  buildOpenWithUserdataMenuItems,
+  resolveOpenWithUserdataMenuIntent,
+  type UserdataMenuItem,
+  type UserdataMenuItemIntent,
+} from "./menu";
 
 export {
   CREATE_USERDATA_LABEL,
@@ -40,8 +45,7 @@ export interface QuickPickItem {
   label: string;
   description?: string;
   kind?: number;
-  action?: "create" | "rename";
-  userdataId?: string;
+  intent?: UserdataMenuItemIntent;
   alwaysShow?: boolean;
 }
 
@@ -90,6 +94,19 @@ export interface UserdataSwitcherActivation {
   ui: UserdataSwitcherUi;
   launchEditorImpl?: LaunchEditor;
   mkdirSync?: typeof fs.mkdirSync;
+}
+
+function toQuickPickItems(
+  items: readonly UserdataMenuItem[],
+  separatorKind: number,
+): QuickPickItem[] {
+  return items.map((item) => {
+    if (item.kind === "separator") {
+      return { label: item.label, kind: separatorKind };
+    }
+    const { kind: _kind, ...quickPickItem } = item;
+    return quickPickItem;
+  });
 }
 
 export function activateUserdataSwitcher(
@@ -165,39 +182,32 @@ export function activateUserdataSwitcher(
     ui.registerCommand(COMMAND_OPEN_WITH_USERDATA, async () => {
       const currentRegistry = refreshRegistry();
       const current = getCurrent(currentRegistry);
-      const items = buildOpenWithUserdataMenuItems(
-        currentRegistry,
-        current,
-      ).map((item) => {
-        if (item.kind === "separator") {
-          return { label: item.label, kind: ui.QuickPickItemKind.Separator };
-        }
-        const { kind: _kind, ...quickPickItem } = item;
-        return quickPickItem;
-      });
+      const items = toQuickPickItems(
+        buildOpenWithUserdataMenuItems(currentRegistry, current),
+        ui.QuickPickItemKind.Separator,
+      );
 
       const selected = await ui.showQuickPick(items, {
         title: formatOpenWithUserdataPickerTitle(current),
         placeHolder: "Select a userdata to open",
       });
-      if (!selected || selected.kind === ui.QuickPickItemKind.Separator) {
-        return;
-      }
-      switch (selected.action) {
+      const intent = resolveOpenWithUserdataMenuIntent(
+        currentRegistry,
+        selected,
+      );
+      switch (intent.kind) {
+        case "cancel":
+          return;
         case "create":
           await ui.executeCommand(COMMAND_CREATE_USERDATA);
           return;
         case "rename":
           await ui.executeCommand(COMMAND_RENAME_CURRENT_USERDATA);
           return;
+        case "open":
+          await launchEntrySafely(intent.entry);
+          return;
       }
-      const entry = currentRegistry.userdatas.find(
-        (candidate) => candidate.id === selected.userdataId,
-      );
-      if (!entry) {
-        return;
-      }
-      await launchEntrySafely(entry);
     }),
   );
   subscribe(

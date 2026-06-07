@@ -32,6 +32,7 @@ interface TestHarness {
   errors: string[];
   warnings: string[];
   infos: string[];
+  quickPickItems: readonly QuickPickItem[][];
   quickPickSelection: QuickPickItem | undefined;
   inputBoxValue: string | undefined;
   activation: UserdataSwitcherActivation;
@@ -72,6 +73,7 @@ function createTestHarness(input?: {
   const errors: string[] = [];
   const warnings: string[] = [];
   const infos: string[] = [];
+  const quickPickItems: QuickPickItem[][] = [];
 
   const host: SupportedHostAdapter = {
     id: "cursor",
@@ -92,7 +94,10 @@ function createTestHarness(input?: {
       commands.set(command, callback);
       return { dispose: () => commands.delete(command) };
     },
-    showQuickPick: async () => input?.quickPickSelection,
+    showQuickPick: async (items) => {
+      quickPickItems.push([...items]);
+      return input?.quickPickSelection;
+    },
     showInputBox: async () => input?.inputBoxValue,
     showErrorMessage: async (message) => {
       errors.push(message);
@@ -138,6 +143,7 @@ function createTestHarness(input?: {
     errors,
     warnings,
     infos,
+    quickPickItems,
     quickPickSelection: input?.quickPickSelection,
     inputBoxValue: input?.inputBoxValue,
     activation,
@@ -195,7 +201,7 @@ describe("activateUserdataSwitcher", () => {
     const harness = createTestHarness({
       quickPickSelection: {
         label: "Personal",
-        userdataId: "personal",
+        intent: { kind: "open", userdataId: "personal" },
       },
       inputBoxValue: "Personal",
     });
@@ -221,7 +227,7 @@ describe("activateUserdataSwitcher", () => {
     const harness = createTestHarness({
       quickPickSelection: {
         label: RENAME_CURRENT_USERDATA_LABEL,
-        action: "rename",
+        intent: { kind: "rename" },
       },
       inputBoxValue: "Work",
     });
@@ -241,7 +247,7 @@ describe("activateUserdataSwitcher", () => {
     const harness = createTestHarness({
       quickPickSelection: {
         label: CREATE_USERDATA_LABEL,
-        action: "create",
+        intent: { kind: "create" },
       },
       inputBoxValue: "Work",
     });
@@ -259,6 +265,36 @@ describe("activateUserdataSwitcher", () => {
     assert.equal(managed?.label, "Work");
     assert.equal(harness.createdDirs.length, 1);
     assert.ok(harness.launched.length > 0);
+  });
+
+  it("passes intent metadata through the open menu items", async () => {
+    const harness = createTestHarness({
+      inputBoxValue: "Personal",
+    });
+    harnesses.push(harness);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_CREATE_USERDATA);
+    await harness.run(COMMAND_OPEN_WITH_USERDATA);
+
+    assert.deepEqual(harness.quickPickItems[0], [
+      {
+        label: "Personal",
+        description: "Managed Userdata",
+        intent: { kind: "open", userdataId: "personal" },
+      },
+      { label: "", kind: -1 },
+      {
+        label: RENAME_CURRENT_USERDATA_LABEL,
+        intent: { kind: "rename" },
+        alwaysShow: true,
+      },
+      {
+        label: CREATE_USERDATA_LABEL,
+        intent: { kind: "create" },
+        alwaysShow: true,
+      },
+    ]);
   });
 
   it("creates managed userdata, persists the registry, and launches it", async () => {
@@ -347,7 +383,7 @@ describe("activateUserdataSwitcher", () => {
     const harness = createTestHarness({
       quickPickSelection: {
         label: "Personal",
-        userdataId: "personal",
+        intent: { kind: "open", userdataId: "personal" },
       },
       discoverEditorCli: () => null,
     });

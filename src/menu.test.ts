@@ -4,6 +4,7 @@ import {
   buildOpenWithUserdataMenuItems,
   CREATE_USERDATA_LABEL,
   RENAME_CURRENT_USERDATA_LABEL,
+  resolveOpenWithUserdataMenuIntent,
 } from "./menu";
 import type { Registry } from "./registry";
 
@@ -38,9 +39,9 @@ describe("buildOpenWithUserdataMenuItems", () => {
       ["item", "item"],
     );
     assert.equal(items[0]?.label, RENAME_CURRENT_USERDATA_LABEL);
-    assert.equal(items[0]?.action, "rename");
+    assert.deepEqual(items[0]?.intent, { kind: "rename" });
     assert.equal(items[1]?.label, CREATE_USERDATA_LABEL);
-    assert.equal(items[1]?.action, "create");
+    assert.deepEqual(items[1]?.intent, { kind: "create" });
   });
 
   it("omits rename when the current userdata is unknown", () => {
@@ -52,8 +53,8 @@ describe("buildOpenWithUserdataMenuItems", () => {
       ["item", "item", "separator", "item"],
     );
     assert.equal(items.at(-1)?.label, CREATE_USERDATA_LABEL);
-    assert.equal(items.at(-1)?.action, "create");
-    assert.ok(items.every((item) => item.action !== "rename"));
+    assert.deepEqual(items.at(-1)?.intent, { kind: "create" });
+    assert.ok(items.every((item) => item.intent?.kind !== "rename"));
   });
 
   it("lists other userdatas, a separator, rename, and create", () => {
@@ -82,9 +83,9 @@ describe("buildOpenWithUserdataMenuItems", () => {
       ["item", "item", "separator", "item", "item"],
     );
     assert.equal(items.at(-2)?.label, RENAME_CURRENT_USERDATA_LABEL);
-    assert.equal(items.at(-2)?.action, "rename");
+    assert.deepEqual(items.at(-2)?.intent, { kind: "rename" });
     assert.equal(items.at(-1)?.label, CREATE_USERDATA_LABEL);
-    assert.equal(items.at(-1)?.action, "create");
+    assert.deepEqual(items.at(-1)?.intent, { kind: "create" });
   });
 
   it("marks action CTAs with structured action data instead of relying on labels", () => {
@@ -112,11 +113,76 @@ describe("buildOpenWithUserdataMenuItems", () => {
     const createItem = items.at(-1);
 
     assert.equal(managedItem?.label, CREATE_USERDATA_LABEL);
-    assert.equal(managedItem?.userdataId, "literal-create-label");
-    assert.equal(managedItem?.action, undefined);
+    assert.deepEqual(managedItem?.intent, {
+      kind: "open",
+      userdataId: "literal-create-label",
+    });
     assert.equal(renameItem?.label, RENAME_CURRENT_USERDATA_LABEL);
-    assert.equal(renameItem?.action, "rename");
+    assert.deepEqual(renameItem?.intent, { kind: "rename" });
     assert.equal(createItem?.label, CREATE_USERDATA_LABEL);
-    assert.equal(createItem?.action, "create");
+    assert.deepEqual(createItem?.intent, { kind: "create" });
+  });
+});
+
+describe("resolveOpenWithUserdataMenuIntent", () => {
+  const registry: Registry = {
+    version: 1,
+    userdatas: [
+      { id: "default", kind: "default", label: "Default" },
+      {
+        id: "personal",
+        kind: "managed",
+        label: CREATE_USERDATA_LABEL,
+        relativeDataDir: "userdata/personal/data",
+      },
+    ],
+  };
+
+  it("resolves a selected userdata item to an open intent", () => {
+    const [current] = registry.userdatas;
+    assert.ok(current);
+    const items = buildOpenWithUserdataMenuItems(registry, {
+      kind: "known",
+      entry: current,
+    });
+
+    assert.deepEqual(resolveOpenWithUserdataMenuIntent(registry, items[0]), {
+      kind: "open",
+      entry: registry.userdatas[1],
+    });
+  });
+
+  it("resolves structured action items without matching labels", () => {
+    const items = buildOpenWithUserdataMenuItems(registry, {
+      kind: "unmanaged",
+    });
+
+    assert.deepEqual(resolveOpenWithUserdataMenuIntent(registry, items[0]), {
+      kind: "open",
+      entry: registry.userdatas[0],
+    });
+    assert.deepEqual(
+      resolveOpenWithUserdataMenuIntent(registry, items.at(-1)),
+      {
+        kind: "create",
+      },
+    );
+  });
+
+  it("resolves empty, separator, and stale selections to cancel", () => {
+    assert.deepEqual(resolveOpenWithUserdataMenuIntent(registry, undefined), {
+      kind: "cancel",
+    });
+    assert.deepEqual(
+      resolveOpenWithUserdataMenuIntent(registry, { kind: "separator" }),
+      { kind: "cancel" },
+    );
+    assert.deepEqual(
+      resolveOpenWithUserdataMenuIntent(registry, {
+        intent: { kind: "open", userdataId: "missing" },
+        label: "Missing",
+      }),
+      { kind: "cancel" },
+    );
   });
 });
