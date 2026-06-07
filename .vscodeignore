@@ -9,6 +9,7 @@ tsconfig.test.json
 **/*.map
 node_modules/**
 docs/**
+scripts/**
 CONTEXT.md
 AGENTS.md
 biome.json

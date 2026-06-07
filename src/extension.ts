@@ -7,13 +7,19 @@ import {
   type UserdataSwitcherUi,
 } from "./extensionActivation";
 import { resolveEditorHost } from "./host";
+import type { LaunchLogger } from "./launcher";
 
 export function activate(context: vscode.ExtensionContext): void {
+  const outputChannel = vscode.window.createOutputChannel("Userdata Switcher");
+  context.subscriptions.push(outputChannel);
+  const logger = createOutputChannelLogger(outputChannel);
+
   const host = resolveEditorHost({
     appName: vscode.env.appName,
     uriScheme: vscode.env.uriScheme,
   });
   if (!host) {
+    logger.error(`Unsupported editor host: ${vscode.env.appName}`);
     void vscode.window.showErrorMessage(
       `Unsupported editor host: ${vscode.env.appName}`,
     );
@@ -26,9 +32,10 @@ export function activate(context: vscode.ExtensionContext): void {
     appRoot: vscode.env.appRoot,
     workspace: vscode.workspace,
     subscribe: (disposable) => {
-      context.subscriptions.push(disposable as vscode.Disposable);
+      context.subscriptions.push(disposable);
     },
     ui: createVscodeUi(),
+    logger,
   });
 }
 
@@ -61,4 +68,22 @@ function createVscodeUi(): UserdataSwitcherUi {
     executeCommand: (command, ...args) =>
       vscode.commands.executeCommand(command, ...args),
   };
+}
+
+function createOutputChannelLogger(
+  outputChannel: vscode.OutputChannel,
+): LaunchLogger {
+  return {
+    error: (message) => {
+      outputChannel.appendLine(formatLogLine("error", message));
+      outputChannel.show(true);
+    },
+    info: (message) => {
+      outputChannel.appendLine(formatLogLine("info", message));
+    },
+  };
+}
+
+function formatLogLine(level: "error" | "info", message: string): string {
+  return `[${new Date().toISOString()}] ${level.toUpperCase()} ${message}`;
 }

@@ -35,6 +35,21 @@ host needs known command-line and data-directory behavior.
 The default userdata is the normal editor launch with no `--user-data-dir`
 argument. Managed userdata roots are launched with `--user-data-dir`.
 
+## Storage
+
+Managed userdata is stored separately per supported editor host:
+
+- macOS: `~/Library/Application Support/udsw/<host>`
+- Linux: `$XDG_DATA_HOME/udsw/<host>` or `~/.local/share/udsw/<host>`
+- Windows: `%LOCALAPPDATA%\udsw\<host>`
+
+For example, Cursor and Visual Studio Code use different host namespaces, so
+their registries and managed userdata directories do not overlap.
+
+The short `udsw/<host>/u/<id>` layout is intentional. VS Code creates Unix
+socket files under `--user-data-dir` on macOS, and long userdata paths can
+prevent managed windows from starting.
+
 ## What This Is Not
 
 This extension does not modify credentials, sessions, tokens, or product
@@ -60,3 +75,7 @@ opened context; open a new chat/tab when needed.
 
 Managed userdata directories are stored under the platform's normal application
 data location for the host editor and this extension.
+
+For launch diagnostics, open the editor's Output panel and select
+`Userdata Switcher`. The channel records the detected host, storage paths,
+launch command, sanitized environment markers, and CLI stdout/stderr.

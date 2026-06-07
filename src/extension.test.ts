@@ -32,6 +32,7 @@ interface TestHarness {
   errors: string[];
   warnings: string[];
   infos: string[];
+  logs: string[];
   quickPickItems: readonly QuickPickItem[][];
   quickPickSelection: QuickPickItem | undefined;
   inputBoxValue: string | undefined;
@@ -45,8 +46,9 @@ function createTestHarness(input?: {
   quickPickSelection?: QuickPickItem;
   inputBoxValue?: string;
 }): TestHarness {
+  const tempRoot = process.platform === "darwin" ? "/tmp" : os.tmpdir();
   const tempDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), "userdata-switcher-extension-test-"),
+    path.join(tempRoot, "userdata-switcher-extension-test-"),
   );
   const storeRoot = path.join(tempDir, "store");
   const defaultUserdataRoot = path.join(tempDir, "default-userdata");
@@ -73,6 +75,7 @@ function createTestHarness(input?: {
   const errors: string[] = [];
   const warnings: string[] = [];
   const infos: string[] = [];
+  const logs: string[] = [];
   const quickPickItems: QuickPickItem[][] = [];
 
   const host: SupportedHostAdapter = {
@@ -120,6 +123,10 @@ function createTestHarness(input?: {
     },
     subscribe() {},
     ui,
+    logger: {
+      error: (message) => logs.push(`error:${message}`),
+      info: (message) => logs.push(`info:${message}`),
+    },
     launchEditorImpl: async (command) => {
       launched.push(command);
     },
@@ -143,6 +150,7 @@ function createTestHarness(input?: {
     errors,
     warnings,
     infos,
+    logs,
     quickPickItems,
     quickPickSelection: input?.quickPickSelection,
     inputBoxValue: input?.inputBoxValue,
@@ -192,6 +200,17 @@ describe("activateUserdataSwitcher", () => {
       "Current Cursor Userdata: Default (default)",
     );
     assert.equal(harness.statusBar.command, COMMAND_OPEN_WITH_USERDATA);
+    assert.deepEqual(harness.logs.slice(0, 3), [
+      "info:Activated for Cursor",
+      "info:appRoot=/Applications/Cursor.app/Contents/Resources/app",
+      `info:globalStoragePath=${path.join(
+        harness.defaultUserdataRoot,
+        "User",
+        "globalStorage",
+        "publisher.ext",
+        "globalStorage",
+      )}`,
+    ]);
   });
 
   it("launches the selected managed userdata from the open menu", async () => {
@@ -212,12 +231,16 @@ describe("activateUserdataSwitcher", () => {
     assert.ok(managedLaunch);
     assert.deepEqual(managedLaunch.args, [
       "--user-data-dir",
-      path.join(harness.storeRoot, "userdata/personal/data"),
+      path.join(harness.storeRoot, "u/personal"),
       "--extensions-dir",
       harness.sharedExtensionsDirectory,
-      "--reuse-window",
       "/repo",
     ]);
+    assert.ok(
+      harness.logs.some((log) =>
+        log.includes('Launching Cursor: "/app/bin/cursor" "--user-data-dir"'),
+      ),
+    );
   });
 
   it("routes the rename action in the open menu to rename current userdata", async () => {
@@ -312,14 +335,13 @@ describe("activateUserdataSwitcher", () => {
     assert.equal(managed?.label, "Personal");
     assert.equal(
       harness.createdDirs[0],
-      path.join(harness.storeRoot, "userdata/personal/data"),
+      path.join(harness.storeRoot, "u/personal"),
     );
     assert.deepEqual(harness.launched[0]?.args, [
       "--user-data-dir",
-      path.join(harness.storeRoot, "userdata/personal/data"),
+      path.join(harness.storeRoot, "u/personal"),
       "--extensions-dir",
       harness.sharedExtensionsDirectory,
-      "--reuse-window",
       "/repo",
     ]);
   });
@@ -395,7 +417,7 @@ describe("activateUserdataSwitcher", () => {
           id: "personal",
           kind: "managed",
           label: "Personal",
-          relativeDataDir: "userdata/personal/data",
+          relativeDataDir: "u/personal",
         },
       ],
     });

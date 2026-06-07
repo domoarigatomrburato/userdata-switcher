@@ -21,5 +21,5 @@ export function formatStatusBarText(current: CurrentUserdata): string {
 export function formatOpenWithUserdataPickerTitle(
   current: CurrentUserdata,
 ): string {
-  return `Open With Userdata — Current: ${formatUserdataLabel(current)}`;
+  return `Current: ${formatUserdataLabel(current)}`;
 }

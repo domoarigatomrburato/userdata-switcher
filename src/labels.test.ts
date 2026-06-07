@@ -25,7 +25,7 @@ describe("formatUserdataLabel", () => {
           id: "personal",
           kind: "managed",
           label: "Personal",
-          relativeDataDir: "userdata/personal/data",
+          relativeDataDir: "u/personal",
         },
       }),
       "Personal",
@@ -48,7 +48,7 @@ describe("formatOpenWithUserdataPickerTitle", () => {
           label: "Default",
         },
       }),
-      "Open With Userdata — Current: Default (default)",
+      "Current: Default (default)",
     );
   });
 });

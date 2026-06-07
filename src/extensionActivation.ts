@@ -8,6 +8,7 @@ import {
 } from "./labels";
 import {
   type LaunchEditor,
+  type LaunchLogger,
   openWithUserdata,
   type WorkspaceShape,
 } from "./launcher";
@@ -60,6 +61,8 @@ export interface Disposable {
   dispose(): void;
 }
 
+export type DiagnosticLogger = LaunchLogger;
+
 export interface UserdataSwitcherUi {
   StatusBarAlignment: { Left: number };
   QuickPickItemKind: { Separator: number };
@@ -92,6 +95,7 @@ export interface UserdataSwitcherActivation {
   workspace: WorkspaceShape;
   subscribe(disposable: Disposable): void;
   ui: UserdataSwitcherUi;
+  logger?: DiagnosticLogger;
   launchEditorImpl?: LaunchEditor;
   mkdirSync?: typeof fs.mkdirSync;
 }
@@ -119,6 +123,7 @@ export function activateUserdataSwitcher(
     workspace,
     subscribe,
     ui,
+    logger,
     launchEditorImpl,
     mkdirSync,
   } = input;
@@ -127,6 +132,13 @@ export function activateUserdataSwitcher(
   const storeRoot = host.resolveStoreRoot();
   const defaultUserdataRoot = host.resolveDefaultUserdataRoot();
   const registryFile = registryPath(storeRoot);
+
+  logger?.info(`Activated for ${host.displayName}`);
+  logger?.info(`appRoot=${appRoot}`);
+  logger?.info(`globalStoragePath=${globalStoragePath}`);
+  logger?.info(`storeRoot=${storeRoot}`);
+  logger?.info(`defaultUserdataRoot=${defaultUserdataRoot}`);
+  logger?.info(`registryFile=${registryFile}`);
 
   let registry = updateRegistry(registryFile, (latest) => latest);
 
@@ -169,10 +181,12 @@ export function activateUserdataSwitcher(
         appRoot,
         storeRoot,
         workspace,
+        logger,
         launchEditorImpl,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      logger?.error(`Launch failed: ${message}`);
       await ui.showErrorMessage(message);
     }
   };
@@ -182,6 +196,9 @@ export function activateUserdataSwitcher(
     ui.registerCommand(COMMAND_OPEN_WITH_USERDATA, async () => {
       const currentRegistry = refreshRegistry();
       const current = getCurrent(currentRegistry);
+      logger?.info(
+        `Opening menu from current userdata: ${formatUserdataLabel(current)}`,
+      );
       const items = toQuickPickItems(
         buildOpenWithUserdataMenuItems(currentRegistry, current),
         ui.QuickPickItemKind.Separator,
@@ -197,14 +214,18 @@ export function activateUserdataSwitcher(
       );
       switch (intent.kind) {
         case "cancel":
+          logger?.info("Menu cancelled");
           return;
         case "create":
+          logger?.info("Menu intent: create userdata");
           await ui.executeCommand(COMMAND_CREATE_USERDATA);
           return;
         case "rename":
+          logger?.info("Menu intent: rename current userdata");
           await ui.executeCommand(COMMAND_RENAME_CURRENT_USERDATA);
           return;
         case "open":
+          logger?.info(`Menu intent: open userdata ${intent.entry.id}`);
           await launchEntrySafely(intent.entry);
           return;
       }
@@ -220,6 +241,7 @@ export function activateUserdataSwitcher(
           value.trim() ? undefined : "Label is required",
       });
       if (!label) {
+        logger?.info("Create userdata cancelled");
         return;
       }
       const { entry: created, registry: updated } = createManagedUserdata(
@@ -228,7 +250,12 @@ export function activateUserdataSwitcher(
       );
       registry = updated;
       refreshStatusBar();
-      mkdir(resolveManagedDataDir(storeRoot, created.relativeDataDir), {
+      const managedDataDir = resolveManagedDataDir(
+        storeRoot,
+        created.relativeDataDir,
+      );
+      logger?.info(`Created managed userdata ${created.id}: ${managedDataDir}`);
+      mkdir(managedDataDir, {
         recursive: true,
       });
       await launchEntrySafely(created);
@@ -251,11 +278,13 @@ export function activateUserdataSwitcher(
           value.trim() ? undefined : "Label is required",
       });
       if (!label) {
+        logger?.info("Rename userdata cancelled");
         return;
       }
       persistRegistry((latest) =>
         renameUserdata(latest, current.entry.id, label),
       );
+      logger?.info(`Renamed userdata ${current.entry.id} to ${label}`);
     }),
   );
   subscribe(

@@ -5,8 +5,8 @@ import { resolveManagedDataDir } from "./paths";
 describe("resolveManagedDataDir", () => {
   it("joins the store root with the registry relative path", () => {
     assert.equal(
-      resolveManagedDataDir("/store", "userdata/personal/data"),
-      "/store/userdata/personal/data",
+      resolveManagedDataDir("/store", "u/personal"),
+      "/store/u/personal",
     );
   });
 });

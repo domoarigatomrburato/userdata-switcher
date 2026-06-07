@@ -41,7 +41,7 @@ describe("registry", () => {
     const managed = updated.userdatas.find((entry) => entry.kind === "managed");
     assert.ok(managed);
     assert.equal(managed?.label, "Personal");
-    assert.match(managed?.relativeDataDir ?? "", /^userdata\/personal\/data$/);
+    assert.match(managed?.relativeDataDir ?? "", /^u\/personal$/);
     saveRegistry(registryFile, updated);
   });
 
@@ -55,7 +55,7 @@ describe("registry", () => {
           id: "personal",
           kind: "managed",
           label: "Personal",
-          relativeDataDir: "userdata/personal/data",
+          relativeDataDir: "u/personal",
         },
       ],
     });
@@ -69,13 +69,47 @@ describe("registry", () => {
       id: "personal-2",
       kind: "managed",
       label: "Personal",
-      relativeDataDir: "userdata/personal-2/data",
+      relativeDataDir: "u/personal-2",
     });
     assert.deepEqual(
       registry.userdatas.map((userdata) => userdata.id),
       ["default", "personal", "personal-2"],
     );
     assert.deepEqual(loadRegistry(creationRegistryFile), registry);
+  });
+
+  it("caps managed userdata ids so macOS socket paths stay short", () => {
+    const longRegistry = ensureDefaultUserdata({
+      version: 1,
+      userdatas: [],
+    });
+    const updated = addManagedUserdata(
+      longRegistry,
+      "A very very very very long personal workspace",
+    );
+    const updatedAgain = addManagedUserdata(
+      updated,
+      "A very very very very long personal workspace",
+    );
+
+    assert.deepEqual(
+      updatedAgain.userdatas
+        .filter((entry) => entry.kind === "managed")
+        .map((entry) => ({
+          id: entry.id,
+          relativeDataDir: entry.relativeDataDir,
+        })),
+      [
+        {
+          id: "a-very-very-very-very",
+          relativeDataDir: "u/a-very-very-very-very",
+        },
+        {
+          id: "a-very-very-very-ver-2",
+          relativeDataDir: "u/a-very-very-very-ver-2",
+        },
+      ],
+    );
   });
 
   it("renames a userdata label without changing ids", () => {

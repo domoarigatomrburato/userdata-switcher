@@ -50,14 +50,20 @@ The generic implementation owns:
   `--extensions-dir` when the adapter supplies a Shared Extensions Directory
 - process spawning and startup error handling
 
-The Userdata Store Root is host-namespaced under a generic product directory:
+The Userdata Store Root is host-namespaced under a short generic product
+directory:
 
-- macOS: `~/Library/Application Support/Userdata Switcher/<host>`
-- Linux: `${XDG_DATA_HOME:-~/.local/share}/userdata-switcher/<host>`
-- Windows: `%LOCALAPPDATA%\Userdata Switcher\<host>`
+- macOS: `~/Library/Application Support/udsw/<host>`
+- Linux: `${XDG_DATA_HOME:-~/.local/share}/udsw/<host>`
+- Windows: `%LOCALAPPDATA%\udsw\<host>`
 
 Each supported host gets its own registry. Userdatas for different hosts must
 not share one registry.
+
+Managed Userdata roots use the short relative layout `u/<id>`. The short names
+are intentional because VS Code creates Unix socket files under
+`--user-data-dir` on macOS, and long socket paths fail before the managed window
+starts.
 
 Command identifiers and command titles are generic: `userdataSwitcher.*` and
 `Userdata Switcher: ...`. Host names may appear in prompts, errors, and
@@ -82,11 +88,10 @@ resolves a Shared Extensions Directory for managed launches.
 
 For Default Userdata, omit `--user-data-dir`.
 
-`--reuse-window` is an optional optimization to avoid duplicate windows within
-the same userdata. It is not an MVP guarantee. The launcher must always pass
-`--user-data-dir` for Managed Userdata and must never call `--reuse-window`
-without `--user-data-dir`, because default-host reuse can hijack the active
-window.
+The launcher must not force `--reuse-window`. VS Code treats reuse as "the last
+active window", which can belong to a different userdata root and prevent the
+selected userdata instance from opening. Duplicate-window handling is not an MVP
+guarantee until it can be implemented per userdata instance.
 
 The status bar must describe the Current Userdata for the specific window that
 is rendering it. It must not describe the last selected target or a global

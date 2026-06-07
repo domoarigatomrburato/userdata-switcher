@@ -68,15 +68,10 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run build",
-    "compile": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc -p .",
-    "test": "npm run typecheck && tsx --test src/**/*.test.ts",
-    "build": "npm run test && npm run compile",
-    "package:vsix": "node -e \"require('node:fs').mkdirSync('dist', { recursive: true })\" && vsce package --no-dependencies --out dist/userdata-switcher-${npm_package_version}.vsix",
     "check": "biome check --write .",
-    "check:ci": "biome check .",
-    "format": "biome format --write .",
-    "lint": "biome lint ."
+    "test": "tsc -p . && tsx --test src/**/*.test.ts",
+    "build": "node scripts/build.mjs",
+    "package:vsix": "node scripts/package-vsix.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.16",

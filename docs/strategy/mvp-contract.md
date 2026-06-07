@@ -85,9 +85,10 @@ resolves a Shared Extensions Directory for managed launches.
 
 Default Userdata launch omits `--user-data-dir`.
 
-The launcher may pass `--reuse-window` for Managed Userdata to avoid duplicate
-windows within the same userdata. It must never pass `--reuse-window` without
-`--user-data-dir`.
+The launcher must not force `--reuse-window`. VS Code treats reuse as "the last
+active window", which can belong to a different userdata root and prevent the
+selected userdata instance from opening. Duplicate-window handling is outside
+the MVP until it can be implemented per userdata instance.
 
 If the launcher cannot find or spawn a usable host CLI, it reports the error and
 stops.

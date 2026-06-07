@@ -35,6 +35,7 @@ const DEFAULT_ENTRY: UserdataEntry = {
   kind: "default",
   label: "Default",
 };
+const MAX_MANAGED_ID_LENGTH = 22;
 
 export function loadRegistry(registryFile: string): Registry {
   if (!fs.existsSync(registryFile)) {
@@ -122,7 +123,9 @@ function slugifyLabel(label: string): string {
   const slug = label
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/^-+|-+$/g, "")
+    .slice(0, MAX_MANAGED_ID_LENGTH)
+    .replace(/-+$/g, "");
   return slug || "userdata";
 }
 
@@ -139,7 +142,7 @@ function buildManagedUserdataEntry(
     id,
     kind: "managed",
     label: trimmed,
-    relativeDataDir: `userdata/${id}/data`,
+    relativeDataDir: `u/${id}`,
   };
 }
 
@@ -162,10 +165,15 @@ function createUniqueId(registry: Registry, baseId: string): string {
     return baseId;
   }
   let index = 2;
-  while (
-    registry.userdatas.some((entry) => entry.id === `${baseId}-${index}`)
-  ) {
+  let candidate = withNumericSuffix(baseId, index);
+  while (registry.userdatas.some((entry) => entry.id === candidate)) {
     index += 1;
+    candidate = withNumericSuffix(baseId, index);
   }
-  return `${baseId}-${index}`;
+  return candidate;
+}
+
+function withNumericSuffix(baseId: string, index: number): string {
+  const suffix = `-${index}`;
+  return `${baseId.slice(0, MAX_MANAGED_ID_LENGTH - suffix.length)}${suffix}`;
 }

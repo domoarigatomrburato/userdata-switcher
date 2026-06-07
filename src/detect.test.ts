@@ -24,7 +24,7 @@ describe("matchCurrentUserdata", () => {
         id: "personal",
         kind: "managed",
         label: "Personal",
-        relativeDataDir: "userdata/personal/data",
+        relativeDataDir: "u/personal",
       },
     ],
   };
@@ -46,7 +46,7 @@ describe("matchCurrentUserdata", () => {
   it("matches a managed userdata under the store root", () => {
     const match = matchCurrentUserdata({
       globalStoragePath:
-        "/store/userdata/personal/data/User/globalStorage/publisher.ext/globalStorage",
+        "/store/u/personal/User/globalStorage/publisher.ext/globalStorage",
       defaultUserdataRoot: "/Users/alice/Library/Application Support/Cursor",
       storeRoot: "/store",
       registry,

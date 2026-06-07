@@ -68,7 +68,7 @@ describe("resolveStoreRoot", () => {
         home: "/Users/alice",
         env: {},
       }),
-      "/Users/alice/Library/Application Support/Userdata Switcher/Cursor",
+      "/Users/alice/Library/Application Support/udsw/cursor",
     );
   });
 
@@ -79,7 +79,7 @@ describe("resolveStoreRoot", () => {
         home: "/home/alice",
         env: {},
       }),
-      "/home/alice/.local/share/userdata-switcher/vscode",
+      "/home/alice/.local/share/udsw/vscode",
     );
   });
 
@@ -90,7 +90,19 @@ describe("resolveStoreRoot", () => {
         home: "C:\\Users\\alice",
         env: {},
       }),
-      "C:\\Users\\alice\\AppData\\Local\\Userdata Switcher\\Visual Studio Code - Insiders",
+      "C:\\Users\\alice\\AppData\\Local\\udsw\\vscode-insiders",
+    );
+  });
+
+  it("keeps macOS VS Code managed socket paths below the Unix socket limit", () => {
+    const storeRoot = vscode.resolveStoreRoot({
+      platform: "darwin",
+      home: "/Users/alessandroburato",
+      env: {},
+    });
+
+    assert.ok(
+      `${storeRoot}/u/1234567890123456789012/1.12-main.sock`.length < 104,
     );
   });
 });

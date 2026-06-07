@@ -37,7 +37,6 @@ export interface SupportedHostAdapter {
 interface HostDefinition {
   id: EditorHostId;
   displayName: string;
-  storageName: string;
   storageSlug: string;
   defaultUserdataDirName: string;
   sharedExtensionsRelativePath: string;
@@ -48,7 +47,6 @@ const HOST_DEFINITIONS: HostDefinition[] = [
   {
     id: "cursor",
     displayName: "Cursor",
-    storageName: "Cursor",
     storageSlug: "cursor",
     defaultUserdataDirName: "Cursor",
     sharedExtensionsRelativePath: ".cursor/extensions",
@@ -57,7 +55,6 @@ const HOST_DEFINITIONS: HostDefinition[] = [
   {
     id: "vscode",
     displayName: "Visual Studio Code",
-    storageName: "Visual Studio Code",
     storageSlug: "vscode",
     defaultUserdataDirName: "Code",
     sharedExtensionsRelativePath: ".vscode/extensions",
@@ -66,7 +63,6 @@ const HOST_DEFINITIONS: HostDefinition[] = [
   {
     id: "vscode-insiders",
     displayName: "Visual Studio Code - Insiders",
-    storageName: "Visual Studio Code - Insiders",
     storageSlug: "vscode-insiders",
     defaultUserdataDirName: "Code - Insiders",
     sharedExtensionsRelativePath: ".vscode-insiders/extensions",
@@ -126,18 +122,18 @@ function resolveStoreRoot(
       home,
       "Library",
       "Application Support",
-      "Userdata Switcher",
-      host.storageName,
+      "udsw",
+      host.storageSlug,
     );
   }
   if (platform === "linux") {
     const dataHome = env.XDG_DATA_HOME ?? pathApi.join(home, ".local", "share");
-    return pathApi.join(dataHome, "userdata-switcher", host.storageSlug);
+    return pathApi.join(dataHome, "udsw", host.storageSlug);
   }
   if (platform === "win32") {
     const localAppData =
       env.LOCALAPPDATA ?? pathApi.join(home, "AppData", "Local");
-    return pathApi.join(localAppData, "Userdata Switcher", host.storageName);
+    return pathApi.join(localAppData, "udsw", host.storageSlug);
   }
   throw new Error(`Unsupported platform: ${platform}`);
 }

@@ -22,6 +22,14 @@ interface ExtensionManifest {
 }
 
 describe("extension manifest", () => {
+  const expectedScripts = {
+    "vscode:prepublish": "npm run build",
+    check: "biome check --write .",
+    test: "tsc -p . && tsx --test src/**/*.test.ts",
+    build: "node scripts/build.mjs",
+    "package:vsix": "node scripts/package-vsix.mjs",
+  };
+
   it("groups command palette entries under the extension category", () => {
     const manifest = JSON.parse(
       fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"),
@@ -77,11 +85,6 @@ describe("extension manifest", () => {
       "launcher",
       "vscode",
     ]);
-    assert.equal(
-      manifest.scripts?.["package:vsix"],
-      "node -e \"require('node:fs').mkdirSync('dist', { recursive: true })\" && " +
-        "vsce package --no-dependencies --out dist/userdata-switcher-$" +
-        "{npm_package_version}.vsix",
-    );
+    assert.deepEqual(manifest.scripts, expectedScripts);
   });
 });
