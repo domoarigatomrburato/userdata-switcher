@@ -7,27 +7,33 @@ import {
 } from "./labels";
 
 describe("formatUserdataLabel", () => {
-  it("shows default userdata with the default suffix", () => {
+  it("shows known default userdata with the default suffix", () => {
     assert.equal(
-      formatUserdataLabel({ id: "default", kind: "default", label: "Work" }),
+      formatUserdataLabel({
+        kind: "known",
+        entry: { id: "default", kind: "default", label: "Work" },
+      }),
       "Work (default)",
     );
   });
 
-  it("shows managed userdata without a suffix", () => {
+  it("shows known managed userdata without a suffix", () => {
     assert.equal(
       formatUserdataLabel({
-        id: "personal",
-        kind: "managed",
-        label: "Personal",
-        relativeDataDir: "userdata/personal/data",
+        kind: "known",
+        entry: {
+          id: "personal",
+          kind: "managed",
+          label: "Personal",
+          relativeDataDir: "userdata/personal/data",
+        },
       }),
       "Personal",
     );
   });
 
   it("shows unmanaged userdata", () => {
-    assert.equal(formatUserdataLabel(null), "Unmanaged");
+    assert.equal(formatUserdataLabel({ kind: "unmanaged" }), "Unmanaged");
   });
 });
 
@@ -35,9 +41,12 @@ describe("formatOpenWithUserdataPickerTitle", () => {
   it("shows the current userdata in the picker title", () => {
     assert.equal(
       formatOpenWithUserdataPickerTitle({
-        id: "default",
-        kind: "default",
-        label: "Default",
+        kind: "known",
+        entry: {
+          id: "default",
+          kind: "default",
+          label: "Default",
+        },
       }),
       "Open With Userdata — Current: Default (default)",
     );
@@ -47,7 +56,10 @@ describe("formatOpenWithUserdataPickerTitle", () => {
 describe("formatStatusBarText", () => {
   it("prefixes the compact UI label", () => {
     assert.equal(
-      formatStatusBarText({ id: "default", kind: "default", label: "Work" }),
+      formatStatusBarText({
+        kind: "known",
+        entry: { id: "default", kind: "default", label: "Work" },
+      }),
       "$(layers) Userdata: Work (default)",
     );
   });

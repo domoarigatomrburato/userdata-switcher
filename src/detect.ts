@@ -2,7 +2,7 @@ import path from "node:path";
 import { resolveManagedDataDir } from "./paths";
 import type { Registry, UserdataEntry } from "./registry";
 
-export type CurrentUserdataMatch =
+export type CurrentUserdata =
   | { kind: "known"; entry: UserdataEntry }
   | { kind: "unmanaged" };
 
@@ -19,7 +19,7 @@ export function matchCurrentUserdata(input: {
   defaultUserdataRoot: string;
   storeRoot: string;
   registry: Registry;
-}): CurrentUserdataMatch {
+}): CurrentUserdata {
   const derivedRoot = deriveUserdataRootFromGlobalStorage(
     input.globalStoragePath,
   );

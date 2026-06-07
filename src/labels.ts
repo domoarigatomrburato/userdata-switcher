@@ -1,20 +1,25 @@
+import type { CurrentUserdata } from "./detect";
 import type { UserdataEntry } from "./registry";
 
-export function formatUserdataLabel(entry: UserdataEntry | null): string {
-  if (!entry) {
+export function formatUserdataEntryLabel(entry: UserdataEntry): string {
+  return entry.kind === "default" ? `${entry.label} (default)` : entry.label;
+}
+
+export function formatUserdataLabel(current: CurrentUserdata): string {
+  if (current.kind === "unmanaged") {
     return "Unmanaged";
   }
-  return entry.kind === "default" ? `${entry.label} (default)` : entry.label;
+  return formatUserdataEntryLabel(current.entry);
 }
 
 const STATUS_BAR_ICON = "$(layers)";
 
-export function formatStatusBarText(entry: UserdataEntry | null): string {
-  return `${STATUS_BAR_ICON} Userdata: ${formatUserdataLabel(entry)}`;
+export function formatStatusBarText(current: CurrentUserdata): string {
+  return `${STATUS_BAR_ICON} Userdata: ${formatUserdataLabel(current)}`;
 }
 
 export function formatOpenWithUserdataPickerTitle(
-  entry: UserdataEntry | null,
+  current: CurrentUserdata,
 ): string {
-  return `Open With Userdata — Current: ${formatUserdataLabel(entry)}`;
+  return `Open With Userdata — Current: ${formatUserdataLabel(current)}`;
 }

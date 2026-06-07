@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { matchCurrentUserdata } from "./detect";
+import { type CurrentUserdata, matchCurrentUserdata } from "./detect";
 import type { SupportedHostAdapter } from "./host";
 import {
   formatOpenWithUserdataPickerTitle,
@@ -118,17 +118,13 @@ export function activateUserdataSwitcher(
     return registry;
   };
 
-  const getCurrent = (
-    currentRegistry: Registry = registry,
-  ): UserdataEntry | null => {
-    const match = matchCurrentUserdata({
+  const getCurrent = (currentRegistry: Registry = registry): CurrentUserdata =>
+    matchCurrentUserdata({
       globalStoragePath,
       defaultUserdataRoot,
       storeRoot,
       registry: currentRegistry,
     });
-    return match.kind === "known" ? match.entry : null;
-  };
 
   const statusBarItem = ui.createStatusBarItem(ui.StatusBarAlignment.Left, 100);
   statusBarItem.command = COMMAND_OPEN_WITH_USERDATA;
@@ -231,7 +227,7 @@ export function activateUserdataSwitcher(
   subscribe(
     ui.registerCommand(COMMAND_RENAME_CURRENT_USERDATA, async () => {
       const current = getCurrent();
-      if (!current) {
+      if (current.kind === "unmanaged") {
         await ui.showWarningMessage(
           "The current window is using unmanaged userdata.",
         );
@@ -240,14 +236,16 @@ export function activateUserdataSwitcher(
       const label = await ui.showInputBox({
         title: "Rename Current Userdata",
         prompt: "Enter a new label",
-        value: current.label,
+        value: current.entry.label,
         validateInput: (value) =>
           value.trim() ? undefined : "Label is required",
       });
       if (!label) {
         return;
       }
-      persistRegistry((latest) => renameUserdata(latest, current.id, label));
+      persistRegistry((latest) =>
+        renameUserdata(latest, current.entry.id, label),
+      );
     }),
   );
   subscribe(

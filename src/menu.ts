@@ -1,5 +1,6 @@
-import { formatUserdataLabel } from "./labels";
-import type { Registry, UserdataEntry } from "./registry";
+import type { CurrentUserdata } from "./detect";
+import { formatUserdataEntryLabel } from "./labels";
+import type { Registry } from "./registry";
 
 export const CREATE_USERDATA_LABEL = "Create New Userdata...";
 export const RENAME_CURRENT_USERDATA_LABEL = "Rename Current Userdata...";
@@ -17,14 +18,16 @@ export interface UserdataMenuItem {
 
 export function buildOpenWithUserdataMenuItems(
   registry: Registry,
-  current: UserdataEntry | null,
+  current: CurrentUserdata,
   createUserdataLabel: string = CREATE_USERDATA_LABEL,
   renameCurrentUserdataLabel: string = RENAME_CURRENT_USERDATA_LABEL,
 ): UserdataMenuItem[] {
   const otherUserdatas = registry.userdatas
-    .filter((entry) => entry.id !== current?.id)
+    .filter(
+      (entry) => current.kind === "unmanaged" || entry.id !== current.entry.id,
+    )
     .map((entry) => ({
-      label: formatUserdataLabel(entry),
+      label: formatUserdataEntryLabel(entry),
       description:
         entry.kind === "default" ? "Default Userdata" : "Managed Userdata",
       userdataId: entry.id,
@@ -36,7 +39,7 @@ export function buildOpenWithUserdataMenuItems(
     items.push({ kind: "separator", label: "" });
   }
 
-  if (current) {
+  if (current.kind === "known") {
     items.push({
       action: "rename",
       label: renameCurrentUserdataLabel,

@@ -29,7 +29,10 @@ describe("buildOpenWithUserdataMenuItems", () => {
     const [current] = onlyDefault.userdatas;
     assert.ok(current);
 
-    const items = buildOpenWithUserdataMenuItems(onlyDefault, current);
+    const items = buildOpenWithUserdataMenuItems(onlyDefault, {
+      kind: "known",
+      entry: current,
+    });
     assert.deepEqual(
       items.map((item) => item.kind ?? "item"),
       ["item", "item"],
@@ -41,7 +44,9 @@ describe("buildOpenWithUserdataMenuItems", () => {
   });
 
   it("omits rename when the current userdata is unknown", () => {
-    const items = buildOpenWithUserdataMenuItems(registry, null);
+    const items = buildOpenWithUserdataMenuItems(registry, {
+      kind: "unmanaged",
+    });
     assert.deepEqual(
       items.map((item) => item.kind ?? "item"),
       ["item", "item", "separator", "item"],
@@ -70,7 +75,7 @@ describe("buildOpenWithUserdataMenuItems", () => {
           },
         ],
       },
-      defaultUserdata,
+      { kind: "known", entry: defaultUserdata },
     );
     assert.deepEqual(
       items.map((item) => item.kind ?? "item"),
@@ -99,7 +104,7 @@ describe("buildOpenWithUserdataMenuItems", () => {
           },
         ],
       },
-      current,
+      { kind: "known", entry: current },
     );
 
     const managedItem = items[0];
