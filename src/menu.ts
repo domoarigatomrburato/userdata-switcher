@@ -2,8 +2,10 @@ import type { CurrentUserdata } from "./detect";
 import { formatUserdataEntryLabel } from "./labels";
 import type { Registry, UserdataEntry } from "./registry";
 
-export const CREATE_USERDATA_LABEL = "Create New Userdata...";
-export const RENAME_CURRENT_USERDATA_LABEL = "Rename Current Userdata...";
+export const ACTIONS_SEPARATOR_LABEL = "Actions";
+export const CREATE_USERDATA_LABEL = "$(add) Create New Userdata...";
+export const RENAME_CURRENT_USERDATA_LABEL =
+  "$(edit) Rename Current Userdata...";
 
 export type MenuItemKind = "item" | "separator";
 export type UserdataMenuItemIntent =
@@ -47,9 +49,7 @@ export function buildOpenWithUserdataMenuItems(
 
   const items: UserdataMenuItem[] = [...otherUserdatas];
 
-  if (otherUserdatas.length > 0) {
-    items.push({ kind: "separator", label: "" });
-  }
+  items.push({ kind: "separator", label: ACTIONS_SEPARATOR_LABEL });
 
   if (current.kind === "known") {
     items.push({

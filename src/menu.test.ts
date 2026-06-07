@@ -36,12 +36,13 @@ describe("buildOpenWithUserdataMenuItems", () => {
     });
     assert.deepEqual(
       items.map((item) => item.kind ?? "item"),
-      ["item", "item"],
+      ["separator", "item", "item"],
     );
-    assert.equal(items[0]?.label, RENAME_CURRENT_USERDATA_LABEL);
-    assert.deepEqual(items[0]?.intent, { kind: "rename" });
-    assert.equal(items[1]?.label, CREATE_USERDATA_LABEL);
-    assert.deepEqual(items[1]?.intent, { kind: "create" });
+    assert.equal(items[0]?.label, "Actions");
+    assert.equal(items[1]?.label, RENAME_CURRENT_USERDATA_LABEL);
+    assert.deepEqual(items[1]?.intent, { kind: "rename" });
+    assert.equal(items[2]?.label, CREATE_USERDATA_LABEL);
+    assert.deepEqual(items[2]?.intent, { kind: "create" });
   });
 
   it("omits rename when the current userdata is unknown", () => {
@@ -53,6 +54,7 @@ describe("buildOpenWithUserdataMenuItems", () => {
       ["item", "item", "separator", "item"],
     );
     assert.equal(items.at(-1)?.label, CREATE_USERDATA_LABEL);
+    assert.equal(items.at(-2)?.label, "Actions");
     assert.deepEqual(items.at(-1)?.intent, { kind: "create" });
     assert.ok(items.every((item) => item.intent?.kind !== "rename"));
   });

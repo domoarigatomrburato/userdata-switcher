@@ -60,7 +60,7 @@ describe("formatStatusBarText", () => {
         kind: "known",
         entry: { id: "default", kind: "default", label: "Work" },
       }),
-      "$(layers) Userdata: Work (default)",
+      "$(layers) Work (default)",
     );
   });
 });

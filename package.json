@@ -3,7 +3,7 @@
   "displayName": "Userdata Switcher",
   "description": "Open VS Code-family editors with named isolated userdata roots.",
   "icon": "media/icon.png",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "type": "commonjs",
   "publisher": "domoarigatomrburato",
   "license": "MIT",
@@ -29,19 +29,23 @@
     "commands": [
       {
         "command": "userdataSwitcher.openWithUserdata",
-        "title": "Userdata Switcher: Open With Userdata"
+        "title": "Open With Userdata",
+        "category": "Userdata Switcher"
       },
       {
         "command": "userdataSwitcher.createUserdata",
-        "title": "Userdata Switcher: Create Userdata"
+        "title": "Create Userdata",
+        "category": "Userdata Switcher"
       },
       {
         "command": "userdataSwitcher.renameCurrentUserdata",
-        "title": "Userdata Switcher: Rename Current Userdata"
+        "title": "Rename Current Userdata",
+        "category": "Userdata Switcher"
       },
       {
         "command": "userdataSwitcher.showCurrentUserdata",
-        "title": "Userdata Switcher: Show Current Userdata"
+        "title": "Show Current Userdata",
+        "category": "Userdata Switcher"
       }
     ]
   },

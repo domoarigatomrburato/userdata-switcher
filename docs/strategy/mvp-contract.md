@@ -34,9 +34,9 @@ global default.
 
 Status bar text:
 
-- known default: `Userdata: Work (default)` or `Userdata: Default (default)`
-- known managed userdata: `Userdata: Personal`
-- unknown external userdata: `Userdata: Unmanaged`
+- known default: `Work (default)` or `Default (default)`
+- known managed userdata: `Personal`
+- unknown external userdata: `Unmanaged`
 
 The tooltip may include the current Editor Host name and resolved kind.
 
@@ -46,9 +46,11 @@ Clicking the status bar opens a Quick Pick:
 
 1. The title shows `Current: <label>`.
 2. Items list other known Userdata entries only.
-3. When Current Userdata is known, a `Rename Current Userdata...` action appears
-   above `Create New Userdata...`.
-4. When Current Userdata is unknown, only `Create New Userdata...` appears.
+3. An `Actions` separator labels the action section.
+4. When Current Userdata is known, a `$(edit) Rename Current Userdata...`
+   action appears above `$(add) Create New Userdata...`.
+5. When Current Userdata is unknown, only `$(add) Create New Userdata...`
+   appears.
 
 The current userdata is not a selectable item. Action CTAs are identified by
 structured action data, not by matching their label text.

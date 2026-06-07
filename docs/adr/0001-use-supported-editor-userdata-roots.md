@@ -94,9 +94,10 @@ default.
 
 Clicking the status bar opens the Userdata Menu. The menu title shows the
 Current Userdata for context, then the menu lists other selectable known Userdata
-entries, then a `Create New Userdata...` action. If the current userdata is
-Unmanaged, it is still shown in the title, but arbitrary external userdata roots
-are not adopted in the MVP.
+entries, then an `Actions` section with actions such as
+`$(add) Create New Userdata...`. If the current userdata is Unmanaged, it is
+still shown in the title, but arbitrary external userdata roots are not adopted
+in the MVP.
 
 ## Consequences
 

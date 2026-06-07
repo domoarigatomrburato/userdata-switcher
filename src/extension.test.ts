@@ -186,10 +186,7 @@ describe("activateUserdataSwitcher", () => {
 
     activateUserdataSwitcher(harness.activation);
 
-    assert.equal(
-      harness.statusBar.text,
-      "$(layers) Userdata: Default (default)",
-    );
+    assert.equal(harness.statusBar.text, "$(layers) Default (default)");
     assert.equal(
       harness.statusBar.tooltip,
       "Current Cursor Userdata: Default (default)",
@@ -240,7 +237,7 @@ describe("activateUserdataSwitcher", () => {
       path.join(harness.storeRoot, "registry.json"),
     );
     assert.equal(registry.userdatas[0]?.label, "Work");
-    assert.equal(harness.statusBar.text, "$(layers) Userdata: Work (default)");
+    assert.equal(harness.statusBar.text, "$(layers) Work (default)");
   });
 
   it("routes the create action in the open menu to create userdata", async () => {
@@ -283,7 +280,7 @@ describe("activateUserdataSwitcher", () => {
         description: "Managed Userdata",
         intent: { kind: "open", userdataId: "personal" },
       },
-      { label: "", kind: -1 },
+      { label: "Actions", kind: -1 },
       {
         label: RENAME_CURRENT_USERDATA_LABEL,
         intent: { kind: "rename" },
@@ -364,7 +361,7 @@ describe("activateUserdataSwitcher", () => {
       path.join(harness.storeRoot, "registry.json"),
     );
     assert.equal(registry.userdatas[0]?.label, "Work");
-    assert.equal(harness.statusBar.text, "$(layers) Userdata: Work (default)");
+    assert.equal(harness.statusBar.text, "$(layers) Work (default)");
   });
 
   it("shows the current userdata from the show command", async () => {

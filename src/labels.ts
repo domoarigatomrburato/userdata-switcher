@@ -15,7 +15,7 @@ export function formatUserdataLabel(current: CurrentUserdata): string {
 const STATUS_BAR_ICON = "$(layers)";
 
 export function formatStatusBarText(current: CurrentUserdata): string {
-  return `${STATUS_BAR_ICON} Userdata: ${formatUserdataLabel(current)}`;
+  return `${STATUS_BAR_ICON} ${formatUserdataLabel(current)}`;
 }
 
 export function formatOpenWithUserdataPickerTitle(
