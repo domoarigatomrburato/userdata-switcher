@@ -52,29 +52,30 @@ export function buildOpenWithUserdataMenuItems(
       intent: { kind: "open", userdataId: entry.id },
     }));
 
-  const items: UserdataMenuItem[] = [...otherUserdatas];
-
-  items.push({ kind: "separator", label: ACTIONS_SEPARATOR_LABEL });
-
-  if (current.kind === "known") {
-    items.push({
-      intent: { kind: "rename" },
-      label: renameCurrentUserdataLabel,
+  const renameItem: UserdataMenuItem = {
+    intent: { kind: "rename" },
+    label: renameCurrentUserdataLabel,
+    alwaysShow: true,
+  };
+  const actionItems: UserdataMenuItem[] = [
+    ...(current.kind === "known" ? [renameItem] : []),
+    {
+      intent: { kind: "reveal" },
+      label: revealCurrentUserdataLabel,
       alwaysShow: true,
-    });
-  }
-  items.push({
-    intent: { kind: "reveal" },
-    label: revealCurrentUserdataLabel,
-    alwaysShow: true,
-  });
-  items.push({
-    intent: { kind: "create" },
-    label: createUserdataLabel,
-    alwaysShow: true,
-  });
+    },
+    {
+      intent: { kind: "create" },
+      label: createUserdataLabel,
+      alwaysShow: true,
+    },
+  ];
 
-  return items;
+  return [
+    ...otherUserdatas,
+    { kind: "separator", label: ACTIONS_SEPARATOR_LABEL },
+    ...actionItems,
+  ];
 }
 
 export function resolveOpenWithUserdataMenuIntent(

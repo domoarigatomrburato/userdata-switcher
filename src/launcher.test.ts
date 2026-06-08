@@ -12,6 +12,24 @@ import {
 } from "./launcher";
 import type { UserdataEntry } from "./registry";
 
+const managedEntry: UserdataEntry = {
+  id: "personal",
+  kind: "managed",
+  label: "Personal",
+  relativeDataDir: "u/personal",
+};
+
+const vscodeHost: SupportedHostAdapter = {
+  id: "vscode",
+  displayName: "Visual Studio Code",
+  cliNames: ["code"],
+  resolveStoreRoot: () => "/store",
+  resolveDefaultUserdataRoot: () => "/default-userdata",
+  resolveSharedExtensionsDirectory: () => "/home/alice/.vscode/extensions",
+  discoverBundledCli: () => "/app/bin/code",
+  discoverEditorCli: () => "/app/bin/code",
+};
+
 describe("resolveWorkspaceArg", () => {
   it("returns a single-folder workspace path", () => {
     assert.equal(
@@ -45,17 +63,10 @@ describe("resolveWorkspaceArg", () => {
 });
 
 describe("buildLaunchCommand", () => {
-  const managed: UserdataEntry = {
-    id: "personal",
-    kind: "managed",
-    label: "Personal",
-    relativeDataDir: "u/personal",
-  };
-
   it("launches managed userdata with --user-data-dir", () => {
     assert.deepEqual(
       buildLaunchCommand({
-        entry: managed,
+        entry: managedEntry,
         storeRoot: "/store",
         workspacePath: "/repo",
         editorCli: "/app/bin/code",
@@ -70,7 +81,7 @@ describe("buildLaunchCommand", () => {
   it("adds --extensions-dir for managed userdata when provided", () => {
     assert.deepEqual(
       buildLaunchCommand({
-        entry: managed,
+        entry: managedEntry,
         storeRoot: "/store",
         workspacePath: "/repo",
         editorCli: "/app/bin/code",
@@ -92,7 +103,7 @@ describe("buildLaunchCommand", () => {
   it("omits --extensions-dir when shared extensions directory is not provided", () => {
     assert.deepEqual(
       buildLaunchCommand({
-        entry: managed,
+        entry: managedEntry,
         storeRoot: "/store",
         workspacePath: "/repo",
         editorCli: "/app/bin/code",
@@ -123,7 +134,7 @@ describe("buildLaunchCommand", () => {
 
   it("does not force reuse for managed userdata", () => {
     const launch = buildLaunchCommand({
-      entry: managed,
+      entry: managedEntry,
       storeRoot: "/store",
       workspacePath: "/repo",
       editorCli: "/app/bin/code",
@@ -137,30 +148,12 @@ describe("buildLaunchCommand", () => {
 });
 
 describe("buildOpenWithUserdataCommand", () => {
-  const managed: UserdataEntry = {
-    id: "personal",
-    kind: "managed",
-    label: "Personal",
-    relativeDataDir: "u/personal",
-  };
-
-  const host: SupportedHostAdapter = {
-    id: "vscode",
-    displayName: "Visual Studio Code",
-    cliNames: ["code"],
-    resolveStoreRoot: () => "/store",
-    resolveDefaultUserdataRoot: () => "/default-userdata",
-    resolveSharedExtensionsDirectory: () => "/home/alice/.vscode/extensions",
-    discoverBundledCli: () => "/app/bin/code",
-    discoverEditorCli: () => "/app/bin/code",
-  };
-
   it("builds the managed userdata launch from host and workspace policy", () => {
     const logs: string[] = [];
     assert.deepEqual(
       buildOpenWithUserdataCommand({
-        entry: managed,
-        host,
+        entry: managedEntry,
+        host: vscodeHost,
         appRoot: "/app",
         storeRoot: "/store",
         workspace: {
@@ -193,8 +186,8 @@ describe("buildOpenWithUserdataCommand", () => {
     const logs: string[] = [];
     const build = () =>
       buildOpenWithUserdataCommand({
-        entry: managed,
-        host,
+        entry: managedEntry,
+        host: vscodeHost,
         appRoot: "/app",
         storeRoot:
           "/Users/alessandroburato/Library/Application Support/Userdata Switcher/Visual Studio Code",
@@ -223,7 +216,7 @@ describe("buildOpenWithUserdataCommand", () => {
     assert.deepEqual(
       buildOpenWithUserdataCommand({
         entry: { id: "default", kind: "default", label: "Work" },
-        host,
+        host: vscodeHost,
         appRoot: "/app",
         storeRoot: "/store",
         workspace: {
@@ -241,9 +234,9 @@ describe("buildOpenWithUserdataCommand", () => {
     assert.throws(
       () =>
         buildOpenWithUserdataCommand({
-          entry: managed,
+          entry: managedEntry,
           host: {
-            ...host,
+            ...vscodeHost,
             discoverEditorCli: () => null,
           },
           appRoot: "/missing-app",

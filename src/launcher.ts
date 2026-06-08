@@ -173,11 +173,8 @@ export async function openWithUserdata(input: {
   input.logger?.info(
     `Launching ${input.host.displayName}: ${formatLaunchCommand(command)}`,
   );
-  if (input.launchEditorImpl) {
-    await input.launchEditorImpl(command, { logger: input.logger });
-    return;
-  }
-  await launchEditor(command, { logger: input.logger });
+  const launch = input.launchEditorImpl ?? launchEditor;
+  await launch(command, { logger: input.logger });
 }
 
 export function launchEditor(

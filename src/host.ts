@@ -75,8 +75,7 @@ export function resolveEditorHost(
 ): SupportedHostAdapter | null {
   const definition =
     HOST_DEFINITIONS.find((host) => host.id === identity.uriScheme) ??
-    HOST_DEFINITIONS.find((host) => host.displayName === identity.appName) ??
-    null;
+    HOST_DEFINITIONS.find((host) => host.displayName === identity.appName);
   return definition ? createSupportedHostAdapter(definition) : null;
 }
 

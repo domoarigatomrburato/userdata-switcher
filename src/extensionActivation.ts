@@ -23,12 +23,6 @@ import {
   type UserdataMenuItem,
   type UserdataMenuItemIntent,
 } from "./menu";
-
-export {
-  CREATE_USERDATA_LABEL,
-  RENAME_CURRENT_USERDATA_LABEL,
-} from "./menu";
-
 import { registryPath, resolveManagedDataDir } from "./paths";
 import {
   createManagedUserdata,
@@ -49,6 +43,11 @@ export const COMMAND_SHOW_CURRENT_USERDATA =
 export const COMMAND_REVEAL_CURRENT_USERDATA =
   "userdataSwitcher.revealCurrentUserdata";
 
+export {
+  CREATE_USERDATA_LABEL,
+  RENAME_CURRENT_USERDATA_LABEL,
+} from "./menu";
+
 export interface QuickPickItem {
   label: string;
   description?: string;
@@ -67,8 +66,6 @@ export interface StatusBarItem {
 export interface Disposable {
   dispose(): void;
 }
-
-export type DiagnosticLogger = LaunchLogger;
 
 export interface UserdataSwitcherUi {
   StatusBarAlignment: { Left: number };
@@ -103,9 +100,13 @@ export interface UserdataSwitcherActivation {
   workspace: WorkspaceShape;
   subscribe(disposable: Disposable): void;
   ui: UserdataSwitcherUi;
-  logger?: DiagnosticLogger;
+  logger?: LaunchLogger;
   launchEditorImpl?: LaunchEditor;
   mkdirSync?: typeof fs.mkdirSync;
+}
+
+function requireNonEmptyLabel(value: string): string | undefined {
+  return value.trim() ? undefined : "Label is required";
 }
 
 function toQuickPickItems(
@@ -288,8 +289,7 @@ export function activateUserdataSwitcher(
         title: "Create Userdata",
         prompt: `Enter a label for the new ${host.displayName} Userdata`,
         placeHolder: "Personal",
-        validateInput: (value) =>
-          value.trim() ? undefined : "Label is required",
+        validateInput: requireNonEmptyLabel,
       });
       if (!label) {
         logger?.info("Create userdata cancelled");
@@ -325,8 +325,7 @@ export function activateUserdataSwitcher(
         title: "Rename Current Userdata",
         prompt: "Enter a new label",
         value: current.entry.label,
-        validateInput: (value) =>
-          value.trim() ? undefined : "Label is required",
+        validateInput: requireNonEmptyLabel,
       });
       if (!label) {
         logger?.info("Rename userdata cancelled");

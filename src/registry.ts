@@ -102,15 +102,20 @@ export function createManagedUserdata(
   }).result;
 }
 
+function trimmedUserdataLabel(label: string): string {
+  const trimmed = label.trim();
+  if (!trimmed) {
+    throw new Error("Userdata label is required");
+  }
+  return trimmed;
+}
+
 export function renameUserdata(
   registry: Registry,
   entryId: string,
   label: string,
 ): Registry {
-  const trimmed = label.trim();
-  if (!trimmed) {
-    throw new Error("Userdata label is required");
-  }
+  const trimmed = trimmedUserdataLabel(label);
   return {
     version: 1,
     userdatas: registry.userdatas.map((entry) =>
@@ -133,10 +138,7 @@ function buildManagedUserdataEntry(
   registry: Registry,
   label: string,
 ): ManagedUserdataEntry {
-  const trimmed = label.trim();
-  if (!trimmed) {
-    throw new Error("Userdata label is required");
-  }
+  const trimmed = trimmedUserdataLabel(label);
   const id = createUniqueId(registry, slugifyLabel(trimmed));
   return {
     id,
