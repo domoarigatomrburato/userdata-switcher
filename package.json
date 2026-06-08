@@ -1,7 +1,7 @@
 {
   "name": "userdata-switcher",
   "displayName": "Userdata Switcher",
-  "description": "Open VS Code-family editors with named isolated userdata roots.",
+  "description": "Use separate Cursor or VS Code accounts, themes, and settings in the same workspace.",
   "icon": "media/icon.png",
   "version": "0.2.0",
   "type": "commonjs",
@@ -17,12 +17,22 @@
   },
   "keywords": [
     "userdata",
-    "profile",
-    "profiles",
+    "user-data-dir",
+    "vscode",
+    "visual studio code",
+    "insiders",
     "cursor",
+    "account",
+    "accounts",
     "launcher",
-    "vscode"
+    "workspace",
+    "multi-account",
+    "theme",
+    "themes",
+    "profile",
+    "profiles"
   ],
+  "qna": "marketplace",
   "galleryBanner": {
     "color": "#1f1f1f",
     "theme": "dark"
@@ -62,6 +72,11 @@
       {
         "command": "userdataSwitcher.showCurrentUserdata",
         "title": "Show Current Userdata",
+        "category": "Userdata Switcher"
+      },
+      {
+        "command": "userdataSwitcher.revealCurrentUserdata",
+        "title": "Reveal Current Userdata",
         "category": "Userdata Switcher"
       }
     ]

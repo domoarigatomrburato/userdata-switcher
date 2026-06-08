@@ -53,6 +53,27 @@ export function matchCurrentUserdata(input: {
   return { kind: "unmanaged" };
 }
 
+export function resolveCurrentUserdataRoot(input: {
+  current: CurrentUserdata;
+  globalStoragePath: string;
+  defaultUserdataRoot: string;
+  storeRoot: string;
+}): string | null {
+  const { current, globalStoragePath, defaultUserdataRoot, storeRoot } = input;
+
+  if (current.kind === "unmanaged") {
+    return deriveUserdataRootFromGlobalStorage(globalStoragePath);
+  }
+
+  if (current.entry.kind === "default") {
+    return defaultUserdataRoot;
+  }
+
+  return current.entry.relativeDataDir
+    ? resolveManagedDataDir(storeRoot, current.entry.relativeDataDir)
+    : null;
+}
+
 function pathsEqual(left: string, right: string): boolean {
   return path.resolve(left) === path.resolve(right);
 }

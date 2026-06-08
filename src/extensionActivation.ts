@@ -1,5 +1,10 @@
 import fs from "node:fs";
-import { type CurrentUserdata, matchCurrentUserdata } from "./detect";
+import {
+  type CurrentUserdata,
+  deriveUserdataRootFromGlobalStorage,
+  matchCurrentUserdata,
+  resolveCurrentUserdataRoot,
+} from "./detect";
 import type { SupportedHostAdapter } from "./host";
 import {
   formatOpenWithUserdataPickerTitle,
@@ -41,6 +46,8 @@ export const COMMAND_RENAME_CURRENT_USERDATA =
   "userdataSwitcher.renameCurrentUserdata";
 export const COMMAND_SHOW_CURRENT_USERDATA =
   "userdataSwitcher.showCurrentUserdata";
+export const COMMAND_REVEAL_CURRENT_USERDATA =
+  "userdataSwitcher.revealCurrentUserdata";
 
 export interface QuickPickItem {
   label: string;
@@ -86,6 +93,7 @@ export interface UserdataSwitcherUi {
   showWarningMessage(message: string): PromiseLike<unknown>;
   showInformationMessage(message: string): PromiseLike<unknown>;
   executeCommand(command: string, ...args: unknown[]): PromiseLike<unknown>;
+  revealPathInOs(fsPath: string): PromiseLike<unknown>;
 }
 
 export interface UserdataSwitcherActivation {
@@ -173,6 +181,45 @@ export function activateUserdataSwitcher(
     return registry;
   };
 
+  const revealCurrentUserdata = async () => {
+    const current = getCurrent();
+    const derivedRoot = deriveUserdataRootFromGlobalStorage(globalStoragePath);
+    const userdataRoot = resolveCurrentUserdataRoot({
+      current,
+      globalStoragePath,
+      defaultUserdataRoot,
+      storeRoot,
+    });
+
+    logger?.info(
+      `Reveal diagnostics current=${describeCurrentUserdata(current)}`,
+    );
+    logger?.info(`Reveal diagnostics globalStoragePath=${globalStoragePath}`);
+    logger?.info(
+      `Reveal diagnostics derivedRootFromGlobalStorage=${derivedRoot ?? "(none)"}`,
+    );
+    logger?.info(`Reveal diagnostics storeRoot=${storeRoot}`);
+    logger?.info(
+      `Reveal diagnostics defaultUserdataRoot=${defaultUserdataRoot}`,
+    );
+    logger?.info(
+      `Reveal diagnostics resolvedUserdataRoot=${userdataRoot ?? "(none)"}`,
+    );
+    if (userdataRoot) {
+      logger?.info(
+        `Reveal diagnostics resolvedPathExists=${fs.existsSync(userdataRoot)}`,
+      );
+    }
+
+    if (!userdataRoot) {
+      await ui.showWarningMessage(
+        "Could not determine the current userdata directory.",
+      );
+      return;
+    }
+    await ui.revealPathInOs(userdataRoot);
+  };
+
   const launchEntrySafely = async (entry: UserdataEntry) => {
     try {
       await openWithUserdata({
@@ -223,6 +270,10 @@ export function activateUserdataSwitcher(
         case "rename":
           logger?.info("Menu intent: rename current userdata");
           await ui.executeCommand(COMMAND_RENAME_CURRENT_USERDATA);
+          return;
+        case "reveal":
+          logger?.info("Menu intent: reveal current userdata");
+          await ui.executeCommand(COMMAND_REVEAL_CURRENT_USERDATA);
           return;
         case "open":
           logger?.info(`Menu intent: open userdata ${intent.entry.id}`);
@@ -294,6 +345,19 @@ export function activateUserdataSwitcher(
       );
     }),
   );
+  subscribe(
+    ui.registerCommand(COMMAND_REVEAL_CURRENT_USERDATA, revealCurrentUserdata),
+  );
 
   refreshStatusBar();
+}
+
+function describeCurrentUserdata(current: CurrentUserdata): string {
+  if (current.kind === "unmanaged") {
+    return "kind=unmanaged";
+  }
+
+  const { entry } = current;
+  const relativeDataDir = entry.relativeDataDir ?? "(none)";
+  return `kind=known id=${entry.id} entryKind=${entry.kind} relativeDataDir=${relativeDataDir}`;
 }

@@ -5,6 +5,7 @@ import {
   buildOpenWithUserdataMenuItems,
   CREATE_USERDATA_LABEL,
   RENAME_CURRENT_USERDATA_LABEL,
+  REVEAL_CURRENT_USERDATA_LABEL,
   resolveOpenWithUserdataMenuIntent,
   type UserdataMenuItem,
 } from "./menu";
@@ -38,13 +39,15 @@ describe("buildOpenWithUserdataMenuItems", () => {
     });
     assert.deepEqual(
       items.map((item) => item.kind ?? "item"),
-      ["separator", "item", "item"],
+      ["separator", "item", "item", "item"],
     );
     assert.equal(items[0]?.label, "Actions");
     assert.equal(items[1]?.label, RENAME_CURRENT_USERDATA_LABEL);
     assert.deepEqual(items[1]?.intent, { kind: "rename" });
-    assert.equal(items[2]?.label, CREATE_USERDATA_LABEL);
-    assert.deepEqual(items[2]?.intent, { kind: "create" });
+    assert.equal(items[2]?.label, REVEAL_CURRENT_USERDATA_LABEL);
+    assert.deepEqual(items[2]?.intent, { kind: "reveal" });
+    assert.equal(items[3]?.label, CREATE_USERDATA_LABEL);
+    assert.deepEqual(items[3]?.intent, { kind: "create" });
   });
 
   it("omits rename when the current userdata is unknown", () => {
@@ -53,11 +56,13 @@ describe("buildOpenWithUserdataMenuItems", () => {
     });
     assert.deepEqual(
       items.map((item) => item.kind ?? "item"),
-      ["item", "item", "separator", "item"],
+      ["item", "item", "separator", "item", "item"],
     );
     assert.equal(items.at(-1)?.label, CREATE_USERDATA_LABEL);
-    assert.equal(items.at(-2)?.label, "Actions");
+    assert.equal(items.at(-2)?.label, REVEAL_CURRENT_USERDATA_LABEL);
+    assert.equal(items.at(-3)?.label, "Actions");
     assert.deepEqual(items.at(-1)?.intent, { kind: "create" });
+    assert.deepEqual(items.at(-2)?.intent, { kind: "reveal" });
     assert.ok(items.every((item) => item.intent?.kind !== "rename"));
   });
 
@@ -84,10 +89,12 @@ describe("buildOpenWithUserdataMenuItems", () => {
     );
     assert.deepEqual(
       items.map((item) => item.kind ?? "item"),
-      ["item", "item", "separator", "item", "item"],
+      ["item", "item", "separator", "item", "item", "item"],
     );
-    assert.equal(items.at(-2)?.label, RENAME_CURRENT_USERDATA_LABEL);
-    assert.deepEqual(items.at(-2)?.intent, { kind: "rename" });
+    assert.equal(items.at(-3)?.label, RENAME_CURRENT_USERDATA_LABEL);
+    assert.deepEqual(items.at(-3)?.intent, { kind: "rename" });
+    assert.equal(items.at(-2)?.label, REVEAL_CURRENT_USERDATA_LABEL);
+    assert.deepEqual(items.at(-2)?.intent, { kind: "reveal" });
     assert.equal(items.at(-1)?.label, CREATE_USERDATA_LABEL);
     assert.deepEqual(items.at(-1)?.intent, { kind: "create" });
   });
@@ -113,7 +120,8 @@ describe("buildOpenWithUserdataMenuItems", () => {
     );
 
     const managedItem = items[0];
-    const renameItem = items.at(-2);
+    const renameItem = items.at(-3);
+    const revealItem = items.at(-2);
     const createItem = items.at(-1);
 
     assert.equal(managedItem?.label, CREATE_USERDATA_LABEL);
@@ -123,6 +131,8 @@ describe("buildOpenWithUserdataMenuItems", () => {
     });
     assert.equal(renameItem?.label, RENAME_CURRENT_USERDATA_LABEL);
     assert.deepEqual(renameItem?.intent, { kind: "rename" });
+    assert.equal(revealItem?.label, REVEAL_CURRENT_USERDATA_LABEL);
+    assert.deepEqual(revealItem?.intent, { kind: "reveal" });
     assert.equal(createItem?.label, CREATE_USERDATA_LABEL);
     assert.deepEqual(createItem?.intent, { kind: "create" });
   });
@@ -169,6 +179,12 @@ describe("resolveOpenWithUserdataMenuIntent", () => {
       resolveOpenWithUserdataMenuIntent(registry, items.at(-1)),
       {
         kind: "create",
+      },
+    );
+    assert.deepEqual(
+      resolveOpenWithUserdataMenuIntent(registry, items.at(-2)),
+      {
+        kind: "reveal",
       },
     );
   });

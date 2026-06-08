@@ -14,10 +14,12 @@ interface ExtensionManifest {
   contributes?: {
     commands?: CommandContribution[];
   };
+  description?: string;
   galleryBanner?: { color?: string; theme?: string };
   homepage?: string;
   keywords?: string[];
   pricing?: string;
+  qna?: string;
   scripts?: Record<string, string>;
 }
 
@@ -56,6 +58,11 @@ describe("extension manifest", () => {
         title: "Show Current Userdata",
         category: "Userdata Switcher",
       },
+      {
+        command: "userdataSwitcher.revealCurrentUserdata",
+        title: "Reveal Current Userdata",
+        category: "Userdata Switcher",
+      },
     ]);
   });
 
@@ -77,13 +84,27 @@ describe("extension manifest", () => {
       theme: "dark",
     });
     assert.equal(manifest.pricing, "Free");
+    assert.equal(
+      manifest.description,
+      "Use separate Cursor or VS Code accounts, themes, and settings in the same workspace.",
+    );
+    assert.equal(manifest.qna, "marketplace");
     assert.deepEqual(manifest.keywords, [
       "userdata",
+      "user-data-dir",
+      "vscode",
+      "visual studio code",
+      "insiders",
+      "cursor",
+      "account",
+      "accounts",
+      "launcher",
+      "workspace",
+      "multi-account",
+      "theme",
+      "themes",
       "profile",
       "profiles",
-      "cursor",
-      "launcher",
-      "vscode",
     ]);
     assert.deepEqual(manifest.scripts, expectedScripts);
   });

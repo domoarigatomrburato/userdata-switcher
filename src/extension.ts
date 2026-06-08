@@ -34,14 +34,14 @@ export function activate(context: vscode.ExtensionContext): void {
     subscribe: (disposable) => {
       context.subscriptions.push(disposable);
     },
-    ui: createVscodeUi(),
+    ui: createVscodeUi(logger),
     logger,
   });
 }
 
 export function deactivate(): void {}
 
-function createVscodeUi(): UserdataSwitcherUi {
+function createVscodeUi(logger: LaunchLogger): UserdataSwitcherUi {
   return {
     StatusBarAlignment: vscode.StatusBarAlignment,
     QuickPickItemKind: vscode.QuickPickItemKind,
@@ -67,6 +67,20 @@ function createVscodeUi(): UserdataSwitcherUi {
       vscode.window.showInformationMessage(message),
     executeCommand: (command, ...args) =>
       vscode.commands.executeCommand(command, ...args),
+    revealPathInOs: async (fsPath) => {
+      const uri = vscode.Uri.file(fsPath);
+      logger.info(`revealFileInOS input.fsPath=${JSON.stringify(fsPath)}`);
+      logger.info(`revealFileInOS uri.fsPath=${JSON.stringify(uri.fsPath)}`);
+      logger.info(`revealFileInOS uri.toString()=${uri.toString()}`);
+      try {
+        await vscode.commands.executeCommand("revealFileInOS", uri);
+        logger.info("revealFileInOS completed");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error(`revealFileInOS failed: ${message}`);
+        throw error;
+      }
+    },
   };
 }
 

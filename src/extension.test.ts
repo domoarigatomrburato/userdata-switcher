@@ -8,6 +8,7 @@ import {
   COMMAND_CREATE_USERDATA,
   COMMAND_OPEN_WITH_USERDATA,
   COMMAND_RENAME_CURRENT_USERDATA,
+  COMMAND_REVEAL_CURRENT_USERDATA,
   COMMAND_SHOW_CURRENT_USERDATA,
   type QuickPickItem,
   type StatusBarItem,
@@ -16,7 +17,11 @@ import {
 } from "./extensionActivation";
 import type { SupportedHostAdapter } from "./host";
 import type { LaunchCommand } from "./launcher";
-import { CREATE_USERDATA_LABEL, RENAME_CURRENT_USERDATA_LABEL } from "./menu";
+import {
+  CREATE_USERDATA_LABEL,
+  RENAME_CURRENT_USERDATA_LABEL,
+  REVEAL_CURRENT_USERDATA_LABEL,
+} from "./menu";
 import { loadRegistry, saveRegistry } from "./registry";
 
 interface TestHarness {
@@ -32,12 +37,38 @@ interface TestHarness {
   errors: string[];
   warnings: string[];
   infos: string[];
+  revealedPaths: string[];
   logs: string[];
   quickPickItems: readonly QuickPickItem[][];
   quickPickSelection: QuickPickItem | undefined;
   inputBoxValue: string | undefined;
   activation: UserdataSwitcherActivation;
   run(command: string): Promise<unknown>;
+}
+
+function globalStoragePathFor(userdataRoot: string): string {
+  return path.join(
+    userdataRoot,
+    "User",
+    "globalStorage",
+    "publisher.ext",
+    "globalStorage",
+  );
+}
+
+function savePersonalRegistry(storeRoot: string): void {
+  saveRegistry(path.join(storeRoot, "registry.json"), {
+    version: 1,
+    userdatas: [
+      { id: "default", kind: "default", label: "Default" },
+      {
+        id: "personal",
+        kind: "managed",
+        label: "Personal",
+        relativeDataDir: "u/personal",
+      },
+    ],
+  });
 }
 
 function createTestHarness(input?: {
@@ -54,14 +85,7 @@ function createTestHarness(input?: {
   const defaultUserdataRoot = path.join(tempDir, "default-userdata");
   const sharedExtensionsDirectory = path.join(tempDir, "shared-extensions");
   const globalStoragePath =
-    input?.globalStoragePath ??
-    path.join(
-      defaultUserdataRoot,
-      "User",
-      "globalStorage",
-      "publisher.ext",
-      "globalStorage",
-    );
+    input?.globalStoragePath ?? globalStoragePathFor(defaultUserdataRoot);
 
   const statusBar: StatusBarItem = {
     text: "",
@@ -75,6 +99,7 @@ function createTestHarness(input?: {
   const errors: string[] = [];
   const warnings: string[] = [];
   const infos: string[] = [];
+  const revealedPaths: string[] = [];
   const logs: string[] = [];
   const quickPickItems: QuickPickItem[][] = [];
 
@@ -112,6 +137,9 @@ function createTestHarness(input?: {
       infos.push(message);
     },
     executeCommand: async (command) => commands.get(command)?.(),
+    revealPathInOs: async (fsPath) => {
+      revealedPaths.push(fsPath);
+    },
   };
 
   const activation: UserdataSwitcherActivation = {
@@ -150,6 +178,7 @@ function createTestHarness(input?: {
     errors,
     warnings,
     infos,
+    revealedPaths,
     logs,
     quickPickItems,
     quickPickSelection: input?.quickPickSelection,
@@ -186,6 +215,7 @@ describe("activateUserdataSwitcher", () => {
     assert.ok(harness.commands.has(COMMAND_CREATE_USERDATA));
     assert.ok(harness.commands.has(COMMAND_RENAME_CURRENT_USERDATA));
     assert.ok(harness.commands.has(COMMAND_SHOW_CURRENT_USERDATA));
+    assert.ok(harness.commands.has(COMMAND_REVEAL_CURRENT_USERDATA));
   });
 
   it("shows the current default userdata on the status bar", () => {
@@ -203,13 +233,7 @@ describe("activateUserdataSwitcher", () => {
     assert.deepEqual(harness.logs.slice(0, 3), [
       "info:Activated for Cursor",
       "info:appRoot=/Applications/Cursor.app/Contents/Resources/app",
-      `info:globalStoragePath=${path.join(
-        harness.defaultUserdataRoot,
-        "User",
-        "globalStorage",
-        "publisher.ext",
-        "globalStorage",
-      )}`,
+      `info:globalStoragePath=${globalStoragePathFor(harness.defaultUserdataRoot)}`,
     ]);
   });
 
@@ -310,6 +334,11 @@ describe("activateUserdataSwitcher", () => {
         alwaysShow: true,
       },
       {
+        label: REVEAL_CURRENT_USERDATA_LABEL,
+        intent: { kind: "reveal" },
+        alwaysShow: true,
+      },
+      {
         label: CREATE_USERDATA_LABEL,
         intent: { kind: "create" },
         alwaysShow: true,
@@ -352,13 +381,7 @@ describe("activateUserdataSwitcher", () => {
     );
     extraTempDirs.push(externalRoot);
     const harness = createTestHarness({
-      globalStoragePath: path.join(
-        externalRoot,
-        "User",
-        "globalStorage",
-        "publisher.ext",
-        "globalStorage",
-      ),
+      globalStoragePath: globalStoragePathFor(externalRoot),
     });
     harnesses.push(harness);
 
@@ -386,6 +409,60 @@ describe("activateUserdataSwitcher", () => {
     assert.equal(harness.statusBar.text, "$(layers) Work (default)");
   });
 
+  it("reveals the current default userdata directory", async () => {
+    const harness = createTestHarness();
+    harnesses.push(harness);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_REVEAL_CURRENT_USERDATA);
+
+    assert.deepEqual(harness.revealedPaths, [harness.defaultUserdataRoot]);
+    assert.ok(
+      harness.logs.some((log) =>
+        log.includes(
+          `Reveal diagnostics resolvedUserdataRoot=${harness.defaultUserdataRoot}`,
+        ),
+      ),
+    );
+  });
+
+  it("reveals managed userdata from the open menu", async () => {
+    const harness = createTestHarness({
+      quickPickSelection: {
+        label: REVEAL_CURRENT_USERDATA_LABEL,
+        intent: { kind: "reveal" },
+      },
+    });
+    harnesses.push(harness);
+
+    const managedDir = path.join(harness.storeRoot, "u/personal");
+    harness.activation.globalStoragePath = globalStoragePathFor(managedDir);
+
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_OPEN_WITH_USERDATA);
+
+    assert.deepEqual(harness.revealedPaths, [managedDir]);
+  });
+
+  it("reveals unmanaged userdata from its global storage path", async () => {
+    const externalRoot = fs.mkdtempSync(
+      path.join(os.tmpdir(), "userdata-switcher-unmanaged-reveal-test-"),
+    );
+    extraTempDirs.push(externalRoot);
+    const harness = createTestHarness({
+      globalStoragePath: globalStoragePathFor(externalRoot),
+    });
+    harnesses.push(harness);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_REVEAL_CURRENT_USERDATA);
+
+    assert.deepEqual(harness.revealedPaths, [externalRoot]);
+  });
+
   it("shows the current userdata from the show command", async () => {
     const harness = createTestHarness();
     harnesses.push(harness);
@@ -409,18 +486,7 @@ describe("activateUserdataSwitcher", () => {
     harnesses.push(harness);
 
     fs.mkdirSync(harness.storeRoot, { recursive: true });
-    saveRegistry(path.join(harness.storeRoot, "registry.json"), {
-      version: 1,
-      userdatas: [
-        { id: "default", kind: "default", label: "Default" },
-        {
-          id: "personal",
-          kind: "managed",
-          label: "Personal",
-          relativeDataDir: "u/personal",
-        },
-      ],
-    });
+    savePersonalRegistry(harness.storeRoot);
 
     activateUserdataSwitcher(harness.activation);
     await harness.run(COMMAND_OPEN_WITH_USERDATA);

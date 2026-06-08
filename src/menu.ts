@@ -6,17 +6,21 @@ export const ACTIONS_SEPARATOR_LABEL = "Actions";
 export const CREATE_USERDATA_LABEL = "$(add) Create New Userdata...";
 export const RENAME_CURRENT_USERDATA_LABEL =
   "$(edit) Rename Current Userdata...";
+export const REVEAL_CURRENT_USERDATA_LABEL =
+  "$(folder-opened) Reveal Current Userdata...";
 
 export type MenuItemKind = "item" | "separator";
 export type UserdataMenuItemIntent =
   | { kind: "create" }
   | { kind: "rename" }
+  | { kind: "reveal" }
   | { kind: "open"; userdataId: string };
 
 export type UserdataMenuIntent =
   | { kind: "cancel" }
   | { kind: "create" }
   | { kind: "rename" }
+  | { kind: "reveal" }
   | { kind: "open"; entry: UserdataEntry };
 
 export interface UserdataMenuSelection {
@@ -35,6 +39,7 @@ export function buildOpenWithUserdataMenuItems(
   current: CurrentUserdata,
   createUserdataLabel: string = CREATE_USERDATA_LABEL,
   renameCurrentUserdataLabel: string = RENAME_CURRENT_USERDATA_LABEL,
+  revealCurrentUserdataLabel: string = REVEAL_CURRENT_USERDATA_LABEL,
 ): UserdataMenuItem[] {
   const otherUserdatas: UserdataMenuItem[] = registry.userdatas
     .filter(
@@ -59,6 +64,11 @@ export function buildOpenWithUserdataMenuItems(
     });
   }
   items.push({
+    intent: { kind: "reveal" },
+    label: revealCurrentUserdataLabel,
+    alwaysShow: true,
+  });
+  items.push({
     intent: { kind: "create" },
     label: createUserdataLabel,
     alwaysShow: true,
@@ -79,6 +89,7 @@ export function resolveOpenWithUserdataMenuIntent(
   switch (intent.kind) {
     case "create":
     case "rename":
+    case "reveal":
       return intent;
     case "open": {
       const entry = registry.userdatas.find(
