@@ -6,7 +6,9 @@ storage.
 
 ### Multiple Cursor AI Accounts made easy and clean
 
-This is currently the **only** clean way to support **multiple Cursor AI accounts** on the same machine, without goingh through the hassle of logging in and out. You can even have all of them open together!
+This gives you a clean way to support **multiple Cursor AI accounts** on the
+same machine, without going through the hassle of logging in and out. You can
+even have all of them open together.
 
 ## Install
 

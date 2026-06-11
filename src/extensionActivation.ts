@@ -295,21 +295,33 @@ export function activateUserdataSwitcher(
         logger?.info("Create userdata cancelled");
         return;
       }
-      const { entry: created, registry: updated } = createManagedUserdata(
-        registryFile,
-        label,
-      );
-      registry = updated;
-      refreshStatusBar();
-      const managedDataDir = resolveManagedDataDir(
-        storeRoot,
-        created.relativeDataDir,
-      );
-      logger?.info(`Created managed userdata ${created.id}: ${managedDataDir}`);
-      mkdir(managedDataDir, {
-        recursive: true,
-      });
-      await launchEntrySafely(created);
+      try {
+        const { entry: created, registry: updated } = createManagedUserdata(
+          registryFile,
+          label,
+          {
+            beforeSave: (entry) => {
+              mkdir(resolveManagedDataDir(storeRoot, entry.relativeDataDir), {
+                recursive: true,
+              });
+            },
+          },
+        );
+        const managedDataDir = resolveManagedDataDir(
+          storeRoot,
+          created.relativeDataDir,
+        );
+        registry = updated;
+        refreshStatusBar();
+        logger?.info(
+          `Created managed userdata ${created.id}: ${managedDataDir}`,
+        );
+        await launchEntrySafely(created);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logger?.error(`Create userdata failed: ${message}`);
+        await ui.showErrorMessage(message);
+      }
     }),
   );
   subscribe(

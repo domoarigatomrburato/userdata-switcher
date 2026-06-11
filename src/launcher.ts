@@ -6,9 +6,16 @@ import type { UserdataEntry } from "./registry";
 const MACOS_UNIX_SOCKET_PATH_LIMIT = 103;
 const VSCODE_MAIN_SOCKET_BASENAME = "1.12-main.sock";
 
+interface WorkspaceUri {
+  fsPath: string;
+  scheme?: string;
+}
+
 export interface WorkspaceShape {
-  workspaceFolders?: ReadonlyArray<{ uri: { fsPath: string } }>;
-  workspaceFile?: { fsPath: string };
+  workspaceFolders?: ReadonlyArray<{
+    uri: WorkspaceUri;
+  }>;
+  workspaceFile?: WorkspaceUri;
 }
 
 export interface LaunchCommand {
@@ -67,11 +74,21 @@ interface SanitizedLaunchEnvironment {
 export function resolveWorkspaceArg(
   workspace: WorkspaceShape,
 ): string | undefined {
-  if (workspace.workspaceFile?.fsPath) {
+  if (isLocalFileUri(workspace.workspaceFile)) {
     return workspace.workspaceFile.fsPath;
   }
   const folders = workspace.workspaceFolders ?? [];
-  return folders.length === 1 ? folders[0]?.uri.fsPath : undefined;
+  const [folder] = folders;
+  return folders.length === 1 && isLocalFileUri(folder?.uri)
+    ? folder.uri.fsPath
+    : undefined;
+}
+
+function isLocalFileUri(uri: WorkspaceUri | undefined): uri is WorkspaceUri {
+  if (!uri?.fsPath) {
+    return false;
+  }
+  return uri.scheme === undefined || uri.scheme === "file";
 }
 
 export function buildLaunchCommand(input: {

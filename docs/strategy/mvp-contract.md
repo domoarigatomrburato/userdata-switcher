@@ -12,6 +12,7 @@ The MVP is a small launcher surface:
 - Quick Pick Userdata Menu opened from the status bar item
 - creation of new Managed Userdata roots
 - rename for the Current Userdata label
+- reveal for the Current Userdata directory
 - launch of known Userdata roots with the current workspace when known
 
 The MVP does not manage editor Profiles, integrate with sidebar sign-in menus,
@@ -47,16 +48,17 @@ Clicking the status bar opens a Quick Pick:
 1. The title shows `Current: <label>`.
 2. Items list other known Userdata entries only.
 3. An `Actions` separator labels the action section.
-4. When Current Userdata is known, a `$(edit) Rename Current Userdata...`
-   action appears above `$(add) Create New Userdata...`.
-5. When Current Userdata is unknown, only `$(add) Create New Userdata...`
-   appears.
+4. `$(folder-opened) Reveal Current Userdata...` appears in the action section.
+5. When Current Userdata is known, a `$(edit) Rename Current Userdata...`
+   action appears above reveal and `$(add) Create New Userdata...`.
+6. When Current Userdata is unknown, reveal and `$(add) Create New Userdata...`
+   appear.
 
 The current userdata is not a selectable item. Action CTAs are identified by
 structured action data, not by matching their label text.
 
-If there are no other userdatas yet, the menu still opens and shows the rename
-and create CTAs when Current Userdata is known.
+If there are no other userdatas yet, the menu still opens and shows the action
+CTAs.
 
 ## Create And Rename
 
@@ -124,3 +126,4 @@ The MVP contributes:
 - `Userdata Switcher: Create Userdata`
 - `Userdata Switcher: Rename Current Userdata`
 - `Userdata Switcher: Show Current Userdata`
+- `Userdata Switcher: Reveal Current Userdata`

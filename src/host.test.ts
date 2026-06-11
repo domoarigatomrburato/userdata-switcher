@@ -204,17 +204,29 @@ describe("discoverBundledCli", () => {
     );
   });
 
-  it("finds a bundled Windows CLI with PATHEXT", () => {
+  it("finds a bundled Windows CLI under the install root bin directory", () => {
     assert.equal(
       insiders.discoverBundledCli(
         "C:\\Users\\alice\\AppData\\Local\\Programs\\Microsoft VS Code Insiders\\resources\\app",
         {
           existsSync: (candidate) =>
-            candidate.endsWith("\\bin\\code-insiders.cmd"),
+            candidate ===
+            "C:\\Users\\alice\\AppData\\Local\\Programs\\Microsoft VS Code Insiders\\bin\\code-insiders.cmd",
           platform: "win32",
         },
       ),
-      "C:\\Users\\alice\\AppData\\Local\\Programs\\Microsoft VS Code Insiders\\resources\\app\\bin\\code-insiders.cmd",
+      "C:\\Users\\alice\\AppData\\Local\\Programs\\Microsoft VS Code Insiders\\bin\\code-insiders.cmd",
+    );
+  });
+
+  it("falls back to appRoot bin for Windows hosts without a resources/app root", () => {
+    assert.equal(
+      insiders.discoverBundledCli("C:\\Portable\\Code", {
+        existsSync: (candidate) =>
+          candidate === "C:\\Portable\\Code\\bin\\code-insiders.cmd",
+        platform: "win32",
+      }),
+      "C:\\Portable\\Code\\bin\\code-insiders.cmd",
     );
   });
 });

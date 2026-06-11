@@ -78,6 +78,32 @@ describe("registry", () => {
     assert.deepEqual(loadRegistry(creationRegistryFile), registry);
   });
 
+  it("does not persist a managed userdata when preparation fails", () => {
+    const creationRegistryFile = path.join(
+      tempDir,
+      "failed-create-registry.json",
+    );
+    const originalRegistry = {
+      version: 1 as const,
+      userdatas: [
+        { id: "default", kind: "default" as const, label: "Default" },
+      ],
+    };
+    saveRegistry(creationRegistryFile, originalRegistry);
+
+    assert.throws(
+      () =>
+        createManagedUserdata(creationRegistryFile, "Personal", {
+          beforeSave: () => {
+            throw new Error("mkdir failed");
+          },
+        }),
+      /mkdir failed/,
+    );
+
+    assert.deepEqual(loadRegistry(creationRegistryFile), originalRegistry);
+  });
+
   it("caps managed userdata ids so macOS socket paths stay short", () => {
     const longRegistry = ensureDefaultUserdata({
       version: 1,

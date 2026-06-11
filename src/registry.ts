@@ -25,6 +25,10 @@ export interface ManagedUserdataCreation {
   entry: ManagedUserdataEntry;
 }
 
+export interface ManagedUserdataCreationOptions {
+  beforeSave?(entry: ManagedUserdataEntry): void;
+}
+
 interface RegistryUpdateResult<T> {
   registry: Registry;
   result: T;
@@ -95,9 +99,11 @@ export function addManagedUserdata(
 export function createManagedUserdata(
   registryFile: string,
   label: string,
+  options: ManagedUserdataCreationOptions = {},
 ): ManagedUserdataCreation {
   return updateRegistryWithResult(registryFile, (latest) => {
     const creation = buildManagedUserdataCreation(latest, label);
+    options.beforeSave?.(creation.entry);
     return { registry: creation.registry, result: creation };
   }).result;
 }

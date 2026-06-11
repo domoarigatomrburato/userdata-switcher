@@ -34,18 +34,48 @@ describe("resolveWorkspaceArg", () => {
   it("returns a single-folder workspace path", () => {
     assert.equal(
       resolveWorkspaceArg({
-        workspaceFolders: [{ uri: { fsPath: "/repo" } }],
+        workspaceFolders: [{ uri: { fsPath: "/repo", scheme: "file" } }],
       }),
       "/repo",
+    );
+  });
+
+  it("returns undefined for non-file single-folder workspaces", () => {
+    assert.equal(
+      resolveWorkspaceArg({
+        workspaceFolders: [
+          { uri: { fsPath: "/repo", scheme: "vscode-remote" } },
+        ],
+      }),
+      undefined,
     );
   });
 
   it("returns a saved workspace file path", () => {
     assert.equal(
       resolveWorkspaceArg({
-        workspaceFile: { fsPath: "/repo/project.code-workspace" },
+        workspaceFile: {
+          fsPath: "/repo/project.code-workspace",
+          scheme: "file",
+        },
       }),
       "/repo/project.code-workspace",
+    );
+  });
+
+  it("returns undefined for untitled workspace files", () => {
+    assert.equal(
+      resolveWorkspaceArg({
+        workspaceFile: {
+          fsPath: "/Untitled-1.code-workspace",
+          scheme: "untitled",
+        },
+        workspaceFolders: [
+          { uri: { fsPath: "/a", scheme: "file" } },
+          { uri: { fsPath: "/b", scheme: "file" } },
+        ],
+      }),
+      undefined,
     );
   });
 
@@ -53,8 +83,8 @@ describe("resolveWorkspaceArg", () => {
     assert.equal(
       resolveWorkspaceArg({
         workspaceFolders: [
-          { uri: { fsPath: "/a" } },
-          { uri: { fsPath: "/b" } },
+          { uri: { fsPath: "/a", scheme: "file" } },
+          { uri: { fsPath: "/b", scheme: "file" } },
         ],
       }),
       undefined,

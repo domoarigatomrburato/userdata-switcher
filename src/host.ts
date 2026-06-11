@@ -178,12 +178,35 @@ function discoverBundledCli(
 ): string | null {
   const platform = deps.platform ?? process.platform;
   return findExecutableInDirectories({
-    directories: [pathForPlatform(platform).join(appRoot, "bin")],
+    directories: bundledCliDirectories(appRoot, platform),
     env: deps.env ?? process.env,
     existsSync: deps.existsSync,
     names: host.cliNames,
     platform,
   });
+}
+
+function bundledCliDirectories(
+  appRoot: string,
+  platform: NodeJS.Platform,
+): string[] {
+  const pathApi = pathForPlatform(platform);
+  const appRootBin = pathApi.join(appRoot, "bin");
+
+  if (platform !== "win32") {
+    return [appRootBin];
+  }
+
+  const appRootParent = pathApi.dirname(appRoot);
+  const appRootLooksLikeResourcesApp =
+    pathApi.basename(appRoot).toLowerCase() === "app" &&
+    pathApi.basename(appRootParent).toLowerCase() === "resources";
+
+  if (!appRootLooksLikeResourcesApp) {
+    return [appRootBin];
+  }
+
+  return [pathApi.join(pathApi.dirname(appRootParent), "bin"), appRootBin];
 }
 
 function discoverEditorCli(

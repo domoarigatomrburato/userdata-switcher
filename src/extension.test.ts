@@ -76,6 +76,7 @@ function createTestHarness(input?: {
   discoverEditorCli?: SupportedHostAdapter["discoverEditorCli"];
   quickPickSelection?: QuickPickItem;
   inputBoxValue?: string;
+  mkdirSync?: UserdataSwitcherActivation["mkdirSync"];
 }): TestHarness {
   const tempRoot = process.platform === "darwin" ? "/tmp" : os.tmpdir();
   const tempDir = fs.mkdtempSync(
@@ -158,11 +159,13 @@ function createTestHarness(input?: {
     launchEditorImpl: async (command) => {
       launched.push(command);
     },
-    mkdirSync: (target, options) => {
-      const directory = String(target);
-      createdDirs.push(directory);
-      fs.mkdirSync(directory, options);
-    },
+    mkdirSync:
+      input?.mkdirSync ??
+      ((target, options) => {
+        const directory = String(target);
+        createdDirs.push(directory);
+        fs.mkdirSync(directory, options);
+      }),
   };
 
   return {
@@ -373,6 +376,28 @@ describe("activateUserdataSwitcher", () => {
       harness.sharedExtensionsDirectory,
       "/repo",
     ]);
+  });
+
+  it("does not persist a managed userdata when directory creation fails", async () => {
+    const harness = createTestHarness({
+      inputBoxValue: "Personal",
+      mkdirSync: () => {
+        throw new Error("mkdir failed");
+      },
+    });
+    harnesses.push(harness);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_CREATE_USERDATA);
+
+    const registry = loadRegistry(
+      path.join(harness.storeRoot, "registry.json"),
+    );
+    assert.deepEqual(registry.userdatas, [
+      { id: "default", kind: "default", label: "Default" },
+    ]);
+    assert.deepEqual(harness.errors, ["mkdir failed"]);
+    assert.deepEqual(harness.launched, []);
   });
 
   it("warns when renaming unmanaged userdata", async () => {
