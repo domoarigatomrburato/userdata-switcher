@@ -16,12 +16,13 @@ import {
   type UserdataSwitcherUi,
 } from "./extensionActivation";
 import type { SupportedHostAdapter } from "./host";
-import type { LaunchCommand } from "./launcher";
+import type { LaunchCommand, LaunchEditor } from "./launcher";
 import {
   CREATE_USERDATA_LABEL,
   RENAME_CURRENT_USERDATA_LABEL,
   REVEAL_CURRENT_USERDATA_LABEL,
 } from "./menu";
+import { registryPath } from "./paths";
 import { loadRegistry, saveRegistry } from "./registry";
 
 interface TestHarness {
@@ -39,6 +40,7 @@ interface TestHarness {
   infos: string[];
   revealedPaths: string[];
   logs: string[];
+  uiEvents: string[];
   quickPickItems: readonly QuickPickItem[][];
   activation: UserdataSwitcherActivation;
   run(command: string): Promise<unknown>;
@@ -72,7 +74,7 @@ function writeTextFile(file: string, contents: string): void {
 }
 
 function savePersonalRegistry(storeRoot: string): void {
-  saveRegistry(path.join(storeRoot, "registry.json"), {
+  saveRegistry(registryPath(storeRoot), {
     version: 1,
     userdatas: [
       { id: "default", kind: "default", label: "Default" },
@@ -93,6 +95,7 @@ function createTestHarness(input?: {
   quickPickSelections?: readonly (QuickPickItem | undefined)[];
   inputBoxValue?: string;
   inputBoxValues?: readonly (string | undefined)[];
+  launchEditorImpl?: LaunchEditor;
   mkdirSync?: UserdataSwitcherActivation["mkdirSync"];
 }): TestHarness {
   const tempRoot = process.platform === "darwin" ? "/tmp" : os.tmpdir();
@@ -119,6 +122,7 @@ function createTestHarness(input?: {
   const infos: string[] = [];
   const revealedPaths: string[] = [];
   const logs: string[] = [];
+  const uiEvents: string[] = [];
   const quickPickItems: QuickPickItem[][] = [];
   const quickPickSelections = [
     ...(input?.quickPickSelections ??
@@ -138,7 +142,6 @@ function createTestHarness(input?: {
     resolveStoreRoot: () => storeRoot,
     resolveDefaultUserdataRoot: () => defaultUserdataRoot,
     resolveSharedExtensionsDirectory: () => sharedExtensionsDirectory,
-    discoverBundledCli: () => "/app/bin/cursor",
     discoverEditorCli: input?.discoverEditorCli ?? (() => "/app/bin/cursor"),
   };
 
@@ -151,10 +154,14 @@ function createTestHarness(input?: {
       return { dispose: () => commands.delete(command) };
     },
     showQuickPick: async (items) => {
+      uiEvents.push("quickPick");
       quickPickItems.push([...items]);
       return quickPickSelections.shift();
     },
-    showInputBox: async () => inputBoxValues.shift(),
+    showInputBox: async () => {
+      uiEvents.push("inputBox");
+      return inputBoxValues.shift();
+    },
     showErrorMessage: async (message) => {
       errors.push(message);
     },
@@ -183,9 +190,11 @@ function createTestHarness(input?: {
       error: (message) => logs.push(`error:${message}`),
       info: (message) => logs.push(`info:${message}`),
     },
-    launchEditorImpl: async (command) => {
-      launched.push(command);
-    },
+    launchEditorImpl:
+      input?.launchEditorImpl ??
+      (async (command) => {
+        launched.push(command);
+      }),
     mkdirSync:
       input?.mkdirSync ??
       ((target, options) => {
@@ -210,6 +219,7 @@ function createTestHarness(input?: {
     infos,
     revealedPaths,
     logs,
+    uiEvents,
     quickPickItems,
     activation,
     run: async (command) => {
@@ -265,6 +275,41 @@ describe("activateUserdataSwitcher", () => {
     ]);
   });
 
+  it("shows the current managed userdata on the status bar", () => {
+    const harness = createTestHarness();
+    harnesses.push(harness);
+    const managedDir = path.join(harness.storeRoot, "u/personal");
+    harness.activation.globalStoragePath = globalStoragePathFor(managedDir);
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+
+    assert.equal(harness.statusBar.text, "$(layers) Personal");
+    assert.equal(
+      harness.statusBar.tooltip,
+      "Current Cursor Userdata: Personal",
+    );
+  });
+
+  it("shows unmanaged userdata on the status bar", () => {
+    const externalRoot = fs.mkdtempSync(
+      path.join(os.tmpdir(), "userdata-switcher-unmanaged-status-test-"),
+    );
+    extraTempDirs.push(externalRoot);
+    const harness = createTestHarness({
+      globalStoragePath: globalStoragePathFor(externalRoot),
+    });
+    harnesses.push(harness);
+
+    activateUserdataSwitcher(harness.activation);
+
+    assert.equal(harness.statusBar.text, "$(layers) Unmanaged");
+    assert.equal(
+      harness.statusBar.tooltip,
+      "Current Cursor Userdata: Unmanaged",
+    );
+  });
+
   it("launches the selected managed userdata from the open menu", async () => {
     const harness = createTestHarness({
       quickPickSelections: [
@@ -311,9 +356,7 @@ describe("activateUserdataSwitcher", () => {
     activateUserdataSwitcher(harness.activation);
     await harness.run(COMMAND_OPEN_WITH_USERDATA);
 
-    const registry = loadRegistry(
-      path.join(harness.storeRoot, "registry.json"),
-    );
+    const registry = loadRegistry(registryPath(harness.storeRoot));
     assert.equal(registry.userdatas[0]?.label, "Work");
     assert.equal(harness.statusBar.text, "$(layers) Work (default)");
   });
@@ -334,9 +377,7 @@ describe("activateUserdataSwitcher", () => {
     activateUserdataSwitcher(harness.activation);
     await harness.run(COMMAND_OPEN_WITH_USERDATA);
 
-    const registry = loadRegistry(
-      path.join(harness.storeRoot, "registry.json"),
-    );
+    const registry = loadRegistry(registryPath(harness.storeRoot));
     const managed = registry.userdatas.find(
       (entry) => entry.kind === "managed",
     );
@@ -391,9 +432,7 @@ describe("activateUserdataSwitcher", () => {
     activateUserdataSwitcher(harness.activation);
     await harness.run(COMMAND_CREATE_USERDATA);
 
-    const registry = loadRegistry(
-      path.join(harness.storeRoot, "registry.json"),
-    );
+    const registry = loadRegistry(registryPath(harness.storeRoot));
     const managed = registry.userdatas.find(
       (entry) => entry.kind === "managed",
     );
@@ -425,6 +464,7 @@ describe("activateUserdataSwitcher", () => {
       START_FROM_CURRENT_SETTINGS_PICK,
       START_EMPTY_PICK,
     ]);
+    assert.deepEqual(harness.uiEvents.slice(0, 2), ["quickPick", "inputBox"]);
   });
 
   it("seeds new userdata from current settings without copying identity state", async () => {
@@ -454,6 +494,16 @@ describe("activateUserdataSwitcher", () => {
       path.join(currentUserDir, "workspaceStorage", "state.json"),
       '{ "workspace": true }\n',
     );
+    writeTextFile(
+      path.join(currentUserDir, "History", "chat.json"),
+      '{ "chat": true }\n',
+    );
+    writeTextFile(path.join(currentUserDir, "Cache", "cache.bin"), "cache\n");
+    writeTextFile(path.join(currentUserDir, "logs", "main.log"), "log\n");
+    writeTextFile(
+      path.join(currentUserDir, "globalStorage", "publisher.extension"),
+      '{ "extensionState": true }\n',
+    );
 
     activateUserdataSwitcher(harness.activation);
     await harness.run(COMMAND_CREATE_USERDATA);
@@ -481,6 +531,24 @@ describe("activateUserdataSwitcher", () => {
     assert.equal(
       fs.existsSync(
         path.join(managedUserDir, "workspaceStorage", "state.json"),
+      ),
+      false,
+    );
+    assert.equal(
+      fs.existsSync(path.join(managedUserDir, "History", "chat.json")),
+      false,
+    );
+    assert.equal(
+      fs.existsSync(path.join(managedUserDir, "Cache", "cache.bin")),
+      false,
+    );
+    assert.equal(
+      fs.existsSync(path.join(managedUserDir, "logs", "main.log")),
+      false,
+    );
+    assert.equal(
+      fs.existsSync(
+        path.join(managedUserDir, "globalStorage", "publisher.extension"),
       ),
       false,
     );
@@ -567,9 +635,7 @@ describe("activateUserdataSwitcher", () => {
     activateUserdataSwitcher(harness.activation);
     await harness.run(COMMAND_CREATE_USERDATA);
 
-    const registry = loadRegistry(
-      path.join(harness.storeRoot, "registry.json"),
-    );
+    const registry = loadRegistry(registryPath(harness.storeRoot));
     assert.deepEqual(registry.userdatas, [
       { id: "default", kind: "default", label: "Default" },
     ]);
@@ -604,11 +670,29 @@ describe("activateUserdataSwitcher", () => {
     activateUserdataSwitcher(harness.activation);
     await harness.run(COMMAND_RENAME_CURRENT_USERDATA);
 
-    const registry = loadRegistry(
-      path.join(harness.storeRoot, "registry.json"),
-    );
+    const registry = loadRegistry(registryPath(harness.storeRoot));
     assert.equal(registry.userdatas[0]?.label, "Work");
     assert.equal(harness.statusBar.text, "$(layers) Work (default)");
+  });
+
+  it("reloads the registry before renaming the current userdata", async () => {
+    const managedDir = path.join("u", "personal");
+    const harness = createTestHarness({
+      inputBoxValue: "Client",
+    });
+    harnesses.push(harness);
+    harness.activation.globalStoragePath = globalStoragePathFor(
+      path.join(harness.storeRoot, managedDir),
+    );
+
+    activateUserdataSwitcher(harness.activation);
+    savePersonalRegistry(harness.storeRoot);
+    await harness.run(COMMAND_RENAME_CURRENT_USERDATA);
+
+    const registry = loadRegistry(registryPath(harness.storeRoot));
+    const managed = registry.userdatas.find((entry) => entry.id === "personal");
+    assert.equal(managed?.label, "Client");
+    assert.deepEqual(harness.warnings, []);
   });
 
   it("reveals the current default userdata directory", async () => {
@@ -665,6 +749,27 @@ describe("activateUserdataSwitcher", () => {
     assert.deepEqual(harness.revealedPaths, [externalRoot]);
   });
 
+  it("warns when revealing an unknown userdata path", async () => {
+    const harness = createTestHarness({
+      globalStoragePath: path.join(
+        "/not",
+        "an",
+        "extension",
+        "storage",
+        "path",
+      ),
+    });
+    harnesses.push(harness);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_REVEAL_CURRENT_USERDATA);
+
+    assert.deepEqual(harness.revealedPaths, []);
+    assert.deepEqual(harness.warnings, [
+      "Could not determine the current userdata directory.",
+    ]);
+  });
+
   it("shows the current userdata from the show command", async () => {
     const harness = createTestHarness();
     harnesses.push(harness);
@@ -696,5 +801,26 @@ describe("activateUserdataSwitcher", () => {
     assert.deepEqual(harness.errors, [
       "Could not find Cursor CLI in this installation.",
     ]);
+  });
+
+  it("surfaces async launch failures through the error UI", async () => {
+    const harness = createTestHarness({
+      quickPickSelection: {
+        label: "Personal",
+        intent: { kind: "open", userdataId: "personal" },
+      },
+      launchEditorImpl: async () => {
+        throw new Error("spawn failed");
+      },
+    });
+    harnesses.push(harness);
+
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_OPEN_WITH_USERDATA);
+
+    assert.deepEqual(harness.errors, ["spawn failed"]);
   });
 });

@@ -37,9 +37,6 @@ export interface UserdataMenuItem extends UserdataMenuSelection {
 export function buildOpenWithUserdataMenuItems(
   registry: Registry,
   current: CurrentUserdata,
-  createUserdataLabel: string = CREATE_USERDATA_LABEL,
-  renameCurrentUserdataLabel: string = RENAME_CURRENT_USERDATA_LABEL,
-  revealCurrentUserdataLabel: string = REVEAL_CURRENT_USERDATA_LABEL,
 ): UserdataMenuItem[] {
   const otherUserdatas: UserdataMenuItem[] = registry.userdatas
     .filter(
@@ -54,19 +51,19 @@ export function buildOpenWithUserdataMenuItems(
 
   const renameItem: UserdataMenuItem = {
     intent: { kind: "rename" },
-    label: renameCurrentUserdataLabel,
+    label: RENAME_CURRENT_USERDATA_LABEL,
     alwaysShow: true,
   };
   const actionItems: UserdataMenuItem[] = [
     ...(current.kind === "known" ? [renameItem] : []),
     {
       intent: { kind: "reveal" },
-      label: revealCurrentUserdataLabel,
+      label: REVEAL_CURRENT_USERDATA_LABEL,
       alwaysShow: true,
     },
     {
       intent: { kind: "create" },
-      label: createUserdataLabel,
+      label: CREATE_USERDATA_LABEL,
       alwaysShow: true,
     },
   ];

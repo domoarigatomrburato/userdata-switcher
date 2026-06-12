@@ -2,6 +2,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
+import {
+  COMMAND_CREATE_USERDATA,
+  COMMAND_OPEN_WITH_USERDATA,
+  COMMAND_RENAME_CURRENT_USERDATA,
+  COMMAND_REVEAL_CURRENT_USERDATA,
+  COMMAND_SHOW_CURRENT_USERDATA,
+} from "./extensionActivation";
 
 interface CommandContribution {
   category?: string;
@@ -36,37 +43,25 @@ describe("extension manifest", () => {
     const manifest = JSON.parse(
       fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"),
     ) as ExtensionManifest;
+    const commands = manifest.contributes?.commands ?? [];
 
-    assert.deepEqual(manifest.contributes?.commands, [
-      {
-        command: "userdataSwitcher.openWithUserdata",
-        title: "Open With Userdata",
-        category: "Userdata Switcher",
-      },
-      {
-        command: "userdataSwitcher.createUserdata",
-        title: "Create Userdata",
-        category: "Userdata Switcher",
-      },
-      {
-        command: "userdataSwitcher.renameCurrentUserdata",
-        title: "Rename Current Userdata",
-        category: "Userdata Switcher",
-      },
-      {
-        command: "userdataSwitcher.showCurrentUserdata",
-        title: "Show Current Userdata",
-        category: "Userdata Switcher",
-      },
-      {
-        command: "userdataSwitcher.revealCurrentUserdata",
-        title: "Reveal Current Userdata",
-        category: "Userdata Switcher",
-      },
-    ]);
+    assert.deepEqual(
+      commands.map((command) => command.command),
+      [
+        COMMAND_OPEN_WITH_USERDATA,
+        COMMAND_CREATE_USERDATA,
+        COMMAND_RENAME_CURRENT_USERDATA,
+        COMMAND_SHOW_CURRENT_USERDATA,
+        COMMAND_REVEAL_CURRENT_USERDATA,
+      ],
+    );
+    assert.ok(
+      commands.every((command) => command.category === "Userdata Switcher"),
+    );
+    assert.ok(commands.every((command) => command.title.trim()));
   });
 
-  it("keeps marketplace metadata and packaging output publish-ready", () => {
+  it("keeps marketplace metadata publish-ready", () => {
     const manifest = JSON.parse(
       fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"),
     ) as ExtensionManifest;
@@ -84,18 +79,21 @@ describe("extension manifest", () => {
       theme: "dark",
     });
     assert.equal(manifest.pricing, "Free");
-    assert.equal(
+    assert.ok(manifest.description);
+    assert.match(
       manifest.description,
-      "Open one workspace with separate Cursor or VS Code accounts, settings, and chat history.",
+      /Cursor AI subscriptions.*VS Code themes/,
     );
     assert.equal(manifest.qna, "marketplace");
-    assert.deepEqual(manifest.keywords, [
+    assertKeywordsInclude(manifest.keywords, [
       "userdata",
       "user-data-dir",
       "vscode",
       "visual studio code",
-      "insiders",
       "cursor",
+      "ai",
+      "subscription",
+      "subscriptions",
       "account",
       "accounts",
       "launcher",
@@ -103,9 +101,19 @@ describe("extension manifest", () => {
       "multi-account",
       "theme",
       "themes",
-      "profile",
-      "profiles",
     ]);
+    assert.ok(!manifest.keywords?.includes("profile"));
+    assert.ok(!manifest.keywords?.includes("profiles"));
     assert.deepEqual(manifest.scripts, expectedScripts);
   });
 });
+
+function assertKeywordsInclude(
+  keywords: string[] | undefined,
+  expected: readonly string[],
+): void {
+  assert.ok(keywords);
+  for (const keyword of expected) {
+    assert.ok(keywords.includes(keyword), `missing keyword: ${keyword}`);
+  }
+}

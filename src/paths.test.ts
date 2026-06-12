@@ -9,4 +9,19 @@ describe("resolveManagedDataDir", () => {
       "/store/u/personal",
     );
   });
+
+  it("rejects managed userdata paths outside the store root", () => {
+    assert.throws(
+      () => resolveManagedDataDir("/store", "../outside"),
+      /Invalid managed userdata path/,
+    );
+    assert.throws(
+      () => resolveManagedDataDir("/store", "/outside"),
+      /Invalid managed userdata path/,
+    );
+    assert.throws(
+      () => resolveManagedDataDir("/store", "external/personal"),
+      /Invalid managed userdata path/,
+    );
+  });
 });

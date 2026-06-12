@@ -16,37 +16,40 @@ import {
 const tempDir = fs.mkdtempSync(
   path.join(os.tmpdir(), "userdata-switcher-registry-test-"),
 );
-const registryFile = path.join(tempDir, "registry.json");
 
 after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
+function registryFile(name: string): string {
+  return path.join(tempDir, `${name}.json`);
+}
+
 describe("registry", () => {
   it("auto-seeds the default userdata entry", () => {
-    const registry = ensureDefaultUserdata(loadRegistry(registryFile));
+    const registry = ensureDefaultUserdata(
+      loadRegistry(registryFile("default")),
+    );
     assert.equal(registry.userdatas.length, 1);
     assert.deepEqual(registry.userdatas[0], {
       id: "default",
       kind: "default",
       label: "Default",
     });
-    saveRegistry(registryFile, registry);
   });
 
   it("creates a managed userdata with a stable relative path", () => {
-    const registry = loadRegistry(registryFile);
+    const registry = ensureDefaultUserdata({ version: 1, userdatas: [] });
     const updated = addManagedUserdata(registry, "Personal");
     assert.equal(updated.userdatas.length, 2);
     const managed = updated.userdatas.find((entry) => entry.kind === "managed");
     assert.ok(managed);
     assert.equal(managed?.label, "Personal");
     assert.match(managed?.relativeDataDir ?? "", /^u\/personal$/);
-    saveRegistry(registryFile, updated);
   });
 
   it("creates, persists, and returns the managed userdata entry", () => {
-    const creationRegistryFile = path.join(tempDir, "create-registry.json");
+    const creationRegistryFile = registryFile("create");
     saveRegistry(creationRegistryFile, {
       version: 1,
       userdatas: [
@@ -79,10 +82,7 @@ describe("registry", () => {
   });
 
   it("does not persist a managed userdata when preparation fails", () => {
-    const creationRegistryFile = path.join(
-      tempDir,
-      "failed-create-registry.json",
-    );
+    const creationRegistryFile = registryFile("failed-create");
     const originalRegistry = {
       version: 1 as const,
       userdatas: [
@@ -139,14 +139,19 @@ describe("registry", () => {
   });
 
   it("renames a userdata label without changing ids", () => {
-    const registry = loadRegistry(registryFile);
+    const registry = {
+      version: 1 as const,
+      userdatas: [
+        { id: "default", kind: "default" as const, label: "Default" },
+      ],
+    };
     const updated = renameUserdata(registry, "default", "Work");
     assert.equal(updated.userdatas[0]?.label, "Work");
     assert.equal(updated.userdatas[0]?.id, "default");
   });
 
   it("reloads the latest registry before persisting an update", () => {
-    const staleRegistryFile = path.join(tempDir, "stale-registry.json");
+    const staleRegistryFile = registryFile("stale");
     const staleRegistry = ensureDefaultUserdata(
       loadRegistry(staleRegistryFile),
     );

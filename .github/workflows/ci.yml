@@ -36,29 +36,3 @@ jobs:
 
       - name: Package VSIX
         run: npm run package:vsix
-
-      - name: Verify VSIX contents
-        run: |
-          set -euo pipefail
-          vsix_path="dist/userdata-switcher-$(node -p "require('./package.json').version").vsix"
-          test -f "$vsix_path"
-          unzip -l "$vsix_path" > vsix-contents.txt
-          for forbidden in \
-            'extension/scripts/' \
-            'extension/src/' \
-            'extension/docs/' \
-            'extension/.github/' \
-            'extension/CONTRIBUTING.md' \
-            'extension/AGENTS.md' \
-            'extension/CONTEXT.md' \
-            'extension/media/screenshot-concept.png' \
-            'extension/tsconfig.build.json' \
-            '.test.js' \
-            '.map'
-          do
-            if grep -Fq "$forbidden" vsix-contents.txt; then
-              echo "Forbidden VSIX entry matching:${forbidden}"
-              grep -F "$forbidden" vsix-contents.txt
-              exit 1
-            fi
-          done

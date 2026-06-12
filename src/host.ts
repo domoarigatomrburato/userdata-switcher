@@ -30,7 +30,6 @@ export interface SupportedHostAdapter {
   resolveSharedExtensionsDirectory(
     options?: PathResolutionOptions,
   ): string | null;
-  discoverBundledCli(appRoot: string, deps?: CliDiscoveryDeps): string | null;
   discoverEditorCli(appRoot: string, deps?: CliDiscoveryDeps): string | null;
 }
 
@@ -91,8 +90,6 @@ function createSupportedHostAdapter(
       resolveDefaultUserdataRoot(definition, options),
     resolveSharedExtensionsDirectory: (options) =>
       resolveSharedExtensionsDirectory(definition, options),
-    discoverBundledCli: (appRoot, deps) =>
-      discoverBundledCli(definition, appRoot, deps),
     discoverEditorCli: (appRoot, deps) =>
       discoverEditorCli(definition, appRoot, deps),
   };

@@ -41,10 +41,15 @@ export function matchCurrentUserdata(input: {
     if (entry.kind !== "managed" || !entry.relativeDataDir) {
       continue;
     }
-    const managedRoot = resolveManagedDataDir(
-      input.storeRoot,
-      entry.relativeDataDir,
-    );
+    let managedRoot: string;
+    try {
+      managedRoot = resolveManagedDataDir(
+        input.storeRoot,
+        entry.relativeDataDir,
+      );
+    } catch {
+      continue;
+    }
     if (pathsEqual(normalizedDerived, managedRoot)) {
       return { kind: "known", entry };
     }

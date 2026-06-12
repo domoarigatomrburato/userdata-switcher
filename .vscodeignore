@@ -6,14 +6,12 @@ tsconfig.build.json
 out/**/*.test.js
 out/**/*.test.js.map
 tsconfig.json
-tsconfig.test.json
 **/*.ts
 **/*.map
 node_modules/**
 docs/**
 CONTRIBUTING.md
 scripts/**
-media/screenshot-concept.png
 CONTEXT.md
 AGENTS.md
 biome.json

@@ -1,9 +1,9 @@
 {
   "name": "userdata-switcher",
   "displayName": "Userdata Switcher",
-  "description": "Open one workspace with separate Cursor or VS Code accounts, settings, and chat history.",
+  "description": "Use Cursor AI subscriptions or VS Code themes side by side, each with separate state.",
   "icon": "media/icon.png",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "type": "commonjs",
   "publisher": "domoarigatomrburato",
   "license": "MIT",
@@ -22,15 +22,16 @@
     "visual studio code",
     "insiders",
     "cursor",
+    "ai",
+    "subscription",
+    "subscriptions",
     "account",
     "accounts",
     "launcher",
     "workspace",
     "multi-account",
     "theme",
-    "themes",
-    "profile",
-    "profiles"
+    "themes"
   ],
   "qna": "marketplace",
   "galleryBanner": {

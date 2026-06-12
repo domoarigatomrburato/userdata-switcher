@@ -177,12 +177,13 @@ describe("resolveSharedExtensionsDirectory", () => {
   });
 });
 
-describe("discoverBundledCli", () => {
+describe("discoverEditorCli bundled discovery", () => {
   it("finds the bundled cursor CLI under appRoot", () => {
     assert.equal(
-      cursor.discoverBundledCli(
+      cursor.discoverEditorCli(
         "/Applications/Cursor.app/Contents/Resources/app",
         {
+          env: { PATH: "/usr/local/bin" },
           existsSync: (candidate) => candidate.endsWith("/bin/cursor"),
           platform: "darwin",
         },
@@ -193,9 +194,10 @@ describe("discoverBundledCli", () => {
 
   it("finds the bundled VS Code CLI under appRoot", () => {
     assert.equal(
-      vscode.discoverBundledCli(
+      vscode.discoverEditorCli(
         "/Applications/Visual Studio Code.app/Contents/Resources/app",
         {
+          env: { PATH: "/usr/local/bin" },
           existsSync: (candidate) => candidate.endsWith("/bin/code"),
           platform: "darwin",
         },
@@ -206,9 +208,10 @@ describe("discoverBundledCli", () => {
 
   it("finds a bundled Windows CLI under the install root bin directory", () => {
     assert.equal(
-      insiders.discoverBundledCli(
+      insiders.discoverEditorCli(
         "C:\\Users\\alice\\AppData\\Local\\Programs\\Microsoft VS Code Insiders\\resources\\app",
         {
+          env: { Path: "C:\\Windows\\System32" },
           existsSync: (candidate) =>
             candidate ===
             "C:\\Users\\alice\\AppData\\Local\\Programs\\Microsoft VS Code Insiders\\bin\\code-insiders.cmd",
@@ -221,7 +224,8 @@ describe("discoverBundledCli", () => {
 
   it("falls back to appRoot bin for Windows hosts without a resources/app root", () => {
     assert.equal(
-      insiders.discoverBundledCli("C:\\Portable\\Code", {
+      insiders.discoverEditorCli("C:\\Portable\\Code", {
+        env: { Path: "C:\\Windows\\System32" },
         existsSync: (candidate) =>
           candidate === "C:\\Portable\\Code\\bin\\code-insiders.cmd",
         platform: "win32",

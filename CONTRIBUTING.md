@@ -46,19 +46,6 @@ npm run package:vsix
 - Keep runtime artifacts in the VSIX; exclude source, tests, docs, scripts, and
   maintainer metadata.
 
-## README Screenshots
-
-Replace the placeholder images under `media/` before publishing. Each HTML
-comment in `README.md` describes what to capture.
-
-| File | Capture |
-| --- | --- |
-| `screenshot-menu.png` | Open With Userdata menu (hero) |
-| `screenshot-cursor-work-personal.png` | Two Cursor windows, same repo, Work + Personal |
-| `screenshot-vscode-dual-identities.png` | Optional: two VS Code windows when Profiles are not enough |
-| `screenshot-status-bar.png` | Status bar showing current userdata label |
-| `screenshot-reveal-userdata.png` | Reveal Current Userdata in Finder / Explorer |
-
 ## Useful References
 
 - `CONTEXT.md`

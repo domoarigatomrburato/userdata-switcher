@@ -84,6 +84,30 @@ describe("matchCurrentUserdata", () => {
     const match = matchUserdataRoot(EXTERNAL_ROOT);
     assert.equal(match.kind, "unmanaged");
   });
+
+  it("ignores malformed managed userdata registry paths", () => {
+    const malformedRegistry: Registry = {
+      version: 1,
+      userdatas: [
+        ...registry.userdatas,
+        {
+          id: "escaped",
+          kind: "managed",
+          label: "Escaped",
+          relativeDataDir: "../outside",
+        },
+      ],
+    };
+
+    const match = matchCurrentUserdata({
+      globalStoragePath: globalStoragePath(EXTERNAL_ROOT),
+      defaultUserdataRoot: DEFAULT_ROOT,
+      storeRoot: STORE_ROOT,
+      registry: malformedRegistry,
+    });
+
+    assert.equal(match.kind, "unmanaged");
+  });
 });
 
 describe("resolveCurrentUserdataRoot", () => {

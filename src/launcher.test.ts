@@ -26,7 +26,6 @@ const vscodeHost: SupportedHostAdapter = {
   resolveStoreRoot: () => "/store",
   resolveDefaultUserdataRoot: () => "/default-userdata",
   resolveSharedExtensionsDirectory: () => "/home/alice/.vscode/extensions",
-  discoverBundledCli: () => "/app/bin/code",
   discoverEditorCli: () => "/app/bin/code",
 };
 
@@ -296,7 +295,6 @@ describe("openWithUserdata", () => {
         resolveDefaultUserdataRoot: () => "/default-userdata",
         resolveSharedExtensionsDirectory: () =>
           "/home/alice/.vscode/extensions",
-        discoverBundledCli: () => "/app/bin/code",
         discoverEditorCli: () => "/app/bin/code",
       },
       appRoot: "/app",

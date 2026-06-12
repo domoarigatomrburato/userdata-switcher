@@ -389,7 +389,7 @@ export function activateUserdataSwitcher(
   );
   subscribe(
     ui.registerCommand(COMMAND_RENAME_CURRENT_USERDATA, async () => {
-      const current = getCurrent();
+      const current = getCurrent(refreshRegistry());
       if (current.kind === "unmanaged") {
         await ui.showWarningMessage(
           "The current window is using unmanaged userdata.",
