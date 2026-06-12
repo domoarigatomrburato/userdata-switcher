@@ -3,7 +3,7 @@
   "displayName": "Userdata Switcher",
   "description": "Use Cursor AI subscriptions or VS Code themes side by side, each with separate state.",
   "icon": "media/icon.png",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "commonjs",
   "publisher": "domoarigatomrburato",
   "license": "MIT",
