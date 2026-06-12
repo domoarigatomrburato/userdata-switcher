@@ -40,11 +40,21 @@ interface TestHarness {
   revealedPaths: string[];
   logs: string[];
   quickPickItems: readonly QuickPickItem[][];
-  quickPickSelection: QuickPickItem | undefined;
-  inputBoxValue: string | undefined;
   activation: UserdataSwitcherActivation;
   run(command: string): Promise<unknown>;
 }
+
+const START_FROM_CURRENT_SETTINGS_PICK: QuickPickItem = {
+  label: "Start from current settings",
+  description: "Recommended",
+  creationMode: "seedCurrent",
+};
+
+const START_EMPTY_PICK: QuickPickItem = {
+  label: "Start empty",
+  description: "Fresh editor defaults",
+  creationMode: "empty",
+};
 
 function globalStoragePathFor(userdataRoot: string): string {
   return path.join(
@@ -54,6 +64,11 @@ function globalStoragePathFor(userdataRoot: string): string {
     "publisher.ext",
     "globalStorage",
   );
+}
+
+function writeTextFile(file: string, contents: string): void {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, contents, "utf8");
 }
 
 function savePersonalRegistry(storeRoot: string): void {
@@ -75,7 +90,9 @@ function createTestHarness(input?: {
   globalStoragePath?: string;
   discoverEditorCli?: SupportedHostAdapter["discoverEditorCli"];
   quickPickSelection?: QuickPickItem;
+  quickPickSelections?: readonly (QuickPickItem | undefined)[];
   inputBoxValue?: string;
+  inputBoxValues?: readonly (string | undefined)[];
   mkdirSync?: UserdataSwitcherActivation["mkdirSync"];
 }): TestHarness {
   const tempRoot = process.platform === "darwin" ? "/tmp" : os.tmpdir();
@@ -103,6 +120,16 @@ function createTestHarness(input?: {
   const revealedPaths: string[] = [];
   const logs: string[] = [];
   const quickPickItems: QuickPickItem[][] = [];
+  const quickPickSelections = [
+    ...(input?.quickPickSelections ??
+      (input?.quickPickSelection !== undefined
+        ? [input.quickPickSelection]
+        : [])),
+  ];
+  const inputBoxValues = [
+    ...(input?.inputBoxValues ??
+      (input?.inputBoxValue !== undefined ? [input.inputBoxValue] : [])),
+  ];
 
   const host: SupportedHostAdapter = {
     id: "cursor",
@@ -125,9 +152,9 @@ function createTestHarness(input?: {
     },
     showQuickPick: async (items) => {
       quickPickItems.push([...items]);
-      return input?.quickPickSelection;
+      return quickPickSelections.shift();
     },
-    showInputBox: async () => input?.inputBoxValue,
+    showInputBox: async () => inputBoxValues.shift(),
     showErrorMessage: async (message) => {
       errors.push(message);
     },
@@ -184,8 +211,6 @@ function createTestHarness(input?: {
     revealedPaths,
     logs,
     quickPickItems,
-    quickPickSelection: input?.quickPickSelection,
-    inputBoxValue: input?.inputBoxValue,
     activation,
     run: async (command) => {
       const handler = commands.get(command);
@@ -242,10 +267,13 @@ describe("activateUserdataSwitcher", () => {
 
   it("launches the selected managed userdata from the open menu", async () => {
     const harness = createTestHarness({
-      quickPickSelection: {
-        label: "Personal",
-        intent: { kind: "open", userdataId: "personal" },
-      },
+      quickPickSelections: [
+        START_FROM_CURRENT_SETTINGS_PICK,
+        {
+          label: "Personal",
+          intent: { kind: "open", userdataId: "personal" },
+        },
+      ],
       inputBoxValue: "Personal",
     });
     harnesses.push(harness);
@@ -292,10 +320,13 @@ describe("activateUserdataSwitcher", () => {
 
   it("routes the create action in the open menu to create userdata", async () => {
     const harness = createTestHarness({
-      quickPickSelection: {
-        label: CREATE_USERDATA_LABEL,
-        intent: { kind: "create" },
-      },
+      quickPickSelections: [
+        {
+          label: CREATE_USERDATA_LABEL,
+          intent: { kind: "create" },
+        },
+        START_FROM_CURRENT_SETTINGS_PICK,
+      ],
       inputBoxValue: "Work",
     });
     harnesses.push(harness);
@@ -316,6 +347,7 @@ describe("activateUserdataSwitcher", () => {
 
   it("passes intent metadata through the open menu items", async () => {
     const harness = createTestHarness({
+      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
       inputBoxValue: "Personal",
     });
     harnesses.push(harness);
@@ -324,7 +356,7 @@ describe("activateUserdataSwitcher", () => {
     await harness.run(COMMAND_CREATE_USERDATA);
     await harness.run(COMMAND_OPEN_WITH_USERDATA);
 
-    assert.deepEqual(harness.quickPickItems[0], [
+    assert.deepEqual(harness.quickPickItems[1], [
       {
         label: "Personal",
         description: "Managed Userdata",
@@ -351,6 +383,7 @@ describe("activateUserdataSwitcher", () => {
 
   it("creates managed userdata, persists the registry, and launches it", async () => {
     const harness = createTestHarness({
+      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
       inputBoxValue: "Personal",
     });
     harnesses.push(harness);
@@ -378,8 +411,152 @@ describe("activateUserdataSwitcher", () => {
     ]);
   });
 
+  it("prompts for creation mode before the userdata label", async () => {
+    const harness = createTestHarness({
+      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
+      inputBoxValue: "Personal",
+    });
+    harnesses.push(harness);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_CREATE_USERDATA);
+
+    assert.deepEqual(harness.quickPickItems[0], [
+      START_FROM_CURRENT_SETTINGS_PICK,
+      START_EMPTY_PICK,
+    ]);
+  });
+
+  it("seeds new userdata from current settings without copying identity state", async () => {
+    const harness = createTestHarness({
+      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
+      inputBoxValue: "Personal",
+    });
+    harnesses.push(harness);
+    const currentUserDir = path.join(harness.defaultUserdataRoot, "User");
+    writeTextFile(
+      path.join(currentUserDir, "settings.json"),
+      '{ "workbench.colorTheme": "Quiet Light" }\n',
+    );
+    writeTextFile(
+      path.join(currentUserDir, "keybindings.json"),
+      '[{ "key": "cmd+k cmd+t", "command": "workbench.action.selectTheme" }]\n',
+    );
+    writeTextFile(
+      path.join(currentUserDir, "snippets", "typescript.json"),
+      '{ "hello": { "prefix": "hi" } }\n',
+    );
+    writeTextFile(
+      path.join(currentUserDir, "globalStorage", "auth.json"),
+      '{ "token": "secret" }\n',
+    );
+    writeTextFile(
+      path.join(currentUserDir, "workspaceStorage", "state.json"),
+      '{ "workspace": true }\n',
+    );
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_CREATE_USERDATA);
+
+    const managedUserDir = path.join(harness.storeRoot, "u/personal", "User");
+    assert.equal(
+      fs.readFileSync(path.join(managedUserDir, "settings.json"), "utf8"),
+      '{ "workbench.colorTheme": "Quiet Light" }\n',
+    );
+    assert.equal(
+      fs.readFileSync(path.join(managedUserDir, "keybindings.json"), "utf8"),
+      '[{ "key": "cmd+k cmd+t", "command": "workbench.action.selectTheme" }]\n',
+    );
+    assert.equal(
+      fs.readFileSync(
+        path.join(managedUserDir, "snippets", "typescript.json"),
+        "utf8",
+      ),
+      '{ "hello": { "prefix": "hi" } }\n',
+    );
+    assert.equal(
+      fs.existsSync(path.join(managedUserDir, "globalStorage", "auth.json")),
+      false,
+    );
+    assert.equal(
+      fs.existsSync(
+        path.join(managedUserDir, "workspaceStorage", "state.json"),
+      ),
+      false,
+    );
+  });
+
+  it("seeds from the current managed userdata when that window creates another", async () => {
+    const sourceManagedDir = "u/personal";
+    const harness = createTestHarness({
+      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
+      inputBoxValue: "Client",
+    });
+    harnesses.push(harness);
+    harness.activation.globalStoragePath = globalStoragePathFor(
+      path.join(harness.storeRoot, sourceManagedDir),
+    );
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+    writeTextFile(
+      path.join(harness.defaultUserdataRoot, "User", "settings.json"),
+      '{ "workbench.colorTheme": "Default Dark Modern" }\n',
+    );
+    writeTextFile(
+      path.join(harness.storeRoot, sourceManagedDir, "User", "settings.json"),
+      '{ "workbench.colorTheme": "Solarized Light" }\n',
+    );
+    writeTextFile(
+      path.join(
+        harness.storeRoot,
+        sourceManagedDir,
+        "User",
+        "snippets",
+        "go.json",
+      ),
+      '{ "test": { "prefix": "tt" } }\n',
+    );
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_CREATE_USERDATA);
+
+    const managedUserDir = path.join(harness.storeRoot, "u/client", "User");
+    assert.equal(
+      fs.readFileSync(path.join(managedUserDir, "settings.json"), "utf8"),
+      '{ "workbench.colorTheme": "Solarized Light" }\n',
+    );
+    assert.equal(
+      fs.readFileSync(path.join(managedUserDir, "snippets", "go.json"), "utf8"),
+      '{ "test": { "prefix": "tt" } }\n',
+    );
+  });
+
+  it("starts empty when creating userdata with fresh editor defaults", async () => {
+    const harness = createTestHarness({
+      quickPickSelection: START_EMPTY_PICK,
+      inputBoxValue: "Personal",
+    });
+    harnesses.push(harness);
+    const currentUserDir = path.join(harness.defaultUserdataRoot, "User");
+    writeTextFile(
+      path.join(currentUserDir, "settings.json"),
+      '{ "workbench.colorTheme": "Quiet Light" }\n',
+    );
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_CREATE_USERDATA);
+
+    assert.equal(
+      fs.existsSync(
+        path.join(harness.storeRoot, "u/personal", "User", "settings.json"),
+      ),
+      false,
+    );
+  });
+
   it("does not persist a managed userdata when directory creation fails", async () => {
     const harness = createTestHarness({
+      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
       inputBoxValue: "Personal",
       mkdirSync: () => {
         throw new Error("mkdir failed");

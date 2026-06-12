@@ -1,7 +1,7 @@
 {
   "name": "userdata-switcher",
   "displayName": "Userdata Switcher",
-  "description": "Use separate Cursor or VS Code accounts, themes, and settings in the same workspace.",
+  "description": "Open one workspace with separate Cursor or VS Code accounts, settings, and chat history.",
   "icon": "media/icon.png",
   "version": "0.2.0",
   "type": "commonjs",

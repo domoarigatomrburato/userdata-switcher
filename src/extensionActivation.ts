@@ -24,6 +24,7 @@ import {
   type UserdataMenuItemIntent,
 } from "./menu";
 import { registryPath, resolveManagedDataDir } from "./paths";
+import { seedUserdataPreferences } from "./preferences";
 import {
   createManagedUserdata,
   ensureDefaultUserdata,
@@ -53,6 +54,7 @@ export interface QuickPickItem {
   description?: string;
   kind?: number;
   intent?: UserdataMenuItemIntent;
+  creationMode?: UserdataCreationMode;
   alwaysShow?: boolean;
 }
 
@@ -104,6 +106,24 @@ export interface UserdataSwitcherActivation {
   launchEditorImpl?: LaunchEditor;
   mkdirSync?: typeof fs.mkdirSync;
 }
+
+type UserdataCreationMode = "seedCurrent" | "empty";
+
+const CREATE_FROM_CURRENT_SETTINGS_LABEL = "Start from current settings";
+const CREATE_EMPTY_LABEL = "Start empty";
+
+const USERDATA_CREATION_MODE_ITEMS: readonly QuickPickItem[] = [
+  {
+    label: CREATE_FROM_CURRENT_SETTINGS_LABEL,
+    description: "Recommended",
+    creationMode: "seedCurrent",
+  },
+  {
+    label: CREATE_EMPTY_LABEL,
+    description: "Fresh editor defaults",
+    creationMode: "empty",
+  },
+];
 
 function requireNonEmptyLabel(value: string): string | undefined {
   return value.trim() ? undefined : "Label is required";
@@ -239,6 +259,16 @@ export function activateUserdataSwitcher(
     }
   };
 
+  const pickUserdataCreationMode = async (): Promise<
+    UserdataCreationMode | undefined
+  > => {
+    const selected = await ui.showQuickPick(USERDATA_CREATION_MODE_ITEMS, {
+      title: "Create Userdata",
+      placeHolder: "Choose how to initialize the new userdata",
+    });
+    return selected?.creationMode;
+  };
+
   subscribe(statusBarItem as unknown as Disposable);
   subscribe(
     ui.registerCommand(COMMAND_OPEN_WITH_USERDATA, async () => {
@@ -285,6 +315,20 @@ export function activateUserdataSwitcher(
   );
   subscribe(
     ui.registerCommand(COMMAND_CREATE_USERDATA, async () => {
+      const creationMode = await pickUserdataCreationMode();
+      if (!creationMode) {
+        logger?.info("Create userdata cancelled");
+        return;
+      }
+      const sourceUserdataRoot =
+        creationMode === "seedCurrent"
+          ? resolveCurrentUserdataRoot({
+              current: getCurrent(refreshRegistry()),
+              globalStoragePath,
+              defaultUserdataRoot,
+              storeRoot,
+            })
+          : undefined;
       const label = await ui.showInputBox({
         title: "Create Userdata",
         prompt: `Enter a label for the new ${host.displayName} Userdata`,
@@ -301,9 +345,28 @@ export function activateUserdataSwitcher(
           label,
           {
             beforeSave: (entry) => {
-              mkdir(resolveManagedDataDir(storeRoot, entry.relativeDataDir), {
+              let sourceRootToSeed: string | undefined;
+              if (creationMode === "seedCurrent") {
+                if (!sourceUserdataRoot) {
+                  throw new Error(
+                    "Could not determine the current userdata directory to copy settings from.",
+                  );
+                }
+                sourceRootToSeed = sourceUserdataRoot;
+              }
+              const managedDataDir = resolveManagedDataDir(
+                storeRoot,
+                entry.relativeDataDir,
+              );
+              mkdir(managedDataDir, {
                 recursive: true,
               });
+              if (sourceRootToSeed) {
+                seedUserdataPreferences({
+                  sourceUserdataRoot: sourceRootToSeed,
+                  targetUserdataRoot: managedDataDir,
+                });
+              }
             },
           },
         );

@@ -86,7 +86,7 @@ describe("extension manifest", () => {
     assert.equal(manifest.pricing, "Free");
     assert.equal(
       manifest.description,
-      "Use separate Cursor or VS Code accounts, themes, and settings in the same workspace.",
+      "Open one workspace with separate Cursor or VS Code accounts, settings, and chat history.",
     );
     assert.equal(manifest.qna, "marketplace");
     assert.deepEqual(manifest.keywords, [

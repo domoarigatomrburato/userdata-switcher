@@ -64,11 +64,19 @@ CTAs.
 
 Create flow:
 
-1. Prompt for a Userdata Label.
-2. Derive a stable id.
-3. Create a Managed Userdata directory under the Userdata Store Root.
-4. Persist the registry entry.
-5. Launch the current Supported Host with the new userdata and current workspace
+1. Prompt for a creation mode.
+2. Default to `Start from current settings`.
+3. Offer `Start empty` for fresh editor defaults.
+4. Prompt for a Userdata Label.
+5. Derive a stable id.
+6. Create a Managed Userdata directory under the Userdata Store Root.
+7. For `Start from current settings`, copy safe user preferences from the
+   Current Userdata as a one-time seed: user settings, keybindings, and user
+   snippets.
+8. Do not copy identity or runtime state such as sign-in, chat history,
+   `globalStorage`, `workspaceStorage`, caches, logs, or extension state.
+9. Persist the registry entry.
+10. Launch the current Supported Host with the new userdata and current workspace
    when possible.
 
 Rename changes only the label. It does not affect ids, relative data
