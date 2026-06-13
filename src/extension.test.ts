@@ -824,3 +824,68 @@ describe("activateUserdataSwitcher", () => {
     assert.deepEqual(harness.errors, ["spawn failed"]);
   });
 });
+
+describe("createVscodeUi", () => {
+  it("surfaces errors when revealFileInOS command fails", async () => {
+    // We mock require for vscode because node:test does not have module mocking
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { Module } = require("node:module");
+    const origRequire = Module.prototype.require;
+    let ui: UserdataSwitcherUi | undefined;
+    const logs: string[] = [];
+
+    Module.prototype.require = function (...args: unknown[]) {
+      const id = args[0];
+      if (id === "vscode") {
+        return {
+          commands: {
+            executeCommand: async (cmd: string) => {
+              if (cmd === "revealFileInOS") {
+                throw new Error("mock reveal failure");
+              }
+            },
+          },
+          Uri: {
+            file: (f: string) => ({ fsPath: f, toString: () => f }),
+          },
+          StatusBarAlignment: {},
+          QuickPickItemKind: {},
+        };
+      }
+      return origRequire.apply(this, args);
+    };
+
+    try {
+      // Clear the cache so we actually require with the mocked vscode
+      delete require.cache[require.resolve("./extension.ts")];
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { createVscodeUi } = require("./extension.ts");
+      ui = createVscodeUi({
+        info: (msg: string) => logs.push(`info:${msg}`),
+        error: (msg: string) => logs.push(`error:${msg}`),
+      });
+    } finally {
+      Module.prototype.require = origRequire;
+      // Remove the polluted module from the cache so future requires get the real one
+      delete require.cache[require.resolve("./extension.ts")];
+    }
+
+    try {
+      if (ui) {
+        await ui.revealPathInOs("/some/path");
+      }
+      assert.fail("should have thrown");
+    } catch (e: unknown) {
+      assert.equal(
+        e instanceof Error ? e.message : String(e),
+        "mock reveal failure",
+      );
+    }
+
+    assert.ok(
+      logs.some((l) =>
+        l.includes("error:revealFileInOS failed: mock reveal failure"),
+      ),
+    );
+  });
+});
