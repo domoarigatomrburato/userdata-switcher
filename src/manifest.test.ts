@@ -22,6 +22,7 @@ interface ExtensionManifest {
     commands?: CommandContribution[];
   };
   description?: string;
+  engines?: { node?: string; vscode?: string };
   galleryBanner?: { color?: string; theme?: string };
   homepage?: string;
   keywords?: string[];
@@ -29,6 +30,10 @@ interface ExtensionManifest {
   qna?: string;
   scripts?: Record<string, string>;
 }
+
+/** Cursor's declared VS Code API level (mid-2026). Keep engines.vscode floor at or below this. */
+const CURSOR_DECLARED_VSCODE_API = "1.105.1";
+const ENGINES_VSCODE = "^1.90.0";
 
 describe("extension manifest", () => {
   const expectedScripts = {
@@ -60,6 +65,18 @@ describe("extension manifest", () => {
       commands.every((command) => command.category === "Userdata Switcher"),
     );
     assert.ok(commands.every((command) => command.title.trim()));
+  });
+
+  it("declares a VS Code engine floor without engines.node", () => {
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"),
+    ) as ExtensionManifest;
+
+    assert.deepEqual(manifest.engines, { vscode: ENGINES_VSCODE });
+    assert.ok(
+      vscodeApiSatisfiesEngine(CURSOR_DECLARED_VSCODE_API, ENGINES_VSCODE),
+      `engines.vscode ${ENGINES_VSCODE} must not exceed Cursor API ${CURSOR_DECLARED_VSCODE_API}`,
+    );
   });
 
   it("keeps marketplace metadata publish-ready", () => {
@@ -108,6 +125,27 @@ describe("extension manifest", () => {
     assert.deepEqual(manifest.scripts, expectedScripts);
   });
 });
+
+function vscodeApiSatisfiesEngine(
+  hostVersion: string,
+  engineRange: string,
+): boolean {
+  const match = /^\^(\d+)\.(\d+)\.(\d+)$/.exec(engineRange);
+  if (!match) {
+    return false;
+  }
+  const floor = match.slice(1, 4).map(Number) as [number, number, number];
+  const host = hostVersion.split(".").map(Number) as [number, number, number];
+  for (let index = 0; index < 3; index += 1) {
+    if (host[index] > floor[index]) {
+      return true;
+    }
+    if (host[index] < floor[index]) {
+      return false;
+    }
+  }
+  return true;
+}
 
 function assertKeywordsInclude(
   keywords: string[] | undefined,

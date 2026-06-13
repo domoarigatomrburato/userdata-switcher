@@ -5,6 +5,20 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.1.0
+
+### Changed
+
+- Raise the VS Code engine floor to `^1.90.0`, remove the non-idiomatic
+  `engines.node` field, and align `@types/vscode` / `@types/node` with that
+  minimum while keeping compatibility with Cursor's declared API.
+- Upgrade GitHub Actions to `actions/checkout@v6` and `actions/setup-node@v6` to
+  clear Node 20 deprecation warnings.
+
+### Fixed
+
+- Add an SVG `<title>` so Biome's accessibility check passes in CI.
+
 ## 1.0.6
 
 ### Changed

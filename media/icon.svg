@@ -1,4 +1,5 @@
 <svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Userdata Switcher</title>
   <defs>
     <path id="card" d="M -47 -65 L 47 -65 Q 65 -65 65 -47 L 65 47 Q 65 65 47 65 L -47 65 Q -65 65 -65 47 L -65 -47 Q -65 -65 -47 -65 Z"/>
     <linearGradient id="topFace" x1="0" y1="0" x2="0" y2="1">

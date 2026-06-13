@@ -3,7 +3,7 @@
   "displayName": "Userdata Switcher",
   "description": "Use Cursor AI subscriptions or VS Code themes side by side, each with separate state.",
   "icon": "media/icon.png",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "type": "commonjs",
   "publisher": "domoarigatomrburato",
   "license": "MIT",
@@ -40,8 +40,7 @@
   },
   "pricing": "Free",
   "engines": {
-    "node": ">=22.13",
-    "vscode": "^1.85.0"
+    "vscode": "^1.90.0"
   },
   "categories": [
     "Other"
@@ -92,8 +91,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
-    "@types/node": "^25.9.2",
-    "@types/vscode": "^1.85.0",
+    "@types/node": "^20",
+    "@types/vscode": "1.90.0",
     "@vscode/vsce": "^3.9.2",
     "knip": "^6.16.1",
     "tsx": "^4.22.4",
