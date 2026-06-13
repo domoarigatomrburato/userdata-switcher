@@ -84,7 +84,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run build",
-    "check": "biome check --write .",
+    "check": "biome check --write . && knip --include-entry-exports --exclude devDependencies --fix",
     "test": "tsc -p . && tsx --test src/**/*.test.ts",
     "build": "node scripts/build.mjs",
     "package:vsix": "node scripts/package-vsix.mjs"
@@ -94,6 +94,7 @@
     "@types/node": "^25.9.2",
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^3.9.2",
+    "knip": "^6.16.1",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3"
   }

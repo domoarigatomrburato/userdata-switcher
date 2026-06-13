@@ -33,7 +33,8 @@ interface ExtensionManifest {
 describe("extension manifest", () => {
   const expectedScripts = {
     "vscode:prepublish": "npm run build",
-    check: "biome check --write .",
+    check:
+      "biome check --write . && knip --include-entry-exports --exclude devDependencies --fix",
     test: "tsc -p . && tsx --test src/**/*.test.ts",
     build: "node scripts/build.mjs",
     "package:vsix": "node scripts/package-vsix.mjs",

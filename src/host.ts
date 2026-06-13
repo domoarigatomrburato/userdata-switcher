@@ -2,27 +2,27 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-export type EditorHostId = "cursor" | "vscode" | "vscode-insiders";
+type EditorHostId = "cursor" | "vscode" | "vscode-insiders";
 
 export interface EditorHostIdentity {
   appName: string;
   uriScheme: string;
 }
 
-export interface PathResolutionOptions {
+interface PathResolutionOptions {
   platform?: NodeJS.Platform;
   home?: string;
   env?: NodeJS.ProcessEnv;
 }
 
-export interface CliDiscoveryDeps {
+interface CliDiscoveryDeps {
   env?: NodeJS.ProcessEnv;
   existsSync?: (candidate: string) => boolean;
   logger?: CliDiscoveryLogger;
   platform?: NodeJS.Platform;
 }
 
-export interface CliDiscoveryLogger {
+interface CliDiscoveryLogger {
   info(message: string): void;
 }
 
