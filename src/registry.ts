@@ -130,13 +130,17 @@ export function renameUserdata(
   };
 }
 
+const NON_ALPHANUMERIC_REGEX = /[^a-z0-9]+/g;
+const LEADING_TRAILING_HYPHENS_REGEX = /^-+|-+$/g;
+const TRAILING_HYPHENS_REGEX = /-+$/g;
+
 function slugifyLabel(label: string): string {
   const slug = label
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+    .replace(NON_ALPHANUMERIC_REGEX, "-")
+    .replace(LEADING_TRAILING_HYPHENS_REGEX, "")
     .slice(0, MAX_MANAGED_ID_LENGTH)
-    .replace(/-+$/g, "");
+    .replace(TRAILING_HYPHENS_REGEX, "");
   return slug || "userdata";
 }
 
