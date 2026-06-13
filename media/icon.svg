@@ -1,0 +1,40 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Top layer: blue -->
+    <linearGradient id="topFace" x1="128" y1="32" x2="128" y2="124" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+    <!-- Middle layer: teal -->
+    <linearGradient id="midFace" x1="128" y1="82" x2="128" y2="174" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5eead4"/>
+      <stop offset="1" stop-color="#14b8a6"/>
+    </linearGradient>
+    <!-- Bottom layer: violet -->
+    <linearGradient id="botFace" x1="128" y1="132" x2="128" y2="224" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#c4b5fd"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Bottom layer (violet) -->
+  <g>
+    <polygon points="36,178 128,224 128,238 36,192" fill="#6d28d9"/>
+    <polygon points="128,224 220,178 220,192 128,238" fill="#5b21b6"/>
+    <polygon points="128,132 220,178 128,224 36,178" fill="url(#botFace)"/>
+  </g>
+
+  <!-- Middle layer (teal) -->
+  <g>
+    <polygon points="36,128 128,174 128,188 36,142" fill="#0f766e"/>
+    <polygon points="128,174 220,128 220,142 128,188" fill="#0d5c54"/>
+    <polygon points="128,82 220,128 128,174 36,128" fill="url(#midFace)"/>
+  </g>
+
+  <!-- Top layer (blue) -->
+  <g>
+    <polygon points="36,78 128,124 128,138 36,92" fill="#1d4ed8"/>
+    <polygon points="128,124 220,78 220,92 128,138" fill="#1e40af"/>
+    <polygon points="128,32 220,78 128,124 36,78" fill="url(#topFace)"/>
+  </g>
+</svg>

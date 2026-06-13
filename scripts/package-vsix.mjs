@@ -67,6 +67,7 @@ function isForbiddenPackageFile(file) {
     file.startsWith("node_modules/") ||
     FORBIDDEN_PACKAGE_FILES.has(file) ||
     file.endsWith(".map") ||
+    file.endsWith(".svg") ||
     file.endsWith(".test.js") ||
     file.endsWith(".ts")
   );

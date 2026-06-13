@@ -8,6 +8,7 @@ out/**/*.test.js.map
 tsconfig.json
 **/*.ts
 **/*.map
+**/*.svg
 node_modules/**
 docs/**
 CONTRIBUTING.md
