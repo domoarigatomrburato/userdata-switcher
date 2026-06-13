@@ -90,7 +90,7 @@
     "package:vsix": "node scripts/package-vsix.mjs"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.16",
+    "@biomejs/biome": "^2.5.0",
     "@types/node": "^25.9.2",
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^3.9.2",
