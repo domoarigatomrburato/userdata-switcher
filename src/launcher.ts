@@ -322,12 +322,21 @@ function resolveSpawnCommand(
   }
   return {
     command: "cmd.exe",
-    args: ["/d", "/s", "/c", command.command, ...command.args],
+    args: [
+      "/d",
+      "/c",
+      quoteWindowsCommandShim(command.command),
+      ...command.args,
+    ],
   };
 }
 
 function isWindowsCommandShim(command: string): boolean {
   return /\.(?:bat|cmd)$/i.test(command);
+}
+
+function quoteWindowsCommandShim(command: string): string {
+  return `"${command.replaceAll('"', '\\"')}"`;
 }
 
 function logProcessOutput(

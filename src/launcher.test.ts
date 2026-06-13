@@ -442,9 +442,8 @@ describe("launchEditor", () => {
     assert.equal(spawnCommand, "cmd.exe");
     assert.deepEqual(spawnArgs, [
       "/d",
-      "/s",
       "/c",
-      "C:\\Program Files\\Microsoft VS Code\\bin\\code.cmd",
+      '"C:\\Program Files\\Microsoft VS Code\\bin\\code.cmd"',
       "--user-data-dir",
       "C:\\Users\\ale\\AppData\\Local\\udsw\\vscode\\u\\provona",
     ]);
