@@ -43,6 +43,8 @@ describe("extension manifest", () => {
     test: "tsc -p . && tsx --test src/**/*.test.ts",
     build: "node scripts/build.mjs",
     "package:vsix": "node scripts/package-vsix.mjs",
+    dogfood: "node scripts/dogfood.mjs",
+    release: "node scripts/release.mjs",
   };
 
   it("groups command palette entries under the extension category", () => {

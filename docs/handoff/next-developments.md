@@ -55,10 +55,12 @@ The public npm script set is intentionally small:
 - `npm test`
 - `npm run build`
 - `npm run package:vsix`
+- `npm run dogfood`
+- `npm run release -- <major|minor|patch>`
 - `npm run vscode:prepublish` for VS Code/vsce compatibility
 
-Cross-platform cleanup and packaging internals live in `scripts/build.mjs` and
-`scripts/package-vsix.mjs`, and those helper scripts are excluded from the VSIX.
+Cross-platform cleanup, packaging, dogfood, and release internals live in
+`scripts/*.mjs`, and those helper scripts are excluded from the VSIX.
 
 ## Local Userdata Migration Note
 
@@ -76,8 +78,8 @@ The old source store was intentionally left in place as a backup.
 1. Publish readiness
 
    Tighten README, screenshots, install instructions, marketplace wording,
-   changelog, icon, and package metadata. Then decide whether to add GitHub
-   Actions for CI and release-on-tag packaging.
+   changelog, icon, and package metadata. CI is quality-only; releases produce a
+   local VSIX in `dist/release` for manual Marketplace upload.
 
 2. Delete managed userdata
 
@@ -88,9 +90,9 @@ The old source store was intentionally left in place as a backup.
 
 3. Release automation
 
-   Add a CI workflow that runs the project checks and packages a VSIX. Later,
-   add release-on-tag automation. Marketplace publishing will require the
-   relevant publisher/account setup outside the repo.
+   Keep CI focused on checks, tests, build, and packaging. If Open VSX is added,
+   reuse the `dist/release` artifact shape before introducing any publishing
+   automation.
 
 4. UX polish
 

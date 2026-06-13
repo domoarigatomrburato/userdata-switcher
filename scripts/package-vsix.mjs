@@ -10,10 +10,10 @@ const manifest = JSON.parse(
   readFileSync(path.join(repoRoot, "package.json"), "utf8"),
 );
 const distDir = path.join(repoRoot, "dist");
-const vsixPath = path.join(
-  distDir,
-  `${manifest.name}-${manifest.version}.vsix`,
-);
+const options = parseOptions(process.argv.slice(2));
+const vsixPath = options.out
+  ? path.resolve(repoRoot, options.out)
+  : path.join(distDir, `${manifest.name}-${manifest.version}.vsix`);
 const FORBIDDEN_PACKAGE_FILES = new Set([
   ".gitignore",
   "AGENTS.md",
@@ -25,7 +25,7 @@ const FORBIDDEN_PACKAGE_FILES = new Set([
   "tsconfig.json",
 ]);
 
-mkdirSync(distDir, { recursive: true });
+mkdirSync(path.dirname(vsixPath), { recursive: true });
 rmSync(vsixPath, { force: true });
 
 verifyPackageFiles(listPackageFiles());
@@ -35,10 +35,38 @@ runNpm([
   "--",
   "vsce",
   "package",
+  ...(options.preRelease ? ["--pre-release"] : []),
   "--no-dependencies",
   "--out",
   vsixPath,
 ]);
+
+function parseOptions(args) {
+  const parsed = {
+    out: undefined,
+    preRelease: false,
+  };
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--pre-release") {
+      parsed.preRelease = true;
+      continue;
+    }
+    if (arg === "--out") {
+      const out = args[index + 1];
+      if (!out) {
+        throw new Error("Missing value for --out.");
+      }
+      parsed.out = out;
+      index += 1;
+      continue;
+    }
+    throw new Error(`Unknown package-vsix option: ${arg}`);
+  }
+
+  return parsed;
+}
 
 function listPackageFiles() {
   const result = runNpm(["exec", "--", "vsce", "ls", "--no-dependencies"], {
