@@ -298,13 +298,12 @@ export function sanitizeEditorLaunchEnvironment(
   return { env, removedKeys: removedKeys.sort() };
 }
 
+const ELECTRON_ENV_REGEX = /^ELECTRON_.+$/;
+const VSCODE_ENV_REGEX =
+  /^VSCODE_(?!(PORTABLE|SHELL_LOGIN|ENV_REPLACE|ENV_APPEND|ENV_PREPEND)).+$/;
+
 function shouldRemoveLaunchEnvironmentKey(key: string): boolean {
-  return (
-    /^ELECTRON_.+$/.test(key) ||
-    /^VSCODE_(?!(PORTABLE|SHELL_LOGIN|ENV_REPLACE|ENV_APPEND|ENV_PREPEND)).+$/.test(
-      key,
-    )
-  );
+  return ELECTRON_ENV_REGEX.test(key) || VSCODE_ENV_REGEX.test(key);
 }
 
 function formatLaunchCommand(command: LaunchCommand): string {
