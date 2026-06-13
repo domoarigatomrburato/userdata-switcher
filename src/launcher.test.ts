@@ -29,6 +29,17 @@ const vscodeHost: SupportedHostAdapter = {
   discoverEditorCli: () => "/app/bin/code",
 };
 
+const createTestLogger = () => {
+  const logs: string[] = [];
+  return {
+    logs,
+    logger: {
+      error: (message: string) => logs.push(`error:${message}`),
+      info: (message: string) => logs.push(`info:${message}`),
+    },
+  };
+};
+
 describe("resolveWorkspaceArg", () => {
   it("returns a single-folder workspace path", () => {
     assert.equal(
@@ -92,93 +103,68 @@ describe("resolveWorkspaceArg", () => {
 });
 
 describe("buildLaunchCommand", () => {
-  it("launches managed userdata with --user-data-dir", () => {
+  const assertLaunchCommand = (
+    options: Partial<Parameters<typeof buildLaunchCommand>[0]>,
+    expectedArgs: string[],
+  ) => {
     assert.deepEqual(
       buildLaunchCommand({
         entry: managedEntry,
         storeRoot: "/store",
         workspacePath: "/repo",
         editorCli: "/app/bin/code",
+        ...options,
       }),
       {
         command: "/app/bin/code",
-        args: ["--user-data-dir", "/store/u/personal", "/repo"],
+        args: expectedArgs,
       },
     );
+  };
+
+  it("launches managed userdata with --user-data-dir", () => {
+    assertLaunchCommand({}, ["--user-data-dir", "/store/u/personal", "/repo"]);
   });
 
   it("adds --extensions-dir for managed userdata when provided", () => {
-    assert.deepEqual(
-      buildLaunchCommand({
-        entry: managedEntry,
-        storeRoot: "/store",
-        workspacePath: "/repo",
-        editorCli: "/app/bin/code",
-        sharedExtensionsDirectory: "/Users/alice/.vscode/extensions",
-      }),
-      {
-        command: "/app/bin/code",
-        args: [
-          "--user-data-dir",
-          "/store/u/personal",
-          "--extensions-dir",
-          "/Users/alice/.vscode/extensions",
-          "/repo",
-        ],
-      },
+    assertLaunchCommand(
+      { sharedExtensionsDirectory: "/Users/alice/.vscode/extensions" },
+      [
+        "--user-data-dir",
+        "/store/u/personal",
+        "--extensions-dir",
+        "/Users/alice/.vscode/extensions",
+        "/repo",
+      ],
     );
   });
 
   it("omits --extensions-dir when shared extensions directory is not provided", () => {
-    assert.deepEqual(
-      buildLaunchCommand({
-        entry: managedEntry,
-        storeRoot: "/store",
-        workspacePath: "/repo",
-        editorCli: "/app/bin/code",
-        sharedExtensionsDirectory: null,
-      }),
-      {
-        command: "/app/bin/code",
-        args: ["--user-data-dir", "/store/u/personal", "/repo"],
-      },
-    );
-  });
-
-  it("omits --user-data-dir for default userdata", () => {
-    assert.deepEqual(
-      buildLaunchCommand({
-        entry: { id: "default", kind: "default", label: "Work" },
-        storeRoot: "/store",
-        workspacePath: "/repo",
-        editorCli: "/app/bin/code",
-        sharedExtensionsDirectory: "/Users/alice/.vscode/extensions",
-      }),
-      {
-        command: "/app/bin/code",
-        args: ["/repo"],
-      },
-    );
-  });
-
-  it("does not force reuse for managed userdata", () => {
-    const launch = buildLaunchCommand({
-      entry: managedEntry,
-      storeRoot: "/store",
-      workspacePath: "/repo",
-      editorCli: "/app/bin/code",
-    });
-    assert.deepEqual(launch.args, [
+    assertLaunchCommand({ sharedExtensionsDirectory: null }, [
       "--user-data-dir",
       "/store/u/personal",
       "/repo",
     ]);
   });
+
+  it("omits --user-data-dir for default userdata", () => {
+    assertLaunchCommand(
+      {
+        entry: { id: "default", kind: "default", label: "Work" },
+        sharedExtensionsDirectory: "/Users/alice/.vscode/extensions",
+      },
+      ["/repo"],
+    );
+  });
+
+  it("does not force reuse for managed userdata", () => {
+    assertLaunchCommand({}, ["--user-data-dir", "/store/u/personal", "/repo"]);
+  });
 });
 
 describe("buildOpenWithUserdataCommand", () => {
   it("builds the managed userdata launch from host and workspace policy", () => {
-    const logs: string[] = [];
+    const { logs, logger } = createTestLogger();
     assert.deepEqual(
       buildOpenWithUserdataCommand({
         entry: managedEntry,
@@ -188,10 +174,7 @@ describe("buildOpenWithUserdataCommand", () => {
         workspace: {
           workspaceFolders: [{ uri: { fsPath: "/repo" } }],
         },
-        logger: {
-          error: (message) => logs.push(`error:${message}`),
-          info: (message) => logs.push(`info:${message}`),
-        },
+        logger,
       }),
       {
         command: "/app/bin/code",
@@ -212,7 +195,7 @@ describe("buildOpenWithUserdataCommand", () => {
   });
 
   it("rejects macOS managed launches whose socket path would be too long", () => {
-    const logs: string[] = [];
+    const { logs, logger } = createTestLogger();
     const build = () =>
       buildOpenWithUserdataCommand({
         entry: managedEntry,
@@ -221,10 +204,7 @@ describe("buildOpenWithUserdataCommand", () => {
         storeRoot:
           "/Users/alessandroburato/Library/Application Support/Userdata Switcher/Visual Studio Code",
         workspace: {},
-        logger: {
-          error: (message) => logs.push(`error:${message}`),
-          info: (message) => logs.push(`info:${message}`),
-        },
+        logger,
       });
 
     if (process.platform === "darwin") {
@@ -353,7 +333,7 @@ describe("launchEditor", () => {
   it("spawns the editor CLI with sanitized VS Code process environment", async () => {
     let unrefCalled = false;
     let spawnOptions: { env: NodeJS.ProcessEnv } | undefined;
-    const logs: string[] = [];
+    const { logs, logger } = createTestLogger();
     const stdout = new EventEmitter();
     const stderr = new EventEmitter();
     const child = new EventEmitter() as EventEmitter & {
@@ -382,10 +362,7 @@ describe("launchEditor", () => {
         },
       },
       {
-        logger: {
-          error: (message) => logs.push(`error:${message}`),
-          info: (message) => logs.push(`info:${message}`),
-        },
+        logger,
       },
     );
 
