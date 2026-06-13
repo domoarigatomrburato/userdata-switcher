@@ -139,6 +139,39 @@ describe("matchCurrentUserdata", () => {
 
     assert.equal(match.kind, "unmanaged");
   });
+
+  it("skips invalid managed userdata and continues to the next item", () => {
+    const validEntry = {
+      id: "valid",
+      kind: "managed" as const,
+      label: "Valid",
+      relativeDataDir: "u/valid",
+    };
+    const invalidRegistry: Registry = {
+      version: 1,
+      userdatas: [
+        {
+          id: "invalid",
+          kind: "managed",
+          label: "Invalid",
+          relativeDataDir: "../invalid",
+        },
+        validEntry,
+      ],
+    };
+
+    const match = matchCurrentUserdata({
+      globalStoragePath: globalStoragePath(path.join(STORE_ROOT, "u", "valid")),
+      defaultUserdataRoot: DEFAULT_ROOT,
+      storeRoot: STORE_ROOT,
+      registry: invalidRegistry,
+    });
+
+    assert.deepEqual(match, {
+      kind: "known",
+      entry: validEntry,
+    });
+  });
 });
 
 describe("resolveCurrentUserdataRoot", () => {
