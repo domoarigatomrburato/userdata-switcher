@@ -80,6 +80,37 @@ describe("matchCurrentUserdata", () => {
     });
   });
 
+  it("matches a Windows managed userdata when drive letter casing differs", () => {
+    const match = matchCurrentUserdata({
+      globalStoragePath:
+        "c:\\Users\\ale\\AppData\\Local\\udsw\\vscode\\u\\provona\\User\\globalStorage\\domoarigatomrburato.userdata-switcher",
+      defaultUserdataRoot: "C:\\Users\\ale\\AppData\\Roaming\\Code",
+      storeRoot: "C:\\Users\\ale\\AppData\\Local\\udsw\\vscode",
+      registry: {
+        version: 1,
+        userdatas: [
+          { id: "default", kind: "default", label: "Default" },
+          {
+            id: "provona",
+            kind: "managed",
+            label: "Provona",
+            relativeDataDir: "u/provona",
+          },
+        ],
+      },
+    });
+
+    assert.deepEqual(match, {
+      kind: "known",
+      entry: {
+        id: "provona",
+        kind: "managed",
+        label: "Provona",
+        relativeDataDir: "u/provona",
+      },
+    });
+  });
+
   it("reports unmanaged userdata for unknown external roots", () => {
     const match = matchUserdataRoot(EXTERNAL_ROOT);
     assert.equal(match.kind, "unmanaged");

@@ -1,5 +1,5 @@
 import path from "node:path";
-import { resolveManagedDataDir } from "./paths";
+import { pathApiForPath, resolveManagedDataDir } from "./paths";
 import type { Registry, UserdataEntry } from "./registry";
 
 export type CurrentUserdata =
@@ -9,8 +9,7 @@ export type CurrentUserdata =
 export function deriveUserdataRootFromGlobalStorage(
   globalStoragePath: string,
 ): string | null {
-  const marker = `${path.sep}User${path.sep}globalStorage${path.sep}`;
-  const index = globalStoragePath.indexOf(marker);
+  const index = globalStoragePath.search(/[\\/]User[\\/]globalStorage[\\/]/);
   return index === -1 ? null : globalStoragePath.slice(0, index);
 }
 
@@ -27,8 +26,7 @@ export function matchCurrentUserdata(input: {
     return { kind: "unmanaged" };
   }
 
-  const normalizedDerived = path.resolve(derivedRoot);
-  if (pathsEqual(normalizedDerived, input.defaultUserdataRoot)) {
+  if (pathsEqual(derivedRoot, input.defaultUserdataRoot)) {
     const defaultEntry = input.registry.userdatas.find(
       (entry) => entry.kind === "default",
     );
@@ -50,7 +48,7 @@ export function matchCurrentUserdata(input: {
     } catch {
       continue;
     }
-    if (pathsEqual(normalizedDerived, managedRoot)) {
+    if (pathsEqual(derivedRoot, managedRoot)) {
       return { kind: "known", entry };
     }
   }
@@ -80,5 +78,11 @@ export function resolveCurrentUserdataRoot(input: {
 }
 
 function pathsEqual(left: string, right: string): boolean {
-  return path.resolve(left) === path.resolve(right);
+  const pathApi =
+    pathApiForPath(left) === path.win32 ? path.win32 : pathApiForPath(right);
+  const normalizedLeft = pathApi.resolve(left);
+  const normalizedRight = pathApi.resolve(right);
+  return pathApi === path.win32
+    ? normalizedLeft.toLowerCase() === normalizedRight.toLowerCase()
+    : normalizedLeft === normalizedRight;
 }

@@ -299,9 +299,12 @@ function windowsEditorExecutableDirectories(appRoot: string): string[] {
     pathApi.basename(appRoot).toLowerCase() === "app" &&
     pathApi.basename(appRootParent).toLowerCase() === "resources";
 
-  return appRootLooksLikeResourcesApp
-    ? [pathApi.dirname(appRootParent)]
-    : [appRoot];
+  if (!appRootLooksLikeResourcesApp) {
+    return [appRoot];
+  }
+
+  const installRoot = pathApi.dirname(appRootParent);
+  return [installRoot, pathApi.dirname(installRoot)];
 }
 
 function findEditorOnPath(input: {

@@ -223,6 +223,21 @@ describe("discoverEditorCli bundled discovery", () => {
     );
   });
 
+  it("finds the Windows app executable above a versioned app root", () => {
+    assert.equal(
+      vscode.discoverEditorCli(
+        "C:\\Program Files\\Microsoft VS Code\\6928394f91\\resources\\app",
+        {
+          env: { Path: "C:\\Windows\\System32" },
+          existsSync: (candidate) =>
+            candidate === "C:\\Program Files\\Microsoft VS Code\\Code.exe",
+          platform: "win32",
+        },
+      ),
+      "C:\\Program Files\\Microsoft VS Code\\Code.exe",
+    );
+  });
+
   it("finds a bundled Windows CLI under the install root bin directory when the app executable is unavailable", () => {
     assert.equal(
       insiders.discoverEditorCli(

@@ -4,9 +4,10 @@ export function resolveManagedDataDir(
   storeRoot: string,
   relativeDataDir: string,
 ): string {
+  const pathApi = pathApiForPath(storeRoot);
   const segments = relativeDataDir.split(/[\\/]+/);
   if (
-    path.isAbsolute(relativeDataDir) ||
+    pathApi.isAbsolute(relativeDataDir) ||
     segments.length !== 2 ||
     segments[0] !== "u" ||
     !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(segments[1] ?? "")
@@ -14,23 +15,31 @@ export function resolveManagedDataDir(
     throw new Error(`Invalid managed userdata path: ${relativeDataDir}`);
   }
 
-  const resolvedStoreRoot = path.resolve(storeRoot);
-  const resolvedDataDir = path.resolve(storeRoot, ...segments);
-  const relativeFromStoreRoot = path.relative(
+  const resolvedStoreRoot = pathApi.resolve(storeRoot);
+  const resolvedDataDir = pathApi.resolve(storeRoot, ...segments);
+  const relativeFromStoreRoot = pathApi.relative(
     resolvedStoreRoot,
     resolvedDataDir,
   );
   if (
     !relativeFromStoreRoot ||
     relativeFromStoreRoot.startsWith("..") ||
-    path.isAbsolute(relativeFromStoreRoot)
+    pathApi.isAbsolute(relativeFromStoreRoot)
   ) {
     throw new Error(`Invalid managed userdata path: ${relativeDataDir}`);
   }
 
-  return path.join(storeRoot, ...segments);
+  return pathApi.join(storeRoot, ...segments);
 }
 
 export function registryPath(storeRoot: string): string {
   return path.join(storeRoot, "registry.json");
+}
+
+export function pathApiForPath(candidate: string): typeof path.posix {
+  return isWindowsPath(candidate) ? path.win32 : path;
+}
+
+function isWindowsPath(candidate: string): boolean {
+  return /^[a-z]:[\\/]/i.test(candidate) || candidate.startsWith("\\\\");
 }
