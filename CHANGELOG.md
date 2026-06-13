@@ -5,6 +5,13 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.1.1
+
+### Changed
+
+- Exclude README screenshots from the VSIX to shrink the package; `vsce` still
+  rewrites image links for Marketplace and the installed extension readme.
+
 ## 1.1.0
 
 ### Changed
