@@ -41,7 +41,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
 export function deactivate(): void {}
 
-function createVscodeUi(logger: LaunchLogger): UserdataSwitcherUi {
+export function createVscodeUi(logger: LaunchLogger): UserdataSwitcherUi {
   return {
     StatusBarAlignment: vscode.StatusBarAlignment,
     QuickPickItemKind: vscode.QuickPickItemKind,
