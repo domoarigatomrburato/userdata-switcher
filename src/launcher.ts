@@ -128,7 +128,9 @@ export function buildOpenWithUserdataCommand(input: {
   workspace: WorkspaceShape;
   logger?: LaunchLogger;
 }): LaunchCommand {
-  const editorCli = input.host.discoverEditorCli(input.appRoot);
+  const editorCli = input.host.discoverEditorCli(input.appRoot, {
+    logger: input.logger,
+  });
   if (!editorCli) {
     throw new Error(
       `Could not find ${input.host.displayName} CLI in this installation.`,

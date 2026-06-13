@@ -233,6 +233,22 @@ describe("discoverEditorCli bundled discovery", () => {
       "C:\\Portable\\Code\\bin\\code-insiders.cmd",
     );
   });
+
+  it("falls back to the Windows app executable when the bin CLI is unavailable", () => {
+    assert.equal(
+      vscode.discoverEditorCli(
+        "C:\\Users\\alice\\AppData\\Local\\Programs\\Microsoft VS Code\\resources\\app",
+        {
+          env: { Path: "C:\\Windows\\System32" },
+          existsSync: (candidate) =>
+            candidate ===
+            "C:\\Users\\alice\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
+          platform: "win32",
+        },
+      ),
+      "C:\\Users\\alice\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
+    );
+  });
 });
 
 describe("discoverEditorCli", () => {

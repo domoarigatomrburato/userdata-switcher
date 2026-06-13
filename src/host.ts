@@ -17,8 +17,13 @@ export interface PathResolutionOptions {
 
 export interface CliDiscoveryDeps {
   env?: NodeJS.ProcessEnv;
-  existsSync: (candidate: string) => boolean;
+  existsSync?: (candidate: string) => boolean;
+  logger?: CliDiscoveryLogger;
   platform?: NodeJS.Platform;
+}
+
+export interface CliDiscoveryLogger {
+  info(message: string): void;
 }
 
 export interface SupportedHostAdapter {
@@ -40,6 +45,7 @@ interface HostDefinition {
   defaultUserdataDirName: string;
   sharedExtensionsRelativePath: string;
   cliNames: string[];
+  windowsExecutableNames: string[];
 }
 
 const HOST_DEFINITIONS: HostDefinition[] = [
@@ -50,6 +56,7 @@ const HOST_DEFINITIONS: HostDefinition[] = [
     defaultUserdataDirName: "Cursor",
     sharedExtensionsRelativePath: ".cursor/extensions",
     cliNames: ["cursor"],
+    windowsExecutableNames: ["Cursor.exe"],
   },
   {
     id: "vscode",
@@ -58,6 +65,7 @@ const HOST_DEFINITIONS: HostDefinition[] = [
     defaultUserdataDirName: "Code",
     sharedExtensionsRelativePath: ".vscode/extensions",
     cliNames: ["code"],
+    windowsExecutableNames: ["Code.exe"],
   },
   {
     id: "vscode-insiders",
@@ -66,6 +74,7 @@ const HOST_DEFINITIONS: HostDefinition[] = [
     defaultUserdataDirName: "Code - Insiders",
     sharedExtensionsRelativePath: ".vscode-insiders/extensions",
     cliNames: ["code-insiders"],
+    windowsExecutableNames: ["Code - Insiders.exe"],
   },
 ];
 
@@ -174,12 +183,18 @@ function discoverBundledCli(
   deps: CliDiscoveryDeps = fs,
 ): string | null {
   const platform = deps.platform ?? process.platform;
+  const directories = bundledCliDirectories(appRoot, platform);
+  deps.logger?.info(
+    `CLI discovery bundled CLI directories: ${directories.map(formatDiagnosticValue).join(", ")}`,
+  );
   return findExecutableInDirectories({
-    directories: bundledCliDirectories(appRoot, platform),
+    directories,
     env: deps.env ?? process.env,
-    existsSync: deps.existsSync,
+    existsSync: deps.existsSync ?? fs.existsSync,
+    logger: deps.logger,
     names: host.cliNames,
     platform,
+    purpose: "bundled CLI",
   });
 }
 
@@ -211,27 +226,94 @@ function discoverEditorCli(
   appRoot: string,
   deps: CliDiscoveryDeps = fs,
 ): string | null {
+  const platform = deps.platform ?? process.platform;
+  const env = deps.env ?? process.env;
+  const existsSync = deps.existsSync ?? fs.existsSync;
+  const logger = deps.logger;
+
+  logger?.info(
+    `CLI discovery start: host=${host.displayName} platform=${platform} appRoot=${formatDiagnosticValue(appRoot)} cliNames=${host.cliNames.join(", ")} windowsExecutableNames=${host.windowsExecutableNames.join(", ")}`,
+  );
+
   const bundledCli = discoverBundledCli(host, appRoot, deps);
   if (bundledCli) {
+    logger?.info(`CLI discovery selected bundled CLI: ${bundledCli}`);
     return bundledCli;
   }
-  const platform = deps.platform ?? process.platform;
-  return findEditorOnPath({
-    env: deps.env ?? process.env,
-    existsSync: deps.existsSync,
+  const bundledEditorExecutable = discoverBundledEditorExecutable(
+    host,
+    appRoot,
+    { ...deps, env, existsSync, logger, platform },
+  );
+  if (bundledEditorExecutable) {
+    logger?.info(
+      `CLI discovery selected Windows app executable: ${bundledEditorExecutable}`,
+    );
+    return bundledEditorExecutable;
+  }
+  logPathDiscoverySummary(env, platform, logger);
+  logger?.info("CLI discovery checking PATH fallback");
+  const pathEditor = findEditorOnPath({
+    env,
+    existsSync,
+    logger,
     names: host.cliNames,
     platform,
   });
+  if (pathEditor) {
+    logger?.info(`CLI discovery selected PATH executable: ${pathEditor}`);
+    return pathEditor;
+  }
+
+  logger?.info("CLI discovery failed: no editor executable found");
+  return null;
+}
+
+function discoverBundledEditorExecutable(
+  host: HostDefinition,
+  appRoot: string,
+  deps: CliDiscoveryDeps = fs,
+): string | null {
+  const platform = deps.platform ?? process.platform;
+  if (platform !== "win32") {
+    return null;
+  }
+  const directories = windowsEditorExecutableDirectories(appRoot);
+  deps.logger?.info(
+    `CLI discovery Windows app executable directories: ${directories.map(formatDiagnosticValue).join(", ")}`,
+  );
+  return findExactFilesInDirectories({
+    directories,
+    existsSync: deps.existsSync ?? fs.existsSync,
+    filenames: host.windowsExecutableNames,
+    logger: deps.logger,
+    platform,
+    purpose: "Windows app executable",
+  });
+}
+
+function windowsEditorExecutableDirectories(appRoot: string): string[] {
+  const pathApi = pathForPlatform("win32");
+  const appRootParent = pathApi.dirname(appRoot);
+  const appRootLooksLikeResourcesApp =
+    pathApi.basename(appRoot).toLowerCase() === "app" &&
+    pathApi.basename(appRootParent).toLowerCase() === "resources";
+
+  return appRootLooksLikeResourcesApp
+    ? [pathApi.dirname(appRootParent)]
+    : [appRoot];
 }
 
 function findEditorOnPath(input: {
   env: NodeJS.ProcessEnv;
   existsSync: (candidate: string) => boolean;
+  logger?: CliDiscoveryLogger;
   names: string[];
   platform: NodeJS.Platform;
 }): string | null {
   const pathValue = input.env.PATH ?? input.env.Path ?? input.env.path;
   if (!pathValue) {
+    input.logger?.info("CLI discovery PATH fallback skipped: PATH is empty");
     return null;
   }
   const delimiter = input.platform === "win32" ? ";" : ":";
@@ -239,17 +321,46 @@ function findEditorOnPath(input: {
     directories: pathValue.split(delimiter).filter(Boolean),
     env: input.env,
     existsSync: input.existsSync,
+    logger: input.logger,
     names: input.names,
     platform: input.platform,
+    purpose: "PATH",
   });
+}
+
+function findExactFilesInDirectories(input: {
+  directories: string[];
+  existsSync: (candidate: string) => boolean;
+  filenames: string[];
+  logger?: CliDiscoveryLogger;
+  platform: NodeJS.Platform;
+  purpose: string;
+}): string | null {
+  const pathApi = pathForPlatform(input.platform);
+
+  for (const directory of input.directories) {
+    for (const filename of input.filenames) {
+      const candidate = pathApi.join(directory, filename);
+      const exists = input.existsSync(candidate);
+      input.logger?.info(
+        `CLI discovery checked ${input.purpose}: ${formatDiagnosticValue(candidate)} exists=${exists}`,
+      );
+      if (exists) {
+        return candidate;
+      }
+    }
+  }
+  return null;
 }
 
 function findExecutableInDirectories(input: {
   directories: string[];
   env: NodeJS.ProcessEnv;
   existsSync: (candidate: string) => boolean;
+  logger?: CliDiscoveryLogger;
   names: string[];
   platform: NodeJS.Platform;
+  purpose: string;
 }): string | null {
   const extensions = executableExtensions(input.platform, input.env);
   const pathApi = pathForPlatform(input.platform);
@@ -258,13 +369,39 @@ function findExecutableInDirectories(input: {
     for (const name of input.names) {
       for (const extension of extensions) {
         const candidate = pathApi.join(directory, `${name}${extension}`);
-        if (input.existsSync(candidate)) {
+        const exists = input.existsSync(candidate);
+        input.logger?.info(
+          `CLI discovery checked ${input.purpose}: ${formatDiagnosticValue(candidate)} exists=${exists}`,
+        );
+        if (exists) {
           return candidate;
         }
       }
     }
   }
   return null;
+}
+
+function logPathDiscoverySummary(
+  env: NodeJS.ProcessEnv,
+  platform: NodeJS.Platform,
+  logger?: CliDiscoveryLogger,
+): void {
+  if (!logger) {
+    return;
+  }
+  const pathKey = ["PATH", "Path", "path"].find((key) => env[key]);
+  const pathValue = pathKey ? env[pathKey] : undefined;
+  const delimiter = platform === "win32" ? ";" : ":";
+  const pathEntryCount =
+    pathValue?.split(delimiter).filter(Boolean).length ?? 0;
+  logger.info(
+    `CLI discovery PATH summary: key=${pathKey ?? "(none)"} entries=${pathEntryCount} PATHEXT=${env.PATHEXT ?? "(default)"}`,
+  );
+}
+
+function formatDiagnosticValue(value: string): string {
+  return JSON.stringify(value);
 }
 
 function executableExtensions(
