@@ -116,56 +116,64 @@ function resolvePathContext(options?: PathResolutionOptions): {
   };
 }
 
+function resolvePlatformBaseDir(
+  context: { platform: NodeJS.Platform; home: string; env: NodeJS.ProcessEnv },
+  config: {
+    darwinPaths: string[];
+    linuxEnv: string;
+    linuxDefaultPaths: string[];
+    win32Env: string;
+    win32DefaultPaths: string[];
+  },
+): string {
+  const { platform, home, env } = context;
+  const pathApi = pathForPlatform(platform);
+  if (platform === "darwin") {
+    return pathApi.join(home, ...config.darwinPaths);
+  }
+  if (platform === "linux") {
+    return (
+      env[config.linuxEnv] ?? pathApi.join(home, ...config.linuxDefaultPaths)
+    );
+  }
+  if (platform === "win32") {
+    return (
+      env[config.win32Env] ?? pathApi.join(home, ...config.win32DefaultPaths)
+    );
+  }
+  throw new Error(`Unsupported platform: ${platform}`);
+}
+
 function resolveStoreRoot(
   host: HostDefinition,
   options?: PathResolutionOptions,
 ): string {
-  const { platform, home, env } = resolvePathContext(options);
-  const pathApi = pathForPlatform(platform);
-  if (platform === "darwin") {
-    return pathApi.join(
-      home,
-      "Library",
-      "Application Support",
-      "udsw",
-      host.storageSlug,
-    );
-  }
-  if (platform === "linux") {
-    const dataHome = env.XDG_DATA_HOME ?? pathApi.join(home, ".local", "share");
-    return pathApi.join(dataHome, "udsw", host.storageSlug);
-  }
-  if (platform === "win32") {
-    const localAppData =
-      env.LOCALAPPDATA ?? pathApi.join(home, "AppData", "Local");
-    return pathApi.join(localAppData, "udsw", host.storageSlug);
-  }
-  throw new Error(`Unsupported platform: ${platform}`);
+  const context = resolvePathContext(options);
+  const pathApi = pathForPlatform(context.platform);
+  const base = resolvePlatformBaseDir(context, {
+    darwinPaths: ["Library", "Application Support"],
+    linuxEnv: "XDG_DATA_HOME",
+    linuxDefaultPaths: [".local", "share"],
+    win32Env: "LOCALAPPDATA",
+    win32DefaultPaths: ["AppData", "Local"],
+  });
+  return pathApi.join(base, "udsw", host.storageSlug);
 }
 
 function resolveDefaultUserdataRoot(
   host: HostDefinition,
   options?: PathResolutionOptions,
 ): string {
-  const { platform, home, env } = resolvePathContext(options);
-  const pathApi = pathForPlatform(platform);
-  if (platform === "darwin") {
-    return pathApi.join(
-      home,
-      "Library",
-      "Application Support",
-      host.defaultUserdataDirName,
-    );
-  }
-  if (platform === "linux") {
-    const configHome = env.XDG_CONFIG_HOME ?? pathApi.join(home, ".config");
-    return pathApi.join(configHome, host.defaultUserdataDirName);
-  }
-  if (platform === "win32") {
-    const appData = env.APPDATA ?? pathApi.join(home, "AppData", "Roaming");
-    return pathApi.join(appData, host.defaultUserdataDirName);
-  }
-  throw new Error(`Unsupported platform: ${platform}`);
+  const context = resolvePathContext(options);
+  const pathApi = pathForPlatform(context.platform);
+  const base = resolvePlatformBaseDir(context, {
+    darwinPaths: ["Library", "Application Support"],
+    linuxEnv: "XDG_CONFIG_HOME",
+    linuxDefaultPaths: [".config"],
+    win32Env: "APPDATA",
+    win32DefaultPaths: ["AppData", "Roaming"],
+  });
+  return pathApi.join(base, host.defaultUserdataDirName);
 }
 
 function resolveSharedExtensionsDirectory(
