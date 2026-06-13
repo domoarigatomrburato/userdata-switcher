@@ -1,10 +1,6 @@
 import fs from "node:fs";
-import {
-  type CurrentUserdata,
-  deriveUserdataRootFromGlobalStorage,
-  matchCurrentUserdata,
-  resolveCurrentUserdataRoot,
-} from "./detect";
+import type { CurrentUserdata } from "./detect";
+import { EditorHostSession } from "./editorHostSession";
 import type { SupportedHostAdapter } from "./host";
 import {
   formatOpenWithUserdataPickerTitle,
@@ -17,23 +13,16 @@ import {
   openWithUserdata,
   type WorkspaceShape,
 } from "./launcher";
+import { provisionManagedUserdata } from "./managedUserdataProvisioner";
 import {
   buildOpenWithUserdataMenuItems,
   resolveOpenWithUserdataMenuIntent,
   type UserdataMenuItem,
   type UserdataMenuItemIntent,
 } from "./menu";
-import { registryPath, resolveManagedDataDir } from "./paths";
-import { seedUserdataPreferences } from "./preferences";
-import {
-  createManagedUserdata,
-  ensureDefaultUserdata,
-  loadRegistry,
-  type Registry,
-  renameUserdata,
-  type UserdataEntry,
-  updateRegistry,
-} from "./registry";
+import { registryPath } from "./paths";
+import { type Registry, renameUserdata, type UserdataEntry } from "./registry";
+import { UserdataRegistryStore } from "./registryStore";
 
 export const COMMAND_OPEN_WITH_USERDATA = "userdataSwitcher.openWithUserdata";
 export const COMMAND_CREATE_USERDATA = "userdataSwitcher.createUserdata";
@@ -86,7 +75,6 @@ export interface UserdataSwitcherUi {
   showErrorMessage(message: string): PromiseLike<unknown>;
   showWarningMessage(message: string): PromiseLike<unknown>;
   showInformationMessage(message: string): PromiseLike<unknown>;
-  executeCommand(command: string, ...args: unknown[]): PromiseLike<unknown>;
   revealPathInOs(fsPath: string): PromiseLike<unknown>;
 }
 
@@ -151,11 +139,16 @@ export function activateUserdataSwitcher(
     launchEditorImpl,
     mkdirSync,
   } = input;
-  const mkdir = mkdirSync ?? fs.mkdirSync;
 
   const storeRoot = host.resolveStoreRoot();
   const defaultUserdataRoot = host.resolveDefaultUserdataRoot();
   const registryFile = registryPath(storeRoot);
+  const registryStore = new UserdataRegistryStore(registryFile);
+  const session = new EditorHostSession({
+    globalStoragePath,
+    defaultUserdataRoot,
+    storeRoot,
+  });
 
   logger?.info(`Activated for ${host.displayName}`);
   logger?.info(`appRoot=${appRoot}`);
@@ -164,48 +157,25 @@ export function activateUserdataSwitcher(
   logger?.info(`defaultUserdataRoot=${defaultUserdataRoot}`);
   logger?.info(`registryFile=${registryFile}`);
 
-  let registry = updateRegistry(registryFile, (latest) => latest);
+  registryStore.ensureInitialized();
 
-  const refreshRegistry = (): Registry => {
-    registry = ensureDefaultUserdata(loadRegistry(registryFile));
-    return registry;
-  };
-
-  const getCurrent = (currentRegistry: Registry = registry): CurrentUserdata =>
-    matchCurrentUserdata({
-      globalStoragePath,
-      defaultUserdataRoot,
-      storeRoot,
-      registry: currentRegistry,
-    });
+  const currentUserdata = (registry: Registry = registryStore.read()) =>
+    session.currentUserdata(registry);
 
   const statusBarItem = ui.createStatusBarItem(ui.StatusBarAlignment.Left, 100);
   statusBarItem.command = COMMAND_OPEN_WITH_USERDATA;
 
-  const refreshStatusBar = () => {
-    const current = getCurrent();
+  const refreshStatusBar = (registry?: Registry) => {
+    const current = currentUserdata(registry);
     statusBarItem.text = formatStatusBarText(current);
     statusBarItem.tooltip = `Current ${host.displayName} Userdata: ${formatUserdataLabel(current)}`;
     statusBarItem.show();
   };
 
-  const persistRegistry = (
-    update: (latest: Registry) => Registry,
-  ): Registry => {
-    registry = updateRegistry(registryFile, update);
-    refreshStatusBar();
-    return registry;
-  };
-
   const revealCurrentUserdata = async () => {
-    const current = getCurrent();
-    const derivedRoot = deriveUserdataRootFromGlobalStorage(globalStoragePath);
-    const userdataRoot = resolveCurrentUserdataRoot({
-      current,
-      globalStoragePath,
-      defaultUserdataRoot,
-      storeRoot,
-    });
+    const current = currentUserdata();
+    const derivedRoot = session.derivedUserdataRoot();
+    const userdataRoot = session.currentUserdataRoot(current);
 
     logger?.info(
       `Reveal diagnostics current=${describeCurrentUserdata(current)}`,
@@ -264,153 +234,127 @@ export function activateUserdataSwitcher(
     return selected?.creationMode;
   };
 
+  const createUserdata = async () => {
+    const creationMode = await pickUserdataCreationMode();
+    if (!creationMode) {
+      logger?.info("Create userdata cancelled");
+      return;
+    }
+    const sourceUserdataRoot =
+      creationMode === "seedCurrent"
+        ? (session.currentUserdataRoot(currentUserdata()) ?? undefined)
+        : undefined;
+    const label = await ui.showInputBox({
+      title: "Create Userdata",
+      prompt: `Enter a label for the new ${host.displayName} Userdata`,
+      placeHolder: "Personal",
+      validateInput: requireNonEmptyLabel,
+    });
+    if (!label) {
+      logger?.info("Create userdata cancelled");
+      return;
+    }
+    try {
+      if (creationMode === "seedCurrent" && !sourceUserdataRoot) {
+        throw new Error(
+          "Could not determine the current userdata directory to copy settings from.",
+        );
+      }
+      const created = provisionManagedUserdata({
+        label,
+        mkdirSync,
+        registryStore,
+        sourceUserdataRoot,
+        storeRoot,
+      });
+      refreshStatusBar(created.registry);
+      logger?.info(
+        `Created managed userdata ${created.entry.id}: ${created.managedDataDir}`,
+      );
+      await launchEntrySafely(created.entry);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger?.error(`Create userdata failed: ${message}`);
+      await ui.showErrorMessage(message);
+    }
+  };
+
+  const renameCurrentUserdata = async () => {
+    const current = currentUserdata();
+    if (current.kind === "unmanaged") {
+      await ui.showWarningMessage(
+        "The current window is using unmanaged userdata.",
+      );
+      return;
+    }
+    const label = await ui.showInputBox({
+      title: "Rename Current Userdata",
+      prompt: "Enter a new label",
+      value: current.entry.label,
+      validateInput: requireNonEmptyLabel,
+    });
+    if (!label) {
+      logger?.info("Rename userdata cancelled");
+      return;
+    }
+    const updatedRegistry = registryStore.update((latest) =>
+      renameUserdata(latest, current.entry.id, label),
+    );
+    refreshStatusBar(updatedRegistry);
+    logger?.info(`Renamed userdata ${current.entry.id} to ${label}`);
+  };
+
+  const openWithUserdataMenu = async () => {
+    const currentRegistry = registryStore.read();
+    const current = currentUserdata(currentRegistry);
+    logger?.info(
+      `Opening menu from current userdata: ${formatUserdataLabel(current)}`,
+    );
+    const items = toQuickPickItems(
+      buildOpenWithUserdataMenuItems(currentRegistry, current),
+      ui.QuickPickItemKind.Separator,
+    );
+
+    const selected = await ui.showQuickPick(items, {
+      title: formatOpenWithUserdataPickerTitle(current),
+      placeHolder: "Select a userdata to open",
+    });
+    const intent = resolveOpenWithUserdataMenuIntent(currentRegistry, selected);
+    switch (intent.kind) {
+      case "cancel":
+        logger?.info("Menu cancelled");
+        return;
+      case "create":
+        logger?.info("Menu intent: create userdata");
+        await createUserdata();
+        return;
+      case "rename":
+        logger?.info("Menu intent: rename current userdata");
+        await renameCurrentUserdata();
+        return;
+      case "reveal":
+        logger?.info("Menu intent: reveal current userdata");
+        await revealCurrentUserdata();
+        return;
+      case "open":
+        logger?.info(`Menu intent: open userdata ${intent.entry.id}`);
+        await launchEntrySafely(intent.entry);
+        return;
+    }
+  };
+
   subscribe(statusBarItem as unknown as Disposable);
   subscribe(
-    ui.registerCommand(COMMAND_OPEN_WITH_USERDATA, async () => {
-      const currentRegistry = refreshRegistry();
-      const current = getCurrent(currentRegistry);
-      logger?.info(
-        `Opening menu from current userdata: ${formatUserdataLabel(current)}`,
-      );
-      const items = toQuickPickItems(
-        buildOpenWithUserdataMenuItems(currentRegistry, current),
-        ui.QuickPickItemKind.Separator,
-      );
-
-      const selected = await ui.showQuickPick(items, {
-        title: formatOpenWithUserdataPickerTitle(current),
-        placeHolder: "Select a userdata to open",
-      });
-      const intent = resolveOpenWithUserdataMenuIntent(
-        currentRegistry,
-        selected,
-      );
-      switch (intent.kind) {
-        case "cancel":
-          logger?.info("Menu cancelled");
-          return;
-        case "create":
-          logger?.info("Menu intent: create userdata");
-          await ui.executeCommand(COMMAND_CREATE_USERDATA);
-          return;
-        case "rename":
-          logger?.info("Menu intent: rename current userdata");
-          await ui.executeCommand(COMMAND_RENAME_CURRENT_USERDATA);
-          return;
-        case "reveal":
-          logger?.info("Menu intent: reveal current userdata");
-          await ui.executeCommand(COMMAND_REVEAL_CURRENT_USERDATA);
-          return;
-        case "open":
-          logger?.info(`Menu intent: open userdata ${intent.entry.id}`);
-          await launchEntrySafely(intent.entry);
-          return;
-      }
-    }),
+    ui.registerCommand(COMMAND_OPEN_WITH_USERDATA, openWithUserdataMenu),
   );
+  subscribe(ui.registerCommand(COMMAND_CREATE_USERDATA, createUserdata));
   subscribe(
-    ui.registerCommand(COMMAND_CREATE_USERDATA, async () => {
-      const creationMode = await pickUserdataCreationMode();
-      if (!creationMode) {
-        logger?.info("Create userdata cancelled");
-        return;
-      }
-      const sourceUserdataRoot =
-        creationMode === "seedCurrent"
-          ? resolveCurrentUserdataRoot({
-              current: getCurrent(refreshRegistry()),
-              globalStoragePath,
-              defaultUserdataRoot,
-              storeRoot,
-            })
-          : undefined;
-      const label = await ui.showInputBox({
-        title: "Create Userdata",
-        prompt: `Enter a label for the new ${host.displayName} Userdata`,
-        placeHolder: "Personal",
-        validateInput: requireNonEmptyLabel,
-      });
-      if (!label) {
-        logger?.info("Create userdata cancelled");
-        return;
-      }
-      try {
-        const { entry: created, registry: updated } = createManagedUserdata(
-          registryFile,
-          label,
-          {
-            beforeSave: (entry) => {
-              let sourceRootToSeed: string | undefined;
-              if (creationMode === "seedCurrent") {
-                if (!sourceUserdataRoot) {
-                  throw new Error(
-                    "Could not determine the current userdata directory to copy settings from.",
-                  );
-                }
-                sourceRootToSeed = sourceUserdataRoot;
-              }
-              const managedDataDir = resolveManagedDataDir(
-                storeRoot,
-                entry.relativeDataDir,
-              );
-              mkdir(managedDataDir, {
-                recursive: true,
-              });
-              if (sourceRootToSeed) {
-                seedUserdataPreferences({
-                  sourceUserdataRoot: sourceRootToSeed,
-                  targetUserdataRoot: managedDataDir,
-                });
-              }
-            },
-          },
-        );
-        const managedDataDir = resolveManagedDataDir(
-          storeRoot,
-          created.relativeDataDir,
-        );
-        registry = updated;
-        refreshStatusBar();
-        logger?.info(
-          `Created managed userdata ${created.id}: ${managedDataDir}`,
-        );
-        await launchEntrySafely(created);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        logger?.error(`Create userdata failed: ${message}`);
-        await ui.showErrorMessage(message);
-      }
-    }),
-  );
-  subscribe(
-    ui.registerCommand(COMMAND_RENAME_CURRENT_USERDATA, async () => {
-      const current = getCurrent(refreshRegistry());
-      if (current.kind === "unmanaged") {
-        await ui.showWarningMessage(
-          "The current window is using unmanaged userdata.",
-        );
-        return;
-      }
-      const label = await ui.showInputBox({
-        title: "Rename Current Userdata",
-        prompt: "Enter a new label",
-        value: current.entry.label,
-        validateInput: requireNonEmptyLabel,
-      });
-      if (!label) {
-        logger?.info("Rename userdata cancelled");
-        return;
-      }
-      persistRegistry((latest) =>
-        renameUserdata(latest, current.entry.id, label),
-      );
-      logger?.info(`Renamed userdata ${current.entry.id} to ${label}`);
-    }),
+    ui.registerCommand(COMMAND_RENAME_CURRENT_USERDATA, renameCurrentUserdata),
   );
   subscribe(
     ui.registerCommand(COMMAND_SHOW_CURRENT_USERDATA, async () => {
       await ui.showInformationMessage(
-        `Current ${host.displayName} Userdata: ${formatUserdataLabel(getCurrent())}`,
+        `Current ${host.displayName} Userdata: ${formatUserdataLabel(currentUserdata())}`,
       );
     }),
   );

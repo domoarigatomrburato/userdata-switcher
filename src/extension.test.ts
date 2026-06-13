@@ -3,6 +3,15 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
+import type { SupportedHostAdapter } from "./host";
+import type { LaunchCommand, LaunchEditor } from "./launcher";
+import {
+  CREATE_USERDATA_LABEL,
+  RENAME_CURRENT_USERDATA_LABEL,
+  REVEAL_CURRENT_USERDATA_LABEL,
+} from "./menu";
+import { registryPath } from "./paths";
+import { loadRegistry, saveRegistry } from "./registry";
 import {
   activateUserdataSwitcher,
   COMMAND_CREATE_USERDATA,
@@ -14,16 +23,7 @@ import {
   type StatusBarItem,
   type UserdataSwitcherActivation,
   type UserdataSwitcherUi,
-} from "./extensionActivation";
-import type { SupportedHostAdapter } from "./host";
-import type { LaunchCommand, LaunchEditor } from "./launcher";
-import {
-  CREATE_USERDATA_LABEL,
-  RENAME_CURRENT_USERDATA_LABEL,
-  REVEAL_CURRENT_USERDATA_LABEL,
-} from "./menu";
-import { registryPath } from "./paths";
-import { loadRegistry, saveRegistry } from "./registry";
+} from "./userdataSwitcherApp";
 
 interface TestHarness {
   tempDir: string;
@@ -171,7 +171,6 @@ function createTestHarness(input?: {
     showInformationMessage: async (message) => {
       infos.push(message);
     },
-    executeCommand: async (command) => commands.get(command)?.(),
     revealPathInOs: async (fsPath) => {
       revealedPaths.push(fsPath);
     },
@@ -779,6 +778,23 @@ describe("activateUserdataSwitcher", () => {
 
     assert.deepEqual(harness.infos, [
       "Current Cursor Userdata: Default (default)",
+    ]);
+  });
+
+  it("reloads the registry before showing the current userdata", async () => {
+    const harness = createTestHarness();
+    harnesses.push(harness);
+
+    activateUserdataSwitcher(harness.activation);
+    saveRegistry(registryPath(harness.storeRoot), {
+      version: 1,
+      userdatas: [{ id: "default", kind: "default", label: "Work" }],
+    });
+
+    await harness.run(COMMAND_SHOW_CURRENT_USERDATA);
+
+    assert.deepEqual(harness.infos, [
+      "Current Cursor Userdata: Work (default)",
     ]);
   });
 

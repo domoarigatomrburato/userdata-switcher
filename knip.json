@@ -1,0 +1,7 @@
+{
+  "$schema": "./node_modules/knip/schema.json",
+  "exclude": ["devDependencies"],
+  "includeEntryExports": true,
+  "treatConfigHintsAsErrors": true,
+  "treatTagHintsAsErrors": true
+}

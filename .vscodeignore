@@ -15,4 +15,5 @@ scripts/**
 CONTEXT.md
 AGENTS.md
 biome.json
+knip.json
 .gitignore

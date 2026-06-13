@@ -18,8 +18,8 @@ Single-context — root `CONTEXT.md` and `docs/adr/`. See `docs/agents/domain.md
 
 - When changing repository layout, update build scripts, editor tasks, ignore
   rules, packaging rules, and validation commands in the same pass.
-- Use the default project check command as an autofixing command. Its safe fixes
-  are intended to be applied, so run it without treating those edits as risky.
+- Use `npm run fix` as the autofixing command. `npm run check` is the readonly
+  CI-style gate and should not mutate files.
 - When deleting an implementation path, remove its runnable commands and stale
   documentation references in the same pass.
 - After packaging-related changes, inspect the produced artifact contents. The

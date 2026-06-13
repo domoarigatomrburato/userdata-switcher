@@ -17,12 +17,14 @@ npm ci
 
 ```bash
 npm run check
+npm run fix
 npm test
 npm run build
 npm run package:vsix
 ```
 
-`npm run check` is the default formatting and linting command for this repo.
+`npm run check` is the readonly quality gate. `npm run fix` applies safe Knip
+cleanup first, then Biome formatting, lint fixes, and import organization.
 
 ## Documentation Split
 

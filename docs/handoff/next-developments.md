@@ -42,15 +42,16 @@ Automated validation before the checkpoint commit:
   `Current: Work (default)`.
 - The extension should not force `--reuse-window`; launching another userdata
   opens or focuses an appropriate editor process.
-- `npm run check` is the autofixing Biome command. Avoid reintroducing separate
-  public `format`, `lint`, or readonly check scripts unless there is a concrete
-  external need.
+- `npm run check` is readonly and runs Knip before Biome. `npm run fix` is the
+  autofixing command and uses the same order. Avoid reintroducing separate
+  public `format` or `lint` scripts unless there is a concrete external need.
 
 ## Current Npm Surface
 
 The public npm script set is intentionally small:
 
 - `npm run check`
+- `npm run fix`
 - `npm test`
 - `npm run build`
 - `npm run package:vsix`
@@ -120,7 +121,9 @@ The old source store was intentionally left in place as a backup.
 - `docs/strategy/mvp-contract.md`
 - `README.md`
 - `package.json`
-- `src/extensionActivation.ts`
+- `src/userdataSwitcherApp.ts`
+- `src/registryStore.ts`
+- `src/managedUserdataProvisioner.ts`
 - `src/launcher.ts`
 - `src/registry.ts`
 - `src/manifest.test.ts`

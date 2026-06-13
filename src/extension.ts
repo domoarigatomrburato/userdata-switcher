@@ -1,13 +1,13 @@
 import vscode from "vscode";
+import { resolveEditorHost } from "./host";
+import type { LaunchLogger } from "./launcher";
 import {
   activateUserdataSwitcher,
   type Disposable,
   type QuickPickItem,
   type StatusBarItem,
   type UserdataSwitcherUi,
-} from "./extensionActivation";
-import { resolveEditorHost } from "./host";
-import type { LaunchLogger } from "./launcher";
+} from "./userdataSwitcherApp";
 
 export function activate(context: vscode.ExtensionContext): void {
   const outputChannel = vscode.window.createOutputChannel("Userdata Switcher");
@@ -65,8 +65,6 @@ export function createVscodeUi(logger: LaunchLogger): UserdataSwitcherUi {
     showWarningMessage: (message) => vscode.window.showWarningMessage(message),
     showInformationMessage: (message) =>
       vscode.window.showInformationMessage(message),
-    executeCommand: (command, ...args) =>
-      vscode.commands.executeCommand(command, ...args),
     revealPathInOs: async (fsPath) => {
       const uri = vscode.Uri.file(fsPath);
       logger.info(`revealFileInOS input.fsPath=${JSON.stringify(fsPath)}`);

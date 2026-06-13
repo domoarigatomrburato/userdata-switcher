@@ -10,7 +10,7 @@ export interface UserdataEntry {
   relativeDataDir?: string;
 }
 
-interface ManagedUserdataEntry extends UserdataEntry {
+export interface ManagedUserdataEntry extends UserdataEntry {
   kind: "managed";
   relativeDataDir: string;
 }
@@ -23,15 +23,6 @@ export interface Registry {
 export interface ManagedUserdataCreation {
   registry: Registry;
   entry: ManagedUserdataEntry;
-}
-
-export interface ManagedUserdataCreationOptions {
-  beforeSave?(entry: ManagedUserdataEntry): void;
-}
-
-interface RegistryUpdateResult<T> {
-  registry: Registry;
-  result: T;
 }
 
 const DEFAULT_ENTRY: UserdataEntry = {
@@ -59,26 +50,6 @@ export function saveRegistry(registryFile: string, registry: Registry): void {
   fs.renameSync(tempFile, registryFile);
 }
 
-export function updateRegistry(
-  registryFile: string,
-  update: (latest: Registry) => Registry,
-): Registry {
-  return updateRegistryWithResult(registryFile, (latest) => {
-    const registry = update(latest);
-    return { registry, result: registry };
-  }).result;
-}
-
-function updateRegistryWithResult<T>(
-  registryFile: string,
-  update: (latest: Registry) => RegistryUpdateResult<T>,
-): RegistryUpdateResult<T> {
-  const latest = ensureDefaultUserdata(loadRegistry(registryFile));
-  const updated = update(latest);
-  saveRegistry(registryFile, updated.registry);
-  return updated;
-}
-
 export function ensureDefaultUserdata(registry: Registry): Registry {
   if (registry.userdatas.some((entry) => entry.kind === "default")) {
     return registry;
@@ -93,19 +64,21 @@ export function addManagedUserdata(
   registry: Registry,
   label: string,
 ): Registry {
-  return buildManagedUserdataCreation(registry, label).registry;
+  return planManagedUserdataCreation(registry, label).registry;
 }
 
-export function createManagedUserdata(
-  registryFile: string,
+export function planManagedUserdataCreation(
+  registry: Registry,
   label: string,
-  options: ManagedUserdataCreationOptions = {},
 ): ManagedUserdataCreation {
-  return updateRegistryWithResult(registryFile, (latest) => {
-    const creation = buildManagedUserdataCreation(latest, label);
-    options.beforeSave?.(creation.entry);
-    return { registry: creation.registry, result: creation };
-  }).result;
+  const entry = buildManagedUserdataEntry(registry, label);
+  return {
+    registry: {
+      version: 1,
+      userdatas: [...registry.userdatas, entry],
+    },
+    entry,
+  };
 }
 
 function trimmedUserdataLabel(label: string): string {
@@ -155,20 +128,6 @@ function buildManagedUserdataEntry(
     kind: "managed",
     label: trimmed,
     relativeDataDir: `u/${id}`,
-  };
-}
-
-function buildManagedUserdataCreation(
-  registry: Registry,
-  label: string,
-): ManagedUserdataCreation {
-  const entry = buildManagedUserdataEntry(registry, label);
-  return {
-    registry: {
-      version: 1,
-      userdatas: [...registry.userdatas, entry],
-    },
-    entry,
   };
 }
 

@@ -5,6 +5,17 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.6
+
+### Changed
+
+- Reload the Userdata Registry for Current Userdata reads so multiple windows do
+  not show stale labels after another window updates the registry.
+- Split activation orchestration into app, registry store, host session, and
+  managed userdata provisioning modules.
+- Make `npm run check` readonly and add `npm run fix` for safe Knip and Biome
+  autofixes.
+
 ## 1.0.5
 
 ### Fixed

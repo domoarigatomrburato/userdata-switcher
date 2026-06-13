@@ -8,7 +8,7 @@ import {
   COMMAND_RENAME_CURRENT_USERDATA,
   COMMAND_REVEAL_CURRENT_USERDATA,
   COMMAND_SHOW_CURRENT_USERDATA,
-} from "./extensionActivation";
+} from "./userdataSwitcherApp";
 
 interface CommandContribution {
   category?: string;
@@ -33,8 +33,8 @@ interface ExtensionManifest {
 describe("extension manifest", () => {
   const expectedScripts = {
     "vscode:prepublish": "npm run build",
-    check:
-      "biome check --write . && knip --include-entry-exports --exclude devDependencies --fix",
+    check: "knip && biome ci .",
+    fix: "knip --fix && biome check --write .",
     test: "tsc -p . && tsx --test src/**/*.test.ts",
     build: "node scripts/build.mjs",
     "package:vsix": "node scripts/package-vsix.mjs",
