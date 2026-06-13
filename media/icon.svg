@@ -1,40 +1,59 @@
 <svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Top layer: blue -->
-    <linearGradient id="topFace" x1="128" y1="32" x2="128" y2="124" gradientUnits="userSpaceOnUse">
+    <path id="card" d="M -47 -65 L 47 -65 Q 65 -65 65 -47 L 65 47 Q 65 65 47 65 L -47 65 Q -65 65 -65 47 L -65 -47 Q -65 -65 -47 -65 Z"/>
+    <linearGradient id="topFace" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#60a5fa"/>
       <stop offset="1" stop-color="#2563eb"/>
     </linearGradient>
-    <!-- Middle layer: teal -->
-    <linearGradient id="midFace" x1="128" y1="82" x2="128" y2="174" gradientUnits="userSpaceOnUse">
+    <linearGradient id="midFace" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#5eead4"/>
       <stop offset="1" stop-color="#14b8a6"/>
     </linearGradient>
-    <!-- Bottom layer: violet -->
-    <linearGradient id="botFace" x1="128" y1="132" x2="128" y2="224" gradientUnits="userSpaceOnUse">
+    <linearGradient id="botFace" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#c4b5fd"/>
       <stop offset="1" stop-color="#7c3aed"/>
     </linearGradient>
   </defs>
-
-  <!-- Bottom layer (violet) -->
-  <g>
-    <polygon points="36,178 128,224 128,238 36,192" fill="#6d28d9"/>
-    <polygon points="128,224 220,178 220,192 128,238" fill="#5b21b6"/>
-    <polygon points="128,132 220,178 128,224 36,178" fill="url(#botFace)"/>
-  </g>
-
-  <!-- Middle layer (teal) -->
-  <g>
-    <polygon points="36,128 128,174 128,188 36,142" fill="#0f766e"/>
-    <polygon points="128,174 220,128 220,142 128,188" fill="#0d5c54"/>
-    <polygon points="128,82 220,128 128,174 36,128" fill="url(#midFace)"/>
-  </g>
-
-  <!-- Top layer (blue) -->
-  <g>
-    <polygon points="36,78 128,124 128,138 36,92" fill="#1d4ed8"/>
-    <polygon points="128,124 220,78 220,92 128,138" fill="#1e40af"/>
-    <polygon points="128,32 220,78 128,124 36,78" fill="url(#topFace)"/>
-  </g>
+  <use href="#card" transform="translate(128 189) scale(1 0.5) rotate(45)" fill="#5b21b6"/>
+  <use href="#card" transform="translate(128 188) scale(1 0.5) rotate(45)" fill="#5b21b6"/>
+  <use href="#card" transform="translate(128 187) scale(1 0.5) rotate(45)" fill="#5b21b6"/>
+  <use href="#card" transform="translate(128 186) scale(1 0.5) rotate(45)" fill="#5b21b6"/>
+  <use href="#card" transform="translate(128 185) scale(1 0.5) rotate(45)" fill="#5b21b6"/>
+  <use href="#card" transform="translate(128 184) scale(1 0.5) rotate(45)" fill="#5b21b6"/>
+  <use href="#card" transform="translate(128 183) scale(1 0.5) rotate(45)" fill="#5b21b6"/>
+  <use href="#card" transform="translate(128 182) scale(1 0.5) rotate(45)" fill="#5b21b6"/>
+  <use href="#card" transform="translate(128 181) scale(1 0.5) rotate(45)" fill="#5b21b6"/>
+  <use href="#card" transform="translate(128 180) scale(1 0.5) rotate(45)" fill="#5b21b6"/>
+  <use href="#card" transform="translate(128 179) scale(1 0.5) rotate(45)" fill="#5b21b6"/>
+  <use href="#card" transform="translate(128 178) scale(1 0.5) rotate(45)" fill="#5b21b6"/>
+  <use href="#card" transform="translate(128 177) scale(1 0.5) rotate(45)" fill="#5b21b6"/>
+  <use href="#card" transform="translate(128 176) scale(1 0.5) rotate(45)" fill="url(#botFace)"/>
+  <use href="#card" transform="translate(128 141) scale(1 0.5) rotate(45)" fill="#0f766e"/>
+  <use href="#card" transform="translate(128 140) scale(1 0.5) rotate(45)" fill="#0f766e"/>
+  <use href="#card" transform="translate(128 139) scale(1 0.5) rotate(45)" fill="#0f766e"/>
+  <use href="#card" transform="translate(128 138) scale(1 0.5) rotate(45)" fill="#0f766e"/>
+  <use href="#card" transform="translate(128 137) scale(1 0.5) rotate(45)" fill="#0f766e"/>
+  <use href="#card" transform="translate(128 136) scale(1 0.5) rotate(45)" fill="#0f766e"/>
+  <use href="#card" transform="translate(128 135) scale(1 0.5) rotate(45)" fill="#0f766e"/>
+  <use href="#card" transform="translate(128 134) scale(1 0.5) rotate(45)" fill="#0f766e"/>
+  <use href="#card" transform="translate(128 133) scale(1 0.5) rotate(45)" fill="#0f766e"/>
+  <use href="#card" transform="translate(128 132) scale(1 0.5) rotate(45)" fill="#0f766e"/>
+  <use href="#card" transform="translate(128 131) scale(1 0.5) rotate(45)" fill="#0f766e"/>
+  <use href="#card" transform="translate(128 130) scale(1 0.5) rotate(45)" fill="#0f766e"/>
+  <use href="#card" transform="translate(128 129) scale(1 0.5) rotate(45)" fill="#0f766e"/>
+  <use href="#card" transform="translate(128 128) scale(1 0.5) rotate(45)" fill="url(#midFace)"/>
+  <use href="#card" transform="translate(128 93) scale(1 0.5) rotate(45)" fill="#1e40af"/>
+  <use href="#card" transform="translate(128 92) scale(1 0.5) rotate(45)" fill="#1e40af"/>
+  <use href="#card" transform="translate(128 91) scale(1 0.5) rotate(45)" fill="#1e40af"/>
+  <use href="#card" transform="translate(128 90) scale(1 0.5) rotate(45)" fill="#1e40af"/>
+  <use href="#card" transform="translate(128 89) scale(1 0.5) rotate(45)" fill="#1e40af"/>
+  <use href="#card" transform="translate(128 88) scale(1 0.5) rotate(45)" fill="#1e40af"/>
+  <use href="#card" transform="translate(128 87) scale(1 0.5) rotate(45)" fill="#1e40af"/>
+  <use href="#card" transform="translate(128 86) scale(1 0.5) rotate(45)" fill="#1e40af"/>
+  <use href="#card" transform="translate(128 85) scale(1 0.5) rotate(45)" fill="#1e40af"/>
+  <use href="#card" transform="translate(128 84) scale(1 0.5) rotate(45)" fill="#1e40af"/>
+  <use href="#card" transform="translate(128 83) scale(1 0.5) rotate(45)" fill="#1e40af"/>
+  <use href="#card" transform="translate(128 82) scale(1 0.5) rotate(45)" fill="#1e40af"/>
+  <use href="#card" transform="translate(128 81) scale(1 0.5) rotate(45)" fill="#1e40af"/>
+  <use href="#card" transform="translate(128 80) scale(1 0.5) rotate(45)" fill="url(#topFace)"/>
 </svg>
