@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export type UserdataKind = "default" | "managed";
+type UserdataKind = "default" | "managed";
 
 export interface UserdataEntry {
   id: string;
@@ -10,7 +10,7 @@ export interface UserdataEntry {
   relativeDataDir?: string;
 }
 
-export interface ManagedUserdataEntry extends UserdataEntry {
+interface ManagedUserdataEntry extends UserdataEntry {
   kind: "managed";
   relativeDataDir: string;
 }

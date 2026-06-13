@@ -44,11 +44,6 @@ export const COMMAND_SHOW_CURRENT_USERDATA =
 export const COMMAND_REVEAL_CURRENT_USERDATA =
   "userdataSwitcher.revealCurrentUserdata";
 
-export {
-  CREATE_USERDATA_LABEL,
-  RENAME_CURRENT_USERDATA_LABEL,
-} from "./menu";
-
 export interface QuickPickItem {
   label: string;
   description?: string;

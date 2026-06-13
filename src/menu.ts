@@ -9,7 +9,7 @@ export const RENAME_CURRENT_USERDATA_LABEL =
 export const REVEAL_CURRENT_USERDATA_LABEL =
   "$(folder-opened) Reveal Current Userdata...";
 
-export type MenuItemKind = "item" | "separator";
+type MenuItemKind = "item" | "separator";
 export type UserdataMenuItemIntent =
   | { kind: "create" }
   | { kind: "rename" }
