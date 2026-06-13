@@ -235,11 +235,6 @@ function discoverEditorCli(
     `CLI discovery start: host=${host.displayName} platform=${platform} appRoot=${formatDiagnosticValue(appRoot)} cliNames=${host.cliNames.join(", ")} windowsExecutableNames=${host.windowsExecutableNames.join(", ")}`,
   );
 
-  const bundledCli = discoverBundledCli(host, appRoot, deps);
-  if (bundledCli) {
-    logger?.info(`CLI discovery selected bundled CLI: ${bundledCli}`);
-    return bundledCli;
-  }
   const bundledEditorExecutable = discoverBundledEditorExecutable(
     host,
     appRoot,
@@ -250,6 +245,11 @@ function discoverEditorCli(
       `CLI discovery selected Windows app executable: ${bundledEditorExecutable}`,
     );
     return bundledEditorExecutable;
+  }
+  const bundledCli = discoverBundledCli(host, appRoot, deps);
+  if (bundledCli) {
+    logger?.info(`CLI discovery selected bundled CLI: ${bundledCli}`);
+    return bundledCli;
   }
   logPathDiscoverySummary(env, platform, logger);
   logger?.info("CLI discovery checking PATH fallback");

@@ -55,6 +55,7 @@ interface SpawnedEditorProcess {
 
 interface LaunchDeps {
   env?: NodeJS.ProcessEnv;
+  platform?: NodeJS.Platform;
   spawn(
     command: string,
     args: string[],
@@ -223,10 +224,19 @@ export function launchEditor(
         removedKeys.length ? removedKeys.join(", ") : "none"
       }`,
     );
+    const spawnCommand = resolveSpawnCommand(
+      command,
+      deps.platform ?? process.platform,
+    );
+    if (spawnCommand.command !== command.command) {
+      logger?.info(
+        `Windows command shim detected; launching through ${spawnCommand.command}`,
+      );
+    }
 
     let child: SpawnedEditorProcess;
     try {
-      child = deps.spawn(command.command, command.args, {
+      child = deps.spawn(spawnCommand.command, spawnCommand.args, {
         detached: true,
         env,
         stdio: ["ignore", "pipe", "pipe"],
@@ -301,6 +311,23 @@ function formatLaunchCommand(command: LaunchCommand): string {
   return [command.command, ...command.args]
     .map((part) => JSON.stringify(part))
     .join(" ");
+}
+
+function resolveSpawnCommand(
+  command: LaunchCommand,
+  platform: NodeJS.Platform,
+): LaunchCommand {
+  if (platform !== "win32" || !isWindowsCommandShim(command.command)) {
+    return command;
+  }
+  return {
+    command: "cmd.exe",
+    args: ["/d", "/s", "/c", command.command, ...command.args],
+  };
+}
+
+function isWindowsCommandShim(command: string): boolean {
+  return /\.(?:bat|cmd)$/i.test(command);
 }
 
 function logProcessOutput(

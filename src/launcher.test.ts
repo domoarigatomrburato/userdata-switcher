@@ -411,6 +411,44 @@ describe("launchEditor", () => {
       "info:Editor CLI close event: code=0 signal=null",
     ]);
   });
+
+  it("spawns Windows command shims through cmd.exe", async () => {
+    let spawnCommand: string | undefined;
+    let spawnArgs: string[] | undefined;
+    const child = new EventEmitter() as EventEmitter & { unref(): void };
+    child.unref = () => {};
+
+    const launched = launchEditor(
+      {
+        command: "C:\\Program Files\\Microsoft VS Code\\bin\\code.cmd",
+        args: [
+          "--user-data-dir",
+          "C:\\Users\\ale\\AppData\\Local\\udsw\\vscode\\u\\provona",
+        ],
+      },
+      {
+        platform: "win32",
+        spawn: (command, args) => {
+          spawnCommand = command;
+          spawnArgs = args;
+          return child;
+        },
+      },
+    );
+
+    child.emit("spawn");
+    await launched;
+
+    assert.equal(spawnCommand, "cmd.exe");
+    assert.deepEqual(spawnArgs, [
+      "/d",
+      "/s",
+      "/c",
+      "C:\\Program Files\\Microsoft VS Code\\bin\\code.cmd",
+      "--user-data-dir",
+      "C:\\Users\\ale\\AppData\\Local\\udsw\\vscode\\u\\provona",
+    ]);
+  });
 });
 
 describe("sanitizeEditorLaunchEnvironment", () => {
