@@ -42,6 +42,16 @@ view and search for **Userdata Switcher**.
 
 ![Open With Userdata menu](media/screenshot-menu.png)
 
+## Deleting a Userdata
+
+If you no longer need a managed userdata, you can delete it:
+1. Click the status bar item or run `Userdata Switcher: Open With Userdata`.
+2. Choose `Delete Userdata...` (or run `Userdata Switcher: Delete Userdata` directly from the Command Palette).
+3. Select the userdata you want to delete.
+4. Confirm the prompt to move its files to your system's Trash/Recycle Bin and remove it from the registry.
+
+You cannot delete the userdata of the currently active window, or the default editor userdata.
+
 ## What Stays Separate
 
 - **Isolated:** accounts, subscriptions, sessions, chat history, caches, tabs,

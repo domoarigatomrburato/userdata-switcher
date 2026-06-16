@@ -20,8 +20,13 @@ import {
   type UserdataMenuItem,
   type UserdataMenuItemIntent,
 } from "./menu";
-import { registryPath } from "./paths";
-import { type Registry, renameUserdata, type UserdataEntry } from "./registry";
+import { registryPath, resolveManagedDataDir } from "./paths";
+import {
+  type Registry,
+  removeUserdata,
+  renameUserdata,
+  type UserdataEntry,
+} from "./registry";
 import { UserdataRegistryStore } from "./registryStore";
 
 export const COMMAND_OPEN_WITH_USERDATA = "userdataSwitcher.openWithUserdata";
@@ -32,6 +37,7 @@ export const COMMAND_SHOW_CURRENT_USERDATA =
   "userdataSwitcher.showCurrentUserdata";
 export const COMMAND_REVEAL_CURRENT_USERDATA =
   "userdataSwitcher.revealCurrentUserdata";
+export const COMMAND_DELETE_USERDATA = "userdataSwitcher.deleteUserdata";
 
 export interface QuickPickItem {
   label: string;
@@ -73,9 +79,13 @@ export interface UserdataSwitcherUi {
     validateInput?(value: string): string | undefined;
   }): PromiseLike<string | undefined>;
   showErrorMessage(message: string): PromiseLike<unknown>;
-  showWarningMessage(message: string): PromiseLike<unknown>;
+  showWarningMessage(
+    message: string,
+    ...items: string[]
+  ): PromiseLike<string | undefined>;
   showInformationMessage(message: string): PromiseLike<unknown>;
   revealPathInOs(fsPath: string): PromiseLike<unknown>;
+  deletePath(fsPath: string, options: { useTrash: boolean }): PromiseLike<void>;
 }
 
 export interface UserdataSwitcherActivation {
@@ -304,6 +314,89 @@ export function activateUserdataSwitcher(
     logger?.info(`Renamed userdata ${current.entry.id} to ${label}`);
   };
 
+  const deleteUserdata = async () => {
+    const currentRegistry = registryStore.read();
+    const current = currentUserdata(currentRegistry);
+    const deletable = currentRegistry.userdatas.filter(
+      (entry) =>
+        entry.kind === "managed" &&
+        (current.kind === "unmanaged" || entry.id !== current.entry.id),
+    );
+
+    if (deletable.length === 0) {
+      await ui.showWarningMessage(
+        "No other managed userdatas available to delete.",
+      );
+      return;
+    }
+
+    const items: QuickPickItem[] = deletable.map((entry) => ({
+      label: formatUserdataLabel({ kind: "known", entry }),
+      description: entry.relativeDataDir ? `u/${entry.id}` : undefined,
+      intent: { kind: "open", userdataId: entry.id },
+    }));
+
+    const selected = await ui.showQuickPick(items, {
+      title: "Delete Userdata",
+      placeHolder: "Select a userdata to delete",
+    });
+
+    if (selected?.intent?.kind !== "open") {
+      logger?.info("Delete userdata cancelled");
+      return;
+    }
+
+    const targetId = selected.intent.userdataId;
+    const targetEntry = deletable.find((entry) => entry.id === targetId);
+    if (!targetEntry?.relativeDataDir) {
+      return;
+    }
+
+    const confirm = await ui.showWarningMessage(
+      `Are you sure you want to delete userdata "${targetEntry.label}"? This will move all its settings and data files to the trash.`,
+      "Delete",
+      "Cancel",
+    );
+
+    if (confirm !== "Delete") {
+      logger?.info("Delete userdata cancelled by user confirmation");
+      return;
+    }
+
+    let targetPath: string;
+    try {
+      targetPath = resolveManagedDataDir(
+        storeRoot,
+        targetEntry.relativeDataDir,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger?.error(`Resolve path failed: ${message}`);
+      await ui.showErrorMessage(message);
+      return;
+    }
+
+    try {
+      await ui.deletePath(targetPath, { useTrash: true });
+      const updatedRegistry = registryStore.update((latest) =>
+        removeUserdata(latest, targetEntry.id),
+      );
+      refreshStatusBar(updatedRegistry);
+      logger?.info(
+        `Deleted userdata ${targetEntry.id} and moved files to trash`,
+      );
+      await ui.showInformationMessage(
+        `Userdata "${targetEntry.label}" has been deleted.`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger?.error(`Delete userdata files failed: ${message}`);
+      await ui.showWarningMessage(
+        `Could not delete userdata folder. It might be open in another window. Please close all windows using this userdata and try again.`,
+      );
+    }
+  };
+
   const openWithUserdataMenu = async () => {
     const currentRegistry = registryStore.read();
     const current = currentUserdata(currentRegistry);
@@ -336,6 +429,10 @@ export function activateUserdataSwitcher(
         logger?.info("Menu intent: reveal current userdata");
         await revealCurrentUserdata();
         return;
+      case "delete":
+        logger?.info("Menu intent: delete userdata");
+        await deleteUserdata();
+        return;
       case "open":
         logger?.info(`Menu intent: open userdata ${intent.entry.id}`);
         await launchEntrySafely(intent.entry);
@@ -361,6 +458,7 @@ export function activateUserdataSwitcher(
   subscribe(
     ui.registerCommand(COMMAND_REVEAL_CURRENT_USERDATA, revealCurrentUserdata),
   );
+  subscribe(ui.registerCommand(COMMAND_DELETE_USERDATA, deleteUserdata));
 
   refreshStatusBar();
 }

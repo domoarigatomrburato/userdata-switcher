@@ -8,12 +8,14 @@ export const RENAME_CURRENT_USERDATA_LABEL =
   "$(edit) Rename Current Userdata...";
 export const REVEAL_CURRENT_USERDATA_LABEL =
   "$(folder-opened) Reveal Current Userdata...";
+export const DELETE_USERDATA_LABEL = "$(trash) Delete Userdata...";
 
 type MenuItemKind = "item" | "separator";
 export type UserdataMenuItemIntent =
   | { kind: "create" }
   | { kind: "rename" }
   | { kind: "reveal" }
+  | { kind: "delete" }
   | { kind: "open"; userdataId: string };
 
 export type UserdataMenuIntent =
@@ -21,6 +23,7 @@ export type UserdataMenuIntent =
   | { kind: "create" }
   | { kind: "rename" }
   | { kind: "reveal" }
+  | { kind: "delete" }
   | { kind: "open"; entry: UserdataEntry };
 
 export interface UserdataMenuSelection {
@@ -66,6 +69,11 @@ export function buildOpenWithUserdataMenuItems(
       label: CREATE_USERDATA_LABEL,
       alwaysShow: true,
     },
+    {
+      intent: { kind: "delete" },
+      label: DELETE_USERDATA_LABEL,
+      alwaysShow: true,
+    },
   ];
 
   return [
@@ -88,6 +96,7 @@ export function resolveOpenWithUserdataMenuIntent(
     case "create":
     case "rename":
     case "reveal":
+    case "delete":
       return intent;
     case "open": {
       const entry = registry.userdatas.find(

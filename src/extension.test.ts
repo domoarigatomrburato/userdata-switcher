@@ -7,6 +7,7 @@ import type { SupportedHostAdapter } from "./host";
 import type { LaunchCommand, LaunchEditor } from "./launcher";
 import {
   CREATE_USERDATA_LABEL,
+  DELETE_USERDATA_LABEL,
   RENAME_CURRENT_USERDATA_LABEL,
   REVEAL_CURRENT_USERDATA_LABEL,
 } from "./menu";
@@ -15,6 +16,7 @@ import { loadRegistry, saveRegistry } from "./registry";
 import {
   activateUserdataSwitcher,
   COMMAND_CREATE_USERDATA,
+  COMMAND_DELETE_USERDATA,
   COMMAND_OPEN_WITH_USERDATA,
   COMMAND_RENAME_CURRENT_USERDATA,
   COMMAND_REVEAL_CURRENT_USERDATA,
@@ -39,6 +41,7 @@ interface TestHarness {
   warnings: string[];
   infos: string[];
   revealedPaths: string[];
+  deletedPaths: string[];
   logs: string[];
   uiEvents: string[];
   quickPickItems: readonly QuickPickItem[][];
@@ -97,6 +100,8 @@ function createTestHarness(input?: {
   inputBoxValues?: readonly (string | undefined)[];
   launchEditorImpl?: LaunchEditor;
   mkdirSync?: UserdataSwitcherActivation["mkdirSync"];
+  deletePathFailure?: boolean;
+  warningMessageChoice?: string;
 }): TestHarness {
   const tempRoot = process.platform === "darwin" ? "/tmp" : os.tmpdir();
   const tempDir = fs.mkdtempSync(
@@ -121,6 +126,7 @@ function createTestHarness(input?: {
   const warnings: string[] = [];
   const infos: string[] = [];
   const revealedPaths: string[] = [];
+  const deletedPaths: string[] = [];
   const logs: string[] = [];
   const uiEvents: string[] = [];
   const quickPickItems: QuickPickItem[][] = [];
@@ -165,14 +171,21 @@ function createTestHarness(input?: {
     showErrorMessage: async (message) => {
       errors.push(message);
     },
-    showWarningMessage: async (message) => {
+    showWarningMessage: async (message, ...items) => {
       warnings.push(message);
+      return input?.warningMessageChoice ?? items[0];
     },
     showInformationMessage: async (message) => {
       infos.push(message);
     },
     revealPathInOs: async (fsPath) => {
       revealedPaths.push(fsPath);
+    },
+    deletePath: async (fsPath) => {
+      if (input?.deletePathFailure) {
+        throw new Error("mock delete failure");
+      }
+      deletedPaths.push(fsPath);
     },
   };
 
@@ -217,6 +230,7 @@ function createTestHarness(input?: {
     warnings,
     infos,
     revealedPaths,
+    deletedPaths,
     logs,
     uiEvents,
     quickPickItems,
@@ -416,6 +430,11 @@ describe("activateUserdataSwitcher", () => {
       {
         label: CREATE_USERDATA_LABEL,
         intent: { kind: "create" },
+        alwaysShow: true,
+      },
+      {
+        label: DELETE_USERDATA_LABEL,
+        intent: { kind: "delete" },
         alwaysShow: true,
       },
     ]);
@@ -839,6 +858,93 @@ describe("activateUserdataSwitcher", () => {
 
     assert.deepEqual(harness.errors, ["spawn failed"]);
   });
+
+  it("deletes the selected managed userdata, removes it from registry, and moves folder to trash", async () => {
+    const harness = createTestHarness({
+      quickPickSelection: {
+        label: "Personal",
+        intent: { kind: "open", userdataId: "personal" },
+      },
+      warningMessageChoice: "Delete",
+    });
+    harnesses.push(harness);
+
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.deepEqual(harness.deletedPaths, [
+      path.join(harness.storeRoot, "u/personal"),
+    ]);
+    const registry = loadRegistry(registryPath(harness.storeRoot));
+    assert.deepEqual(registry.userdatas, [
+      { id: "default", kind: "default", label: "Default" },
+    ]);
+    assert.deepEqual(harness.infos, ['Userdata "Personal" has been deleted.']);
+  });
+
+  it("does not delete the userdata if user cancels the confirmation dialog", async () => {
+    const harness = createTestHarness({
+      quickPickSelection: {
+        label: "Personal",
+        intent: { kind: "open", userdataId: "personal" },
+      },
+      warningMessageChoice: "Cancel",
+    });
+    harnesses.push(harness);
+
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.deepEqual(harness.deletedPaths, []);
+    const registry = loadRegistry(registryPath(harness.storeRoot));
+    assert.equal(registry.userdatas.length, 2);
+    assert.deepEqual(harness.infos, []);
+  });
+
+  it("shows warning when no other managed userdatas are available to delete", async () => {
+    const harness = createTestHarness();
+    harnesses.push(harness);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.deepEqual(harness.warnings, [
+      "No other managed userdatas available to delete.",
+    ]);
+    assert.deepEqual(harness.deletedPaths, []);
+  });
+
+  it("handles deletion failure gracefully, keeping the entry in the registry", async () => {
+    const harness = createTestHarness({
+      quickPickSelection: {
+        label: "Personal",
+        intent: { kind: "open", userdataId: "personal" },
+      },
+      warningMessageChoice: "Delete",
+      deletePathFailure: true,
+    });
+    harnesses.push(harness);
+
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.deepEqual(harness.warnings, [
+      'Are you sure you want to delete userdata "Personal"? This will move all its settings and data files to the trash.',
+      "Could not delete userdata folder. It might be open in another window. Please close all windows using this userdata and try again.",
+    ]);
+    const registry = loadRegistry(registryPath(harness.storeRoot));
+    assert.equal(registry.userdatas.length, 2);
+    assert.ok(registry.userdatas.some((entry) => entry.id === "personal"));
+  });
 });
 
 describe("createVscodeUi", () => {
@@ -859,6 +965,11 @@ describe("createVscodeUi", () => {
               if (cmd === "revealFileInOS") {
                 throw new Error("mock reveal failure");
               }
+            },
+          },
+          workspace: {
+            fs: {
+              delete: async () => {},
             },
           },
           Uri: {

@@ -7,6 +7,7 @@ import {
   addManagedUserdata,
   ensureDefaultUserdata,
   loadRegistry,
+  removeUserdata,
   renameUserdata,
 } from "./registry";
 
@@ -88,6 +89,24 @@ describe("registry", () => {
     };
     const updated = renameUserdata(registry, "default", "Work");
     assert.equal(updated.userdatas[0]?.label, "Work");
+    assert.equal(updated.userdatas[0]?.id, "default");
+  });
+
+  it("removes a userdata by its ID", () => {
+    const registry = {
+      version: 1 as const,
+      userdatas: [
+        { id: "default", kind: "default" as const, label: "Default" },
+        {
+          id: "personal",
+          kind: "managed" as const,
+          label: "Personal",
+          relativeDataDir: "u/personal",
+        },
+      ],
+    };
+    const updated = removeUserdata(registry, "personal");
+    assert.equal(updated.userdatas.length, 1);
     assert.equal(updated.userdatas[0]?.id, "default");
   });
 });
