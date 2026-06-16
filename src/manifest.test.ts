@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import {
   COMMAND_CREATE_USERDATA,
+  COMMAND_DELETE_USERDATA,
   COMMAND_OPEN_WITH_USERDATA,
   COMMAND_RENAME_CURRENT_USERDATA,
   COMMAND_REVEAL_CURRENT_USERDATA,
@@ -61,6 +62,7 @@ describe("extension manifest", () => {
         COMMAND_RENAME_CURRENT_USERDATA,
         COMMAND_SHOW_CURRENT_USERDATA,
         COMMAND_REVEAL_CURRENT_USERDATA,
+        COMMAND_DELETE_USERDATA,
       ],
     );
     assert.ok(

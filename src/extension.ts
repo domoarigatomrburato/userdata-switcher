@@ -62,7 +62,8 @@ export function createVscodeUi(logger: LaunchLogger): UserdataSwitcherUi {
       ) as PromiseLike<QuickPickItem | undefined>,
     showInputBox: (options) => vscode.window.showInputBox(options),
     showErrorMessage: (message) => vscode.window.showErrorMessage(message),
-    showWarningMessage: (message) => vscode.window.showWarningMessage(message),
+    showWarningMessage: (message, ...items) =>
+      vscode.window.showWarningMessage(message, ...items),
     showInformationMessage: (message) =>
       vscode.window.showInformationMessage(message),
     revealPathInOs: async (fsPath) => {
@@ -78,6 +79,16 @@ export function createVscodeUi(logger: LaunchLogger): UserdataSwitcherUi {
         logger.error(`revealFileInOS failed: ${message}`);
         throw error;
       }
+    },
+    deletePath: async (fsPath, options) => {
+      const uri = vscode.Uri.file(fsPath);
+      logger.info(
+        `deletePath fsPath=${JSON.stringify(fsPath)} useTrash=${options.useTrash}`,
+      );
+      await vscode.workspace.fs.delete(uri, {
+        recursive: true,
+        useTrash: options.useTrash,
+      });
     },
   };
 }

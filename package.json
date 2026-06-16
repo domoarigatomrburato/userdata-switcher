@@ -78,6 +78,11 @@
         "command": "userdataSwitcher.revealCurrentUserdata",
         "title": "Reveal Current Userdata",
         "category": "Userdata Switcher"
+      },
+      {
+        "command": "userdataSwitcher.deleteUserdata",
+        "title": "Delete Userdata",
+        "category": "Userdata Switcher"
       }
     ]
   },
