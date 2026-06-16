@@ -2,8 +2,8 @@
 
 Use multiple Cursor AI subscriptions on the same machine, in parallel.
 
-Open work, personal, and client projects with the right Cursor or VS Code
-identity already signed in. Each userdata keeps its own account, theme,
+Open work, personal, and client projects with the right Cursor, VS Code, or
+Antigravity IDE identity already signed in. Each userdata keeps its own account, theme,
 settings, chat history, and editor state. No sign-out dances or manual auth
 cleanup.
 
@@ -26,8 +26,8 @@ cleanup.
 
 ## Install
 
-In Cursor or VS Code, open the Extensions view and search for **Userdata
-Switcher**.
+In Cursor, VS Code, Antigravity IDE, or VS Code Insiders, open the Extensions
+view and search for **Userdata Switcher**.
 
 ## Quick Start
 
