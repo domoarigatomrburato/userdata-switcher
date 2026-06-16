@@ -190,6 +190,17 @@ describe("resolveDefaultUserdataRoot", () => {
     );
   });
 
+  it("resolves the macOS default Antigravity IDE userdata root", () => {
+    assert.equal(
+      antigravityIde.resolveDefaultUserdataRoot({
+        platform: "darwin",
+        home: "/Users/alice",
+        env: {},
+      }),
+      "/Users/alice/Library/Application Support/Antigravity IDE",
+    );
+  });
+
   it("resolves the Linux default Antigravity IDE userdata root", () => {
     assert.equal(
       antigravityIde.resolveDefaultUserdataRoot({
@@ -198,6 +209,17 @@ describe("resolveDefaultUserdataRoot", () => {
         env: {},
       }),
       "/home/alice/.config/Antigravity IDE",
+    );
+  });
+
+  it("resolves the Windows default Antigravity IDE userdata root", () => {
+    assert.equal(
+      antigravityIde.resolveDefaultUserdataRoot({
+        platform: "win32",
+        home: "C:\\Users\\alice",
+        env: {},
+      }),
+      "C:\\Users\\alice\\AppData\\Roaming\\Antigravity IDE",
     );
   });
 });
@@ -236,6 +258,17 @@ describe("resolveSharedExtensionsDirectory", () => {
     );
   });
 
+  it("resolves the macOS Antigravity IDE shared extensions directory", () => {
+    assert.equal(
+      antigravityIde.resolveSharedExtensionsDirectory({
+        platform: "darwin",
+        home: "/Users/alice",
+        env: {},
+      }),
+      "/Users/alice/.antigravity-ide/extensions",
+    );
+  });
+
   it("resolves the Linux Antigravity IDE shared extensions directory", () => {
     assert.equal(
       antigravityIde.resolveSharedExtensionsDirectory({
@@ -244,6 +277,17 @@ describe("resolveSharedExtensionsDirectory", () => {
         env: {},
       }),
       "/home/alice/.antigravity-ide/extensions",
+    );
+  });
+
+  it("resolves the Windows Antigravity IDE shared extensions directory", () => {
+    assert.equal(
+      antigravityIde.resolveSharedExtensionsDirectory({
+        platform: "win32",
+        home: "C:\\Users\\alice",
+        env: {},
+      }),
+      "C:\\Users\\alice\\.antigravity-ide\\extensions",
     );
   });
 });

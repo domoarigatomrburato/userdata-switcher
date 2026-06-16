@@ -7,8 +7,8 @@ supported editor with named, isolated userdata roots.
 
 **Editor Host**:
 A supported VS Code-family desktop application that can run this extension and
-be launched with a userdata root, such as Cursor, Visual Studio Code, or Visual
-Studio Code Insiders.
+be launched with a userdata root, such as Cursor, Visual Studio Code, Visual
+Studio Code Insiders, or Antigravity IDE.
 _Avoid_: arbitrary fork, guessed host
 
 **Editor Userdata**:
