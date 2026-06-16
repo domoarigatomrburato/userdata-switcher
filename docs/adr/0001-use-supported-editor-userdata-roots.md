@@ -26,6 +26,7 @@ The initial supported hosts are:
 - Cursor
 - Visual Studio Code
 - Visual Studio Code Insiders
+- Antigravity IDE
 
 Unsupported hosts are not guessed. The extension reports a clear unsupported
 host error instead of falling back to best-effort behavior.

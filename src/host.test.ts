@@ -11,9 +11,14 @@ const insiders = resolveEditorHost({
   appName: "Visual Studio Code - Insiders",
   uriScheme: "vscode-insiders",
 });
+const antigravityIde = resolveEditorHost({
+  appName: "Antigravity IDE",
+  uriScheme: "antigravity-ide",
+});
 assert.ok(cursor);
 assert.ok(vscode);
 assert.ok(insiders);
+assert.ok(antigravityIde);
 
 describe("resolveEditorHost", () => {
   it("resolves Cursor from the URI scheme", () => {
@@ -47,6 +52,17 @@ describe("resolveEditorHost", () => {
     assert.equal(host?.id, "vscode-insiders");
     assert.equal(host?.displayName, "Visual Studio Code - Insiders");
     assert.deepEqual(host?.cliNames, ["code-insiders"]);
+  });
+
+  it("resolves Antigravity IDE from the URI scheme", () => {
+    const host = resolveEditorHost({
+      appName: "Antigravity IDE",
+      uriScheme: "antigravity-ide",
+    });
+
+    assert.equal(host?.id, "antigravity-ide");
+    assert.equal(host?.displayName, "Antigravity IDE");
+    assert.deepEqual(host?.cliNames, ["antigravity-ide"]);
   });
 
   it("does not guess unsupported hosts", () => {
@@ -91,6 +107,39 @@ describe("resolveStoreRoot", () => {
         env: {},
       }),
       "C:\\Users\\alice\\AppData\\Local\\udsw\\vscode-insiders",
+    );
+  });
+
+  it("resolves the macOS store root under a host namespace for Antigravity IDE", () => {
+    assert.equal(
+      antigravityIde.resolveStoreRoot({
+        platform: "darwin",
+        home: "/Users/alice",
+        env: {},
+      }),
+      "/Users/alice/Library/Application Support/udsw/antigravity-ide",
+    );
+  });
+
+  it("resolves the Linux store root under a host namespace for Antigravity IDE", () => {
+    assert.equal(
+      antigravityIde.resolveStoreRoot({
+        platform: "linux",
+        home: "/home/alice",
+        env: {},
+      }),
+      "/home/alice/.local/share/udsw/antigravity-ide",
+    );
+  });
+
+  it("resolves the Windows store root under a host namespace for Antigravity IDE", () => {
+    assert.equal(
+      antigravityIde.resolveStoreRoot({
+        platform: "win32",
+        home: "C:\\Users\\alice",
+        env: {},
+      }),
+      "C:\\Users\\alice\\AppData\\Local\\udsw\\antigravity-ide",
     );
   });
 
@@ -140,6 +189,17 @@ describe("resolveDefaultUserdataRoot", () => {
       "C:\\Users\\alice\\AppData\\Roaming\\Code - Insiders",
     );
   });
+
+  it("resolves the Linux default Antigravity IDE userdata root", () => {
+    assert.equal(
+      antigravityIde.resolveDefaultUserdataRoot({
+        platform: "linux",
+        home: "/home/alice",
+        env: {},
+      }),
+      "/home/alice/.config/Antigravity IDE",
+    );
+  });
 });
 
 describe("resolveSharedExtensionsDirectory", () => {
@@ -175,6 +235,17 @@ describe("resolveSharedExtensionsDirectory", () => {
       "C:\\Users\\alice\\.vscode-insiders\\extensions",
     );
   });
+
+  it("resolves the Linux Antigravity IDE shared extensions directory", () => {
+    assert.equal(
+      antigravityIde.resolveSharedExtensionsDirectory({
+        platform: "linux",
+        home: "/home/alice",
+        env: {},
+      }),
+      "/home/alice/.antigravity-ide/extensions",
+    );
+  });
 });
 
 describe("discoverEditorCli bundled discovery", () => {
@@ -203,6 +274,22 @@ describe("discoverEditorCli bundled discovery", () => {
         },
       ),
       "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+    );
+  });
+
+  it("finds the bundled Antigravity IDE CLI under appRoot on Linux", () => {
+    assert.equal(
+      antigravityIde.discoverEditorCli(
+        "/opt/antigravity-ide/Antigravity-IDE/resources/app",
+        {
+          env: { PATH: "/usr/local/bin" },
+          existsSync: (candidate) =>
+            candidate ===
+            "/opt/antigravity-ide/Antigravity-IDE/resources/app/bin/antigravity-ide",
+          platform: "linux",
+        },
+      ),
+      "/opt/antigravity-ide/Antigravity-IDE/resources/app/bin/antigravity-ide",
     );
   });
 
