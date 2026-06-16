@@ -72,6 +72,7 @@ when you need isolation beyond that.
 - Cursor
 - Visual Studio Code
 - Visual Studio Code Insiders
+- Antigravity IDE
 
 Unsupported VS Code-family forks are not guessed automatically. This extension
 runs in the **local desktop UI** and does not activate in Remote SSH, WSL, dev

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-type EditorHostId = "cursor" | "vscode" | "vscode-insiders";
+type EditorHostId = "cursor" | "vscode" | "vscode-insiders" | "antigravity-ide";
 
 export interface EditorHostIdentity {
   appName: string;
@@ -75,6 +75,15 @@ const HOST_DEFINITIONS: HostDefinition[] = [
     sharedExtensionsRelativePath: ".vscode-insiders/extensions",
     cliNames: ["code-insiders"],
     windowsExecutableNames: ["Code - Insiders.exe"],
+  },
+  {
+    id: "antigravity-ide",
+    displayName: "Antigravity IDE",
+    storageSlug: "antigravity-ide",
+    defaultUserdataDirName: "Antigravity IDE",
+    sharedExtensionsRelativePath: ".antigravity-ide/extensions",
+    cliNames: ["antigravity-ide"],
+    windowsExecutableNames: ["Antigravity IDE.exe", "antigravity-ide.exe"],
   },
 ];
 
