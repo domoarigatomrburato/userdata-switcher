@@ -1,13 +1,16 @@
 import fs from "node:fs";
+import { executeManagedUserdataDeletion } from "./deleteManagedUserdata";
 import {
-  DELETE_IN_USE_MESSAGE,
+  DELETE_QUIT_FAILED_MESSAGE,
   DELETE_TRASH_FAILURE_MESSAGE,
+  DELETE_VERIFY_INSTANCE_STILL_RUNNING_MESSAGE,
+  DELETE_VERIFY_PATH_STILL_EXISTS_MESSAGE,
   describeDeleteUserdataBlockedReason,
   listDeletableManagedUserdatas,
 } from "./deleteUserdata";
 import type { CurrentUserdata } from "./detect";
 import { EditorHostSession } from "./editorHostSession";
-import { listMainSocketPaths, probeRunningUserdataInstance } from "./editorIpc";
+import { probeRunningUserdataInstance } from "./editorIpc";
 import type { SupportedHostAdapter } from "./host";
 import {
   formatOpenWithUserdataPickerTitle,
@@ -35,6 +38,7 @@ import {
   type UserdataEntry,
 } from "./registry";
 import { UserdataRegistryStore } from "./registryStore";
+import { quitUserdataEditorInstance } from "./runningEditorInstance";
 
 export const COMMAND_OPEN_WITH_USERDATA = "userdataSwitcher.openWithUserdata";
 export const COMMAND_CREATE_USERDATA = "userdataSwitcher.createUserdata";
@@ -107,6 +111,9 @@ export interface UserdataSwitcherActivation {
   mkdirSync?: typeof fs.mkdirSync;
   editorVersion?: string;
   isManagedUserdataInUse?: (managedUserdataRoot: string) => Promise<boolean>;
+  quitManagedUserdataInstance?: (
+    managedUserdataRoot: string,
+  ) => Promise<boolean>;
 }
 
 type UserdataCreationMode = "seedCurrent" | "empty";
@@ -162,6 +169,8 @@ export function activateUserdataSwitcher(
       (await probeRunningUserdataInstance(managedUserdataRoot, {
         editorVersion,
       })) === "running",
+    quitManagedUserdataInstance = async (managedUserdataRoot) =>
+      quitUserdataEditorInstance(managedUserdataRoot, { editorVersion }),
   } = input;
 
   const storeRoot = host.resolveStoreRoot();
@@ -365,17 +374,6 @@ export function activateUserdataSwitcher(
       return;
     }
 
-    const confirm = await ui.showWarningMessage(
-      `Are you sure you want to delete userdata "${targetEntry.label}"? Close all windows using it first. This will move its settings and data files to the trash.`,
-      "Delete",
-      "Cancel",
-    );
-
-    if (confirm !== "Delete") {
-      logger?.info("Delete userdata cancelled by user confirmation");
-      return;
-    }
-
     let targetPath: string;
     try {
       targetPath = resolveManagedDataDir(
@@ -389,37 +387,68 @@ export function activateUserdataSwitcher(
       return;
     }
 
-    const socketCandidates = listMainSocketPaths(targetPath, editorVersion);
-    logger?.info(
-      `Delete preflight socket candidates: ${
-        socketCandidates.length > 0 ? socketCandidates.join(", ") : "(none)"
-      }`,
-    );
+    const outcome = await executeManagedUserdataDeletion({
+      targetPath,
+      label: targetEntry.label,
+      editorVersion,
+      isManagedUserdataInUse,
+      quitManagedUserdataInstance,
+      deletePath: async (managedUserdataRoot) => {
+        logger?.info(
+          `deletePath fsPath="${managedUserdataRoot}" useTrash=true`,
+        );
+        await ui.deletePath(managedUserdataRoot, { useTrash: true });
+      },
+      pathExists: (managedUserdataRoot) => fs.existsSync(managedUserdataRoot),
+      confirmDeletion: async (message, confirmLabel) => {
+        const choice = await ui.showWarningMessage(
+          message,
+          confirmLabel,
+          "Cancel",
+        );
+        return choice === confirmLabel;
+      },
+      logInfo: (message) => logger?.info(message),
+    });
 
-    if (await isManagedUserdataInUse(targetPath)) {
-      logger?.info(
-        `Delete userdata blocked: ${targetEntry.id} still has a running editor instance`,
-      );
-      await ui.showWarningMessage(DELETE_IN_USE_MESSAGE);
-      return;
-    }
-
-    try {
-      await ui.deletePath(targetPath, { useTrash: true });
-      const updatedRegistry = registryStore.update((latest) =>
-        removeUserdata(latest, targetEntry.id),
-      );
-      refreshStatusBar(updatedRegistry);
-      logger?.info(
-        `Deleted userdata ${targetEntry.id} and moved files to trash`,
-      );
-      await ui.showInformationMessage(
-        `Userdata "${targetEntry.label}" has been deleted.`,
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger?.error(`Delete userdata files failed: ${message}`);
-      await ui.showWarningMessage(DELETE_TRASH_FAILURE_MESSAGE);
+    switch (outcome.status) {
+      case "cancelled":
+        logger?.info("Delete userdata cancelled by user confirmation");
+        return;
+      case "quit-failed":
+        logger?.info(
+          `Delete userdata blocked: ${targetEntry.id} editor instance could not be quit`,
+        );
+        await ui.showWarningMessage(DELETE_QUIT_FAILED_MESSAGE);
+        return;
+      case "delete-failed": {
+        logger?.error(`Delete userdata files failed for ${targetEntry.id}`);
+        await ui.showWarningMessage(DELETE_TRASH_FAILURE_MESSAGE);
+        return;
+      }
+      case "verify-failed":
+        logger?.error(
+          `Delete userdata verification failed for ${targetEntry.id}: ${outcome.reason}`,
+        );
+        await ui.showWarningMessage(
+          outcome.reason === "path-still-exists"
+            ? DELETE_VERIFY_PATH_STILL_EXISTS_MESSAGE
+            : DELETE_VERIFY_INSTANCE_STILL_RUNNING_MESSAGE,
+        );
+        return;
+      case "success": {
+        const updatedRegistry = registryStore.update((latest) =>
+          removeUserdata(latest, targetEntry.id),
+        );
+        refreshStatusBar(updatedRegistry);
+        logger?.info(
+          `Deleted userdata ${targetEntry.id} and moved files to trash`,
+        );
+        await ui.showInformationMessage(
+          `Userdata "${targetEntry.label}" has been deleted.`,
+        );
+        return;
+      }
     }
   };
 
