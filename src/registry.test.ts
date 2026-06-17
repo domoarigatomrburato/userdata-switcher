@@ -109,4 +109,15 @@ describe("registry", () => {
     assert.equal(updated.userdatas.length, 1);
     assert.equal(updated.userdatas[0]?.id, "default");
   });
+
+  it("does not remove the default userdata entry", () => {
+    const registry = {
+      version: 1 as const,
+      userdatas: [
+        { id: "default", kind: "default" as const, label: "Default" },
+      ],
+    };
+    const updated = removeUserdata(registry, "default");
+    assert.deepEqual(updated, registry);
+  });
 });

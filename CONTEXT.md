@@ -61,7 +61,10 @@ or creating a new Userdata.
 _Avoid_: sign-in menu, profile selector
 
 **Running Userdata Instance**:
-A live editor window or process associated with an Editor Userdata.
+A live editor window or process associated with an Editor Userdata. On macOS and
+Linux, Userdata Switcher detects a running instance by connecting to the editor
+IPC socket (`1.12-main.sock`) under the userdata root before deleting managed
+userdata.
 _Avoid_: Running profile, active sign-in
 
 **Current Userdata**:

@@ -50,7 +50,9 @@ If you no longer need a managed userdata, you can delete it:
 3. Select the userdata you want to delete.
 4. Confirm the prompt to move its files to your system's Trash/Recycle Bin and remove it from the registry.
 
-You cannot delete the userdata of the currently active window, or the default editor userdata.
+You cannot delete the userdata of the currently active window, the default editor
+userdata, or a userdata that still has open editor windows. Close every window
+using a userdata before deleting it.
 
 ## What Stays Separate
 

@@ -1,6 +1,13 @@
 import fs from "node:fs";
+import {
+  DELETE_IN_USE_MESSAGE,
+  DELETE_TRASH_FAILURE_MESSAGE,
+  describeDeleteUserdataBlockedReason,
+  listDeletableManagedUserdatas,
+} from "./deleteUserdata";
 import type { CurrentUserdata } from "./detect";
 import { EditorHostSession } from "./editorHostSession";
+import { probeRunningUserdataInstance } from "./editorIpc";
 import type { SupportedHostAdapter } from "./host";
 import {
   formatOpenWithUserdataPickerTitle,
@@ -98,6 +105,7 @@ export interface UserdataSwitcherActivation {
   logger?: LaunchLogger;
   launchEditorImpl?: LaunchEditor;
   mkdirSync?: typeof fs.mkdirSync;
+  isManagedUserdataInUse?: (managedUserdataRoot: string) => Promise<boolean>;
 }
 
 type UserdataCreationMode = "seedCurrent" | "empty";
@@ -148,6 +156,8 @@ export function activateUserdataSwitcher(
     logger,
     launchEditorImpl,
     mkdirSync,
+    isManagedUserdataInUse = async (managedUserdataRoot) =>
+      (await probeRunningUserdataInstance(managedUserdataRoot)) === "running",
   } = input;
 
   const storeRoot = host.resolveStoreRoot();
@@ -317,16 +327,14 @@ export function activateUserdataSwitcher(
   const deleteUserdata = async () => {
     const currentRegistry = registryStore.read();
     const current = currentUserdata(currentRegistry);
-    const deletable = currentRegistry.userdatas.filter(
-      (entry) =>
-        entry.kind === "managed" &&
-        (current.kind === "unmanaged" || entry.id !== current.entry.id),
+    const deletable = listDeletableManagedUserdatas(currentRegistry, current);
+    const blockedReason = describeDeleteUserdataBlockedReason(
+      currentRegistry,
+      current,
     );
 
-    if (deletable.length === 0) {
-      await ui.showWarningMessage(
-        "No other managed userdatas available to delete.",
-      );
+    if (blockedReason) {
+      await ui.showWarningMessage(blockedReason);
       return;
     }
 
@@ -353,7 +361,7 @@ export function activateUserdataSwitcher(
     }
 
     const confirm = await ui.showWarningMessage(
-      `Are you sure you want to delete userdata "${targetEntry.label}"? This will move all its settings and data files to the trash.`,
+      `Are you sure you want to delete userdata "${targetEntry.label}"? Close all windows using it first. This will move its settings and data files to the trash.`,
       "Delete",
       "Cancel",
     );
@@ -376,6 +384,14 @@ export function activateUserdataSwitcher(
       return;
     }
 
+    if (await isManagedUserdataInUse(targetPath)) {
+      logger?.info(
+        `Delete userdata blocked: ${targetEntry.id} still has a running editor instance`,
+      );
+      await ui.showWarningMessage(DELETE_IN_USE_MESSAGE);
+      return;
+    }
+
     try {
       await ui.deletePath(targetPath, { useTrash: true });
       const updatedRegistry = registryStore.update((latest) =>
@@ -391,9 +407,7 @@ export function activateUserdataSwitcher(
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger?.error(`Delete userdata files failed: ${message}`);
-      await ui.showWarningMessage(
-        `Could not delete userdata folder. It might be open in another window. Please close all windows using this userdata and try again.`,
-      );
+      await ui.showWarningMessage(DELETE_TRASH_FAILURE_MESSAGE);
     }
   };
 
@@ -403,6 +417,7 @@ export function activateUserdataSwitcher(
     logger?.info(
       `Opening menu from current userdata: ${formatUserdataLabel(current)}`,
     );
+    refreshStatusBar(currentRegistry);
     const items = toQuickPickItems(
       buildOpenWithUserdataMenuItems(currentRegistry, current),
       ui.QuickPickItemKind.Separator,

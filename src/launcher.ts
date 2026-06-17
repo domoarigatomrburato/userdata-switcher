@@ -1,10 +1,10 @@
 import { spawn } from "node:child_process";
+import { VSCODE_MAIN_SOCKET_BASENAME } from "./editorIpc";
 import type { SupportedHostAdapter } from "./host";
 import { resolveManagedDataDir } from "./paths";
 import type { UserdataEntry } from "./registry";
 
 const MACOS_UNIX_SOCKET_PATH_LIMIT = 103;
-const VSCODE_MAIN_SOCKET_BASENAME = "1.12-main.sock";
 
 interface WorkspaceUri {
   fsPath: string;

@@ -3,6 +3,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
+import {
+  DELETE_BLOCKED_CURRENT_WINDOW_MESSAGE,
+  DELETE_IN_USE_MESSAGE,
+  DELETE_NO_MANAGED_MESSAGE,
+  DELETE_TRASH_FAILURE_MESSAGE,
+} from "./deleteUserdata";
 import type { SupportedHostAdapter } from "./host";
 import type { LaunchCommand, LaunchEditor } from "./launcher";
 import {
@@ -102,6 +108,7 @@ function createTestHarness(input?: {
   mkdirSync?: UserdataSwitcherActivation["mkdirSync"];
   deletePathFailure?: boolean;
   warningMessageChoice?: string;
+  isManagedUserdataInUse?: UserdataSwitcherActivation["isManagedUserdataInUse"];
 }): TestHarness {
   const tempRoot = process.platform === "darwin" ? "/tmp" : os.tmpdir();
   const tempDir = fs.mkdtempSync(
@@ -214,6 +221,7 @@ function createTestHarness(input?: {
         createdDirs.push(directory);
         fs.mkdirSync(directory, options);
       }),
+    isManagedUserdataInUse: input?.isManagedUserdataInUse,
   };
 
   return {
@@ -907,17 +915,58 @@ describe("activateUserdataSwitcher", () => {
     assert.deepEqual(harness.infos, []);
   });
 
-  it("shows warning when no other managed userdatas are available to delete", async () => {
+  it("shows warning when there are no managed userdatas to delete", async () => {
     const harness = createTestHarness();
     harnesses.push(harness);
 
     activateUserdataSwitcher(harness.activation);
     await harness.run(COMMAND_DELETE_USERDATA);
 
-    assert.deepEqual(harness.warnings, [
-      "No other managed userdatas available to delete.",
-    ]);
+    assert.deepEqual(harness.warnings, [DELETE_NO_MANAGED_MESSAGE]);
     assert.deepEqual(harness.deletedPaths, []);
+  });
+
+  it("blocks deleting the current window managed userdata", async () => {
+    const harness = createTestHarness();
+    harnesses.push(harness);
+
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+    harness.activation.globalStoragePath = globalStoragePathFor(
+      path.join(harness.storeRoot, "u/personal"),
+    );
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.deepEqual(harness.warnings, [DELETE_BLOCKED_CURRENT_WINDOW_MESSAGE]);
+    assert.deepEqual(harness.deletedPaths, []);
+  });
+
+  it("blocks deletion when the target userdata is still running", async () => {
+    const harness = createTestHarness({
+      quickPickSelection: {
+        label: "Personal",
+        intent: { kind: "open", userdataId: "personal" },
+      },
+      warningMessageChoice: "Delete",
+      isManagedUserdataInUse: async () => true,
+    });
+    harnesses.push(harness);
+
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.deepEqual(harness.deletedPaths, []);
+    const registry = loadRegistry(registryPath(harness.storeRoot));
+    assert.equal(registry.userdatas.length, 2);
+    assert.deepEqual(harness.warnings, [
+      'Are you sure you want to delete userdata "Personal"? Close all windows using it first. This will move its settings and data files to the trash.',
+      DELETE_IN_USE_MESSAGE,
+    ]);
   });
 
   it("handles deletion failure gracefully, keeping the entry in the registry", async () => {
@@ -938,8 +987,8 @@ describe("activateUserdataSwitcher", () => {
     await harness.run(COMMAND_DELETE_USERDATA);
 
     assert.deepEqual(harness.warnings, [
-      'Are you sure you want to delete userdata "Personal"? This will move all its settings and data files to the trash.',
-      "Could not delete userdata folder. It might be open in another window. Please close all windows using this userdata and try again.",
+      'Are you sure you want to delete userdata "Personal"? Close all windows using it first. This will move its settings and data files to the trash.',
+      DELETE_TRASH_FAILURE_MESSAGE,
     ]);
     const registry = loadRegistry(registryPath(harness.storeRoot));
     assert.equal(registry.userdatas.length, 2);
