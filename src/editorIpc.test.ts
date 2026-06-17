@@ -1,25 +1,57 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  listMainSocketPaths,
+  mainSocketBasenameForEditorVersion,
   mainSocketPath,
   probeRunningUserdataInstance,
-  VSCODE_MAIN_SOCKET_BASENAME,
 } from "./editorIpc";
 
-describe("mainSocketPath", () => {
-  it("joins the VS Code main IPC socket basename under the userdata root", () => {
+describe("mainSocketBasenameForEditorVersion", () => {
+  it("matches VS Code socket naming for API versions", () => {
     assert.equal(
-      mainSocketPath("/store/u/personal"),
-      `/store/u/personal/${VSCODE_MAIN_SOCKET_BASENAME}`,
+      mainSocketBasenameForEditorVersion("1.105.1"),
+      "1.10-main.sock",
+    );
+  });
+
+  it("matches Cursor product socket naming", () => {
+    assert.equal(
+      mainSocketBasenameForEditorVersion("3.7.42"),
+      "3.7.-main.sock",
+    );
+  });
+});
+
+describe("listMainSocketPaths", () => {
+  it("discovers versioned main sockets in the userdata root", () => {
+    assert.deepEqual(
+      listMainSocketPaths("/store/u/personal", "1.105.1", () => [
+        "Cache",
+        "3.7.-main.sock",
+      ]),
+      ["/store/u/personal/1.10-main.sock", "/store/u/personal/3.7.-main.sock"],
+    );
+  });
+});
+
+describe("mainSocketPath", () => {
+  it("joins the editor-version socket basename under the userdata root", () => {
+    assert.equal(
+      mainSocketPath("/store/u/personal", "1.105.1"),
+      "/store/u/personal/1.10-main.sock",
     );
   });
 });
 
 describe("probeRunningUserdataInstance", () => {
-  it("reports running when the IPC socket accepts a connection", async () => {
+  it("reports running when any discovered IPC socket accepts a connection", async () => {
     const result = await probeRunningUserdataInstance("/store/u/personal", {
       platform: "linux",
-      connect: async () => "connected",
+      editorVersion: "1.105.1",
+      readdirSync: () => ["3.7.-main.sock"],
+      connect: async (socketPath) =>
+        socketPath.endsWith("3.7.-main.sock") ? "connected" : "missing",
     });
 
     assert.equal(result, "running");
@@ -28,6 +60,7 @@ describe("probeRunningUserdataInstance", () => {
   it("reports not running when the IPC socket file is missing", async () => {
     const result = await probeRunningUserdataInstance("/store/u/personal", {
       platform: "darwin",
+      readdirSync: () => [],
       connect: async () => "missing",
     });
 
@@ -37,6 +70,7 @@ describe("probeRunningUserdataInstance", () => {
   it("reports not running when the IPC socket is stale", async () => {
     const result = await probeRunningUserdataInstance("/store/u/personal", {
       platform: "linux",
+      readdirSync: () => ["3.7.-main.sock"],
       connect: async () => "refused",
     });
 

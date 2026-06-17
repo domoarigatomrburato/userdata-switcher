@@ -1,5 +1,8 @@
 import { spawn } from "node:child_process";
-import { VSCODE_MAIN_SOCKET_BASENAME } from "./editorIpc";
+import {
+  listMainSocketPaths,
+  mainSocketBasenameForEditorVersion,
+} from "./editorIpc";
 import type { SupportedHostAdapter } from "./host";
 import { resolveManagedDataDir } from "./paths";
 import type { UserdataEntry } from "./registry";
@@ -127,6 +130,7 @@ export function buildOpenWithUserdataCommand(input: {
   appRoot: string;
   storeRoot: string;
   workspace: WorkspaceShape;
+  editorVersion?: string;
   logger?: LaunchLogger;
 }): LaunchCommand {
   const editorCli = input.host.discoverEditorCli(input.appRoot, {
@@ -155,6 +159,7 @@ export function buildOpenWithUserdataCommand(input: {
 function validateManagedUserdataSocketPath(input: {
   entry: UserdataEntry;
   host: SupportedHostAdapter;
+  editorVersion?: string;
   logger?: LaunchLogger;
   storeRoot: string;
 }): void {
@@ -166,10 +171,16 @@ function validateManagedUserdataSocketPath(input: {
     return;
   }
 
-  const socketPath = `${resolveManagedDataDir(
+  const managedDataDir = resolveManagedDataDir(
     input.storeRoot,
     input.entry.relativeDataDir,
-  )}/${VSCODE_MAIN_SOCKET_BASENAME}`;
+  );
+  const socketPaths = listMainSocketPaths(managedDataDir, input.editorVersion);
+  const socketPath =
+    socketPaths[0] ??
+    `${managedDataDir}/${mainSocketBasenameForEditorVersion(
+      input.editorVersion ?? "1.12.0",
+    )}`;
   input.logger?.info(
     `macOS socket path length=${socketPath.length}/${MACOS_UNIX_SOCKET_PATH_LIMIT}: ${socketPath}`,
   );
@@ -186,6 +197,7 @@ export async function openWithUserdata(input: {
   appRoot: string;
   storeRoot: string;
   workspace: WorkspaceShape;
+  editorVersion?: string;
   logger?: LaunchLogger;
   launchEditorImpl?: LaunchEditor;
 }): Promise<void> {

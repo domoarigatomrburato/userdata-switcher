@@ -1,19 +1,67 @@
+import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
 
-export const VSCODE_MAIN_SOCKET_BASENAME = "1.12-main.sock";
+/** @deprecated Use {@link mainSocketBasenameForEditorVersion} or socket discovery. */
+const VSCODE_MAIN_SOCKET_BASENAME = "1.12-main.sock";
+
+const MAIN_SOCKET_SUFFIX = "-main.sock";
 
 export type RunningInstanceProbeResult = "running" | "not-running";
 
 export interface RunningInstanceProbeDeps {
   platform?: NodeJS.Platform;
+  editorVersion?: string;
+  readdirSync?: (directory: string) => string[];
   connect?: (
     socketPath: string,
   ) => Promise<"connected" | "missing" | "refused" | "error">;
 }
 
-export function mainSocketPath(userdataRoot: string): string {
-  return path.join(userdataRoot, VSCODE_MAIN_SOCKET_BASENAME);
+export function mainSocketBasenameForEditorVersion(version: string): string {
+  const versionForSocket = version.slice(0, 4);
+  const typeForSocket = "main".slice(0, 6);
+  return `${versionForSocket}-${typeForSocket}.sock`;
+}
+
+export function listMainSocketPaths(
+  userdataRoot: string,
+  editorVersion?: string,
+  readdirSync: (directory: string) => string[] = fs.readdirSync,
+): string[] {
+  const candidates = new Set<string>();
+  if (editorVersion) {
+    candidates.add(
+      path.join(
+        userdataRoot,
+        mainSocketBasenameForEditorVersion(editorVersion),
+      ),
+    );
+  }
+
+  try {
+    for (const entry of readdirSync(userdataRoot)) {
+      if (entry.endsWith(MAIN_SOCKET_SUFFIX)) {
+        candidates.add(path.join(userdataRoot, entry));
+      }
+    }
+  } catch {
+    return [...candidates];
+  }
+
+  return [...candidates];
+}
+
+export function mainSocketPath(
+  userdataRoot: string,
+  editorVersion?: string,
+): string {
+  return path.join(
+    userdataRoot,
+    editorVersion
+      ? mainSocketBasenameForEditorVersion(editorVersion)
+      : VSCODE_MAIN_SOCKET_BASENAME,
+  );
 }
 
 export async function probeRunningUserdataInstance(
@@ -25,9 +73,20 @@ export async function probeRunningUserdataInstance(
     return "not-running";
   }
 
-  const socketPath = mainSocketPath(userdataRoot);
-  const result = await (deps.connect ?? defaultConnect)(socketPath);
-  return result === "connected" ? "running" : "not-running";
+  const socketPaths = listMainSocketPaths(
+    userdataRoot,
+    deps.editorVersion,
+    deps.readdirSync,
+  );
+
+  for (const socketPath of socketPaths) {
+    const result = await (deps.connect ?? defaultConnect)(socketPath);
+    if (result === "connected") {
+      return "running";
+    }
+  }
+
+  return "not-running";
 }
 
 function defaultConnect(

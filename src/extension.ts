@@ -31,6 +31,7 @@ export function activate(context: vscode.ExtensionContext): void {
     globalStoragePath: context.globalStorageUri.fsPath,
     appRoot: vscode.env.appRoot,
     workspace: vscode.workspace,
+    editorVersion: vscode.version,
     subscribe: (disposable) => {
       context.subscriptions.push(disposable);
     },

@@ -7,7 +7,7 @@ import {
 } from "./deleteUserdata";
 import type { CurrentUserdata } from "./detect";
 import { EditorHostSession } from "./editorHostSession";
-import { probeRunningUserdataInstance } from "./editorIpc";
+import { listMainSocketPaths, probeRunningUserdataInstance } from "./editorIpc";
 import type { SupportedHostAdapter } from "./host";
 import {
   formatOpenWithUserdataPickerTitle,
@@ -105,6 +105,7 @@ export interface UserdataSwitcherActivation {
   logger?: LaunchLogger;
   launchEditorImpl?: LaunchEditor;
   mkdirSync?: typeof fs.mkdirSync;
+  editorVersion?: string;
   isManagedUserdataInUse?: (managedUserdataRoot: string) => Promise<boolean>;
 }
 
@@ -156,8 +157,11 @@ export function activateUserdataSwitcher(
     logger,
     launchEditorImpl,
     mkdirSync,
+    editorVersion,
     isManagedUserdataInUse = async (managedUserdataRoot) =>
-      (await probeRunningUserdataInstance(managedUserdataRoot)) === "running",
+      (await probeRunningUserdataInstance(managedUserdataRoot, {
+        editorVersion,
+      })) === "running",
   } = input;
 
   const storeRoot = host.resolveStoreRoot();
@@ -234,6 +238,7 @@ export function activateUserdataSwitcher(
         appRoot,
         storeRoot,
         workspace,
+        editorVersion,
         logger,
         launchEditorImpl,
       });
@@ -383,6 +388,13 @@ export function activateUserdataSwitcher(
       await ui.showErrorMessage(message);
       return;
     }
+
+    const socketCandidates = listMainSocketPaths(targetPath, editorVersion);
+    logger?.info(
+      `Delete preflight socket candidates: ${
+        socketCandidates.length > 0 ? socketCandidates.join(", ") : "(none)"
+      }`,
+    );
 
     if (await isManagedUserdataInUse(targetPath)) {
       logger?.info(
