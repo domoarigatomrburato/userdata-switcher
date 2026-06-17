@@ -66,6 +66,29 @@ describe("executeManagedUserdataDeletion", () => {
     assert.equal(quitCalled, true);
   });
 
+  it("does not trash files when the instance is running again before delete", async () => {
+    let deleted = false;
+    let probeCount = 0;
+
+    const outcome = await executeManagedUserdataDeletion({
+      targetPath: "/store/u/personal",
+      label: "Personal",
+      isManagedUserdataInUse: async () => {
+        probeCount += 1;
+        return probeCount !== 3;
+      },
+      quitManagedUserdataInstance: async () => true,
+      deletePath: async () => {
+        deleted = true;
+      },
+      pathExists: () => false,
+      confirmDeletion: async () => true,
+    });
+
+    assert.equal(outcome.status, "quit-failed");
+    assert.equal(deleted, false);
+  });
+
   it("does not delete when quit fails for a running instance", async () => {
     let deleted = false;
 

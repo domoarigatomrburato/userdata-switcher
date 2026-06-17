@@ -24,6 +24,24 @@ describe("commandLineUsesUserdataRoot", () => {
       ),
     );
   });
+
+  it("does not match a longer userdata root that merely shares a prefix", () => {
+    const userdataRoot = "/store/u/work";
+    const otherRoot = "/store/u/work-2";
+    assert.ok(
+      commandLineUsesUserdataRoot(
+        `4323 /Applications/Cursor.app/Contents/MacOS/Cursor --user-data-dir=${otherRoot}`,
+        otherRoot,
+      ),
+    );
+    assert.equal(
+      commandLineUsesUserdataRoot(
+        `4323 /Applications/Cursor.app/Contents/MacOS/Cursor --user-data-dir=${otherRoot}`,
+        userdataRoot,
+      ),
+      false,
+    );
+  });
 });
 
 describe("isMainEditorProcess", () => {
@@ -52,6 +70,7 @@ describe("listMainProcessIdsForUserdataRoot", () => {
           `4321 /Applications/Cursor.app/Contents/MacOS/Cursor --user-data-dir=${userdataRoot}`,
           `4322 /Applications/Cursor.app/Contents/Frameworks/Cursor Helper (GPU) --user-data-dir=${userdataRoot}`,
           `4323 /Applications/Cursor.app/Contents/MacOS/Cursor --user-data-dir=/store/u/work`,
+          `4324 /Applications/Cursor.app/Contents/MacOS/Cursor --user-data-dir=/store/u/personal-backup`,
         ],
       }),
       [4321],

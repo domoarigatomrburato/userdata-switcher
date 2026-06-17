@@ -23,14 +23,42 @@ export function commandLineUsesUserdataRoot(
   userdataRoot: string,
 ): boolean {
   const resolvedRoot = path.resolve(userdataRoot);
-  return (
-    command.includes(resolvedRoot) ||
-    command.includes(userdataRoot) ||
-    command.includes(`--user-data-dir=${resolvedRoot}`) ||
-    command.includes(`--user-data-dir=${userdataRoot}`) ||
-    command.includes(`--user-data-dir ${resolvedRoot}`) ||
-    command.includes(`--user-data-dir ${userdataRoot}`)
-  );
+  for (const candidate of parseUserDataDirArgs(command)) {
+    if (path.resolve(candidate) === resolvedRoot) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function parseUserDataDirArgs(command: string): string[] {
+  const flag = "--user-data-dir";
+  const values: string[] = [];
+  let searchFrom = 0;
+
+  while (searchFrom < command.length) {
+    const flagIndex = command.indexOf(flag, searchFrom);
+    if (flagIndex === -1) {
+      break;
+    }
+
+    const afterFlag = command.slice(flagIndex + flag.length);
+    let rawValue: string | undefined;
+    if (afterFlag.startsWith("=")) {
+      rawValue = afterFlag.slice(1);
+    } else if (/^\s/.test(afterFlag)) {
+      rawValue = afterFlag.trimStart();
+    }
+
+    if (rawValue !== undefined) {
+      const nextFlag = rawValue.indexOf(" --");
+      values.push(nextFlag === -1 ? rawValue : rawValue.slice(0, nextFlag));
+    }
+
+    searchFrom = flagIndex + flag.length;
+  }
+
+  return values;
 }
 
 export function isMainEditorProcess(command: string): boolean {

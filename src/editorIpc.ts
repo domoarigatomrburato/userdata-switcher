@@ -6,16 +6,18 @@ import path from "node:path";
 const VSCODE_MAIN_SOCKET_BASENAME = "1.12-main.sock";
 
 const MAIN_SOCKET_SUFFIX = "-main.sock";
+const DEFAULT_IPC_CONNECT_TIMEOUT_MS = 2_000;
 
 export type RunningInstanceProbeResult = "running" | "not-running";
+
+type ConnectResult = "connected" | "missing" | "refused" | "error";
 
 export interface RunningInstanceProbeDeps {
   platform?: NodeJS.Platform;
   editorVersion?: string;
+  connectTimeoutMs?: number;
   readdirSync?: (directory: string) => string[];
-  connect?: (
-    socketPath: string,
-  ) => Promise<"connected" | "missing" | "refused" | "error">;
+  connect?: (socketPath: string) => Promise<ConnectResult>;
 }
 
 export function mainSocketBasenameForEditorVersion(version: string): string {
@@ -79,8 +81,12 @@ export async function probeRunningUserdataInstance(
     deps.readdirSync,
   );
 
+  const connect =
+    deps.connect ?? ((socketPath: string) => defaultConnect(socketPath));
+  const timeoutMs = deps.connectTimeoutMs ?? DEFAULT_IPC_CONNECT_TIMEOUT_MS;
+
   for (const socketPath of socketPaths) {
-    const result = await (deps.connect ?? defaultConnect)(socketPath);
+    const result = await connectWithTimeout(socketPath, connect, timeoutMs);
     if (result === "connected") {
       return "running";
     }
@@ -89,13 +95,31 @@ export async function probeRunningUserdataInstance(
   return "not-running";
 }
 
-function defaultConnect(
+async function connectWithTimeout(
   socketPath: string,
-): Promise<"connected" | "missing" | "refused" | "error"> {
+  connect: (socketPath: string) => Promise<ConnectResult>,
+  timeoutMs: number,
+): Promise<ConnectResult> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      connect(socketPath),
+      new Promise<ConnectResult>((resolve) => {
+        timer = setTimeout(() => resolve("error"), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
+function defaultConnect(socketPath: string): Promise<ConnectResult> {
   return new Promise((resolve) => {
     const client = net.connect(socketPath);
 
-    const finish = (result: "connected" | "missing" | "refused" | "error") => {
+    const finish = (result: ConnectResult) => {
       client.removeAllListeners();
       client.destroy();
       resolve(result);

@@ -9,6 +9,8 @@ import {
   DELETE_QUIT_AND_DELETE_LABEL,
   DELETE_QUIT_FAILED_MESSAGE,
   DELETE_TRASH_FAILURE_MESSAGE,
+  DELETE_VERIFY_INSTANCE_STILL_RUNNING_MESSAGE,
+  DELETE_VERIFY_PATH_STILL_EXISTS_MESSAGE,
 } from "./deleteUserdata";
 import type { SupportedHostAdapter } from "./host";
 import type { LaunchCommand, LaunchEditor } from "./launcher";
@@ -108,6 +110,7 @@ function createTestHarness(input?: {
   launchEditorImpl?: LaunchEditor;
   mkdirSync?: UserdataSwitcherActivation["mkdirSync"];
   deletePathFailure?: boolean;
+  deletePathSkipRemoval?: boolean;
   warningMessageChoice?: string;
   warningMessageChoices?: readonly string[];
   isManagedUserdataInUse?: UserdataSwitcherActivation["isManagedUserdataInUse"];
@@ -203,7 +206,7 @@ function createTestHarness(input?: {
         throw new Error("mock delete failure");
       }
       deletedPaths.push(fsPath);
-      if (fs.existsSync(fsPath)) {
+      if (!input?.deletePathSkipRemoval && fs.existsSync(fsPath)) {
         fs.rmSync(fsPath, { recursive: true, force: true });
       }
     },
@@ -957,7 +960,7 @@ describe("activateUserdataSwitcher", () => {
     assert.deepEqual(harness.deletedPaths, []);
   });
 
-  it("blocks deletion when the target userdata is still running and user cancels", async () => {
+  it("cancels deletion when the user dismisses the running-instance confirmation", async () => {
     const harness = createTestHarness({
       quickPickSelection: {
         label: "Personal",
@@ -1060,6 +1063,68 @@ describe("activateUserdataSwitcher", () => {
     assert.equal(harness.warnings.length, 2);
     assert.match(harness.warnings[0], /Delete userdata "Personal"/);
     assert.deepEqual(harness.warnings[1], DELETE_TRASH_FAILURE_MESSAGE);
+    const registry = loadRegistry(registryPath(harness.storeRoot));
+    assert.equal(registry.userdatas.length, 2);
+    assert.ok(registry.userdatas.some((entry) => entry.id === "personal"));
+  });
+
+  it("keeps the registry entry when the folder still exists after delete", async () => {
+    const harness = createTestHarness({
+      quickPickSelection: {
+        label: "Personal",
+        intent: { kind: "open", userdataId: "personal" },
+      },
+      warningMessageChoice: "Delete",
+      deletePathSkipRemoval: true,
+    });
+    harnesses.push(harness);
+
+    fs.mkdirSync(path.join(harness.storeRoot, "u/personal"), {
+      recursive: true,
+    });
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.equal(harness.warnings.length, 2);
+    assert.match(harness.warnings[0], /Delete userdata "Personal"/);
+    assert.deepEqual(
+      harness.warnings[1],
+      DELETE_VERIFY_PATH_STILL_EXISTS_MESSAGE,
+    );
+    const registry = loadRegistry(registryPath(harness.storeRoot));
+    assert.equal(registry.userdatas.length, 2);
+    assert.ok(registry.userdatas.some((entry) => entry.id === "personal"));
+  });
+
+  it("keeps the registry entry when the instance is still running after delete", async () => {
+    let probeCount = 0;
+    const harness = createTestHarness({
+      quickPickSelection: {
+        label: "Personal",
+        intent: { kind: "open", userdataId: "personal" },
+      },
+      warningMessageChoice: DELETE_QUIT_AND_DELETE_LABEL,
+      isManagedUserdataInUse: async () => {
+        probeCount += 1;
+        return probeCount === 1 || probeCount === 4;
+      },
+    });
+    harnesses.push(harness);
+
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.equal(harness.warnings.length, 2);
+    assert.match(harness.warnings[0], /still running/);
+    assert.deepEqual(
+      harness.warnings[1],
+      DELETE_VERIFY_INSTANCE_STILL_RUNNING_MESSAGE,
+    );
     const registry = loadRegistry(registryPath(harness.storeRoot));
     assert.equal(registry.userdatas.length, 2);
     assert.ok(registry.userdatas.some((entry) => entry.id === "personal"));

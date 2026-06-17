@@ -77,6 +77,17 @@ describe("probeRunningUserdataInstance", () => {
     assert.equal(result, "not-running");
   });
 
+  it("treats a hung IPC connection attempt as not running", async () => {
+    const result = await probeRunningUserdataInstance("/store/u/personal", {
+      platform: "linux",
+      readdirSync: () => ["1.10-main.sock"],
+      connectTimeoutMs: 25,
+      connect: () => new Promise(() => {}),
+    });
+
+    assert.equal(result, "not-running");
+  });
+
   it("skips the IPC probe on Windows and relies on delete failure instead", async () => {
     const result = await probeRunningUserdataInstance("/store/u/personal", {
       platform: "win32",

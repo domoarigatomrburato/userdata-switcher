@@ -354,7 +354,7 @@ export function activateUserdataSwitcher(
 
     const items: QuickPickItem[] = deletable.map((entry) => ({
       label: formatUserdataLabel({ kind: "known", entry }),
-      description: entry.relativeDataDir ? `u/${entry.id}` : undefined,
+      description: entry.relativeDataDir,
       intent: { kind: "open", userdataId: entry.id },
     }));
 
@@ -409,6 +409,7 @@ export function activateUserdataSwitcher(
         return choice === confirmLabel;
       },
       logInfo: (message) => logger?.info(message),
+      logError: (message) => logger?.error(message),
     });
 
     switch (outcome.status) {

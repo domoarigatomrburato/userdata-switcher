@@ -23,6 +23,7 @@ export interface ManagedUserdataDeletionDeps {
   pathExists: (managedUserdataRoot: string) => boolean;
   confirmDeletion: (message: string, confirmLabel: string) => Promise<boolean>;
   logInfo?: (message: string) => void;
+  logError?: (message: string) => void;
 }
 
 export function buildDeleteUserdataConfirmation(
@@ -48,6 +49,7 @@ export async function executeManagedUserdataDeletion(
   deps: ManagedUserdataDeletionDeps,
 ): Promise<ManagedUserdataDeletionOutcome> {
   const logInfo = deps.logInfo ?? (() => {});
+  const logError = deps.logError ?? (() => {});
 
   const socketCandidates = listMainSocketPaths(
     deps.targetPath,
@@ -73,9 +75,17 @@ export async function executeManagedUserdataDeletion(
     return { status: "quit-failed" };
   }
 
+  if (await deps.isManagedUserdataInUse(deps.targetPath)) {
+    logInfo(
+      `Delete blocked: editor instance for ${deps.targetPath} is still running before trash`,
+    );
+    return { status: "quit-failed" };
+  }
+
   try {
     await deps.deletePath(deps.targetPath);
-  } catch {
+  } catch (error) {
+    logError(error instanceof Error ? error.message : String(error));
     return { status: "delete-failed" };
   }
 
