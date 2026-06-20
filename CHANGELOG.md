@@ -5,6 +5,13 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.3.3
+
+### Changed
+
+- README: document delete userdata and the new initialization dialog, with
+  updated screenshots.
+
 ## 1.3.2
 
 No user-facing extension changes in this release.

@@ -35,18 +35,25 @@ view and search for **Userdata Switcher**.
    `Userdata Switcher: Open With Userdata`.
 2. Choose `Create New Userdata...`.
 3. Name the userdata, for example `Personal` or `Client A`.
-4. Choose `Start from current settings` to copy your user settings,
-   keybindings, and snippets once, or choose `Start empty` for editor defaults.
+4. In the initialization dialog, choose `Start from current settings` to copy
+   your user settings, keybindings, and snippets once, or choose `Start empty`
+   for editor defaults.
+
+![New userdata initialization dialog](media/screenshot-new-userdata-initialization.png)
+
 5. The editor opens a new window for that userdata. Sign in to the account you
    want for that context.
-
-![Open With Userdata menu](media/screenshot-menu.png)
 
 ## Deleting a Userdata
 
 If you no longer need a managed userdata, you can delete it:
+
 1. Click the status bar item or run `Userdata Switcher: Open With Userdata`.
-2. Choose `Delete Userdata...` (or run `Userdata Switcher: Delete Userdata` directly from the Command Palette).
+2. Choose `Delete Userdata...` (or run `Userdata Switcher: Delete Userdata`
+   directly from the Command Palette).
+
+![Delete Userdata in the Open With Userdata menu](media/screenshot-delete.png)
+
 3. Select the userdata you want to delete.
 4. Confirm the prompt to move its files to your system's Trash/Recycle Bin and remove it from the registry.
 
