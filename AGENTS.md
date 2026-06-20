@@ -4,7 +4,8 @@
 
 ### Issue tracker
 
-GitHub Issues on `domoarigatomrburato/userdata-switcher`. See `docs/agents/issue-tracker.md`.
+GitHub Issues on `domoarigatomrburato/userdata-switcher`; external PRs are a triage
+surface. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

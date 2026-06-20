@@ -16,6 +16,18 @@ remote may still point at an older repository slug during the product rename.
 - **Apply / remove labels**: `gh issue edit <number> --repo domoarigatomrburato/userdata-switcher --add-label "..."` / `--remove-label "..."`
 - **Close**: `gh issue close <number> --repo domoarigatomrburato/userdata-switcher --comment "..."`
 
+## Pull requests as a triage surface
+
+**PRs as a request surface: yes.**
+
+When set to `yes`, PRs run through the same labels and states as issues, using the `gh pr` equivalents:
+
+- **Read a PR**: `gh pr view <number> --repo domoarigatomrburato/userdata-switcher --comments` and `gh pr diff <number> --repo domoarigatomrburato/userdata-switcher` for the diff.
+- **List external PRs for triage**: `gh pr list --repo domoarigatomrburato/userdata-switcher --state open --json number,title,body,labels,author,authorAssociation,comments` then keep only `authorAssociation` of `CONTRIBUTOR`, `FIRST_TIME_CONTRIBUTOR`, or `NONE` (drop `OWNER`/`MEMBER`/`COLLABORATOR`).
+- **Comment / label / close**: `gh pr comment`, `gh pr edit --add-label`/`--remove-label`, `gh pr close` (each with `--repo domoarigatomrburato/userdata-switcher`).
+
+GitHub shares one number space across issues and PRs, so a bare `#42` may be either — resolve with `gh pr view 42 --repo domoarigatomrburato/userdata-switcher` and fall back to `gh issue view 42 --repo domoarigatomrburato/userdata-switcher`.
+
 ## When a skill says "publish to the issue tracker"
 
 Create a GitHub issue.
