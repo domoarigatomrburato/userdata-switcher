@@ -88,13 +88,14 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run build",
+    "preversion": "node scripts/assert-release-ready.mjs && npm run check && npm test && npm run build",
+    "postversion": "node scripts/package-release-vsix.mjs",
     "check": "knip && biome ci .",
     "fix": "knip --fix && biome check --write .",
     "test": "tsc -p . && tsx --test src/**/*.test.ts",
     "build": "node scripts/build.mjs",
     "package:vsix": "node scripts/package-vsix.mjs",
-    "dogfood": "node scripts/dogfood.mjs",
-    "release": "node scripts/release.mjs"
+    "dogfood": "node scripts/dogfood.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",

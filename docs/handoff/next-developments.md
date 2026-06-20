@@ -56,7 +56,7 @@ The public npm script set is intentionally small:
 - `npm run build`
 - `npm run package:vsix`
 - `npm run dogfood`
-- `npm run release -- <major|minor|patch>`
+- `npm version <patch|minor|major>`
 - `npm run vscode:prepublish` for VS Code/vsce compatibility
 
 Cross-platform cleanup, packaging, dogfood, and release internals live in

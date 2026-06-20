@@ -40,17 +40,16 @@ with `--force`, and does not change `package.json`.
 ## Release
 
 Before releasing, add the next version entry to `CHANGELOG.md` and commit all
-feature or fix work. Then run:
+feature or fix work. Then run from `main`:
 
 ```sh
-npm run release -- patch
+npm version patch
 ```
 
-Use `major`, `minor`, or `patch`. The release script requires a clean `main`
-worktree, bumps `package.json` and `package-lock.json`, runs fix/check/test/build
-and VSIX packaging, empties `dist/release`, writes the releasable VSIX there,
-commits `Release <version>`, creates `v<version>`, and pushes `main` plus the
-tag.
+Use `patch`, `minor`, or `major`. `preversion` checks the branch, changelog,
+remote sync, and runs `check`, `test`, and `build`. `npm version` bumps,
+commits, and tags. `postversion` writes the VSIX to `dist/release` and pushes
+`main` with tags.
 
 Upload the VSIX from `dist/release` manually in the Visual Studio Marketplace
 publisher portal. Open VSX can use the same release artifact later.

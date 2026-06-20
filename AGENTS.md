@@ -42,9 +42,9 @@ your own code changes.
 - Use `npm run dogfood` when explicitly asked to build and install a local
   pre-release VSIX into VS Code and Cursor. Do not run it casually because it
   mutates the user's installed editor extensions.
-- Use `npm run release -- <major|minor|patch>` only when explicitly asked to
-  release. It bumps versions, validates, empties `dist/release`, writes the
-  Marketplace-uploadable VSIX there, commits, tags, and pushes.
+- Use `npm version <patch|minor|major>` only when explicitly asked to release.
+  `preversion` validates, `npm version` bumps/commits/tags on a clean tree,
+  `postversion` writes the Marketplace VSIX to `dist/release` and pushes.
 - Marketplace publishing is manual for now: upload the VSIX from `dist/release`
   in the publisher portal. Do not add PAT, Azure, Entra/OIDC, or tag-publish CI
   automation unless explicitly requested again.
