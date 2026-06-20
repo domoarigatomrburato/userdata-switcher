@@ -34,13 +34,28 @@ view and search for **Userdata Switcher**.
 1. Click the Userdata Switcher status bar item, such as `Work (default)`, or run
    `Userdata Switcher: Open With Userdata`.
 2. Choose `Create New Userdata...`.
-3. Choose `Start from current settings` to copy your user settings,
+3. Name the userdata, for example `Personal` or `Client A`.
+4. Choose `Start from current settings` to copy your user settings,
    keybindings, and snippets once, or choose `Start empty` for editor defaults.
-4. Name the userdata, for example `Personal` or `Client A`.
 5. The editor opens a new window for that userdata. Sign in to the account you
    want for that context.
 
 ![Open With Userdata menu](media/screenshot-menu.png)
+
+## Deleting a Userdata
+
+If you no longer need a managed userdata, you can delete it:
+1. Click the status bar item or run `Userdata Switcher: Open With Userdata`.
+2. Choose `Delete Userdata...` (or run `Userdata Switcher: Delete Userdata` directly from the Command Palette).
+3. Select the userdata you want to delete.
+4. Confirm the prompt to move its files to your system's Trash/Recycle Bin and remove it from the registry.
+
+You cannot delete the userdata of the currently active window or the default editor
+userdata. If an editor instance for the target userdata is still running, the
+confirmation dialog offers **Quit and delete** when a running instance is detected.
+Closing a window
+is not enough — the extension quits the singleton process before trashing files.
+Success is reported only after the instance is gone and the folder is removed.
 
 ## What Stays Separate
 

@@ -31,6 +31,7 @@ export function activate(context: vscode.ExtensionContext): void {
     globalStoragePath: context.globalStorageUri.fsPath,
     appRoot: vscode.env.appRoot,
     workspace: vscode.workspace,
+    editorVersion: vscode.version,
     subscribe: (disposable) => {
       context.subscriptions.push(disposable);
     },
@@ -62,9 +63,16 @@ export function createVscodeUi(logger: LaunchLogger): UserdataSwitcherUi {
       ) as PromiseLike<QuickPickItem | undefined>,
     showInputBox: (options) => vscode.window.showInputBox(options),
     showErrorMessage: (message) => vscode.window.showErrorMessage(message),
-    showWarningMessage: (message) => vscode.window.showWarningMessage(message),
-    showInformationMessage: (message) =>
-      vscode.window.showInformationMessage(message),
+    showWarningMessage: (message, ...items) =>
+      vscode.window.showWarningMessage(message, ...items),
+    showInformationMessage: (message, ...items) =>
+      items.length > 0
+        ? vscode.window.showInformationMessage(
+            message,
+            { modal: true },
+            ...items,
+          )
+        : vscode.window.showInformationMessage(message),
     revealPathInOs: async (fsPath) => {
       const uri = vscode.Uri.file(fsPath);
       logger.info(`revealFileInOS input.fsPath=${JSON.stringify(fsPath)}`);
@@ -78,6 +86,16 @@ export function createVscodeUi(logger: LaunchLogger): UserdataSwitcherUi {
         logger.error(`revealFileInOS failed: ${message}`);
         throw error;
       }
+    },
+    deletePath: async (fsPath, options) => {
+      const uri = vscode.Uri.file(fsPath);
+      logger.info(
+        `deletePath fsPath=${JSON.stringify(fsPath)} useTrash=${options.useTrash}`,
+      );
+      await vscode.workspace.fs.delete(uri, {
+        recursive: true,
+        useTrash: options.useTrash,
+      });
     },
   };
 }

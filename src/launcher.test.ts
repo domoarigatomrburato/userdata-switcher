@@ -332,17 +332,18 @@ describe("launchEditor", () => {
 
   it("spawns the editor CLI with sanitized VS Code process environment", async () => {
     let unrefCalled = false;
-    let spawnOptions: { env: NodeJS.ProcessEnv } | undefined;
+    let spawnOptions:
+      | {
+          env: NodeJS.ProcessEnv;
+          stdio: ["ignore", "ignore", "ignore"];
+        }
+      | undefined;
     const { logs, logger } = createTestLogger();
-    const stdout = new EventEmitter();
-    const stderr = new EventEmitter();
     const child = new EventEmitter() as EventEmitter & {
-      stderr: EventEmitter;
-      stdout: EventEmitter;
+      pid: number;
       unref(): void;
     };
-    child.stdout = stdout;
-    child.stderr = stderr;
+    child.pid = 4321;
     child.unref = () => {
       unrefCalled = true;
     };
@@ -367,25 +368,17 @@ describe("launchEditor", () => {
     );
 
     child.emit("spawn");
-    stdout.emit("data", "hello\n");
-    stderr.emit("data", Buffer.from("warning\n"));
-    child.emit("exit", 0, null);
-    child.emit("close", 0, null);
-
     await launched;
 
     assert.equal(unrefCalled, true);
+    assert.deepEqual(spawnOptions?.stdio, ["ignore", "ignore", "ignore"]);
     assert.equal(spawnOptions?.env.ELECTRON_RUN_AS_NODE, undefined);
     assert.equal(spawnOptions?.env.VSCODE_IPC_HOOK_CLI, undefined);
     assert.equal(spawnOptions?.env.PATH, "/usr/bin");
     assert.equal(spawnOptions?.env.VSCODE_PORTABLE, "/portable");
     assert.deepEqual(logs, [
       "info:Launch environment sanitized; removed ELECTRON_RUN_AS_NODE, VSCODE_IPC_HOOK_CLI",
-      "info:Editor CLI spawned successfully",
-      "info:Editor CLI stdout: hello",
-      "info:Editor CLI stderr: warning",
-      "info:Editor CLI exit event: code=0 signal=null",
-      "info:Editor CLI close event: code=0 signal=null",
+      "info:Editor CLI spawned successfully (pid=4321)",
     ]);
   });
 

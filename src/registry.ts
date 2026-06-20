@@ -103,6 +103,21 @@ export function renameUserdata(
   };
 }
 
+export function removeUserdata(registry: Registry, entryId: string): Registry {
+  const entry = registry.userdatas.find(
+    (candidate) => candidate.id === entryId,
+  );
+  if (!entry || entry.kind === "default") {
+    return registry;
+  }
+  return {
+    version: 1,
+    userdatas: registry.userdatas.filter(
+      (candidate) => candidate.id !== entryId,
+    ),
+  };
+}
+
 const NON_ALPHANUMERIC_REGEX = /[^a-z0-9]+/g;
 const LEADING_TRAILING_HYPHENS_REGEX = /^-+|-+$/g;
 const TRAILING_HYPHENS_REGEX = /-+$/g;

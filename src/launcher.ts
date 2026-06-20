@@ -1,10 +1,13 @@
 import { spawn } from "node:child_process";
+import {
+  listMainSocketPaths,
+  mainSocketBasenameForEditorVersion,
+} from "./editorIpc";
 import type { SupportedHostAdapter } from "./host";
 import { resolveManagedDataDir } from "./paths";
 import type { UserdataEntry } from "./registry";
 
 const MACOS_UNIX_SOCKET_PATH_LIMIT = 103;
-const VSCODE_MAIN_SOCKET_BASENAME = "1.12-main.sock";
 
 interface WorkspaceUri {
   fsPath: string;
@@ -38,17 +41,8 @@ export type LaunchEditor = (
 ) => Promise<void>;
 
 interface SpawnedEditorProcess {
-  stderr?: { on(event: "data", listener: (data: unknown) => void): void };
-  stdout?: { on(event: "data", listener: (data: unknown) => void): void };
-  once(
-    event: "close",
-    listener: (code: number | null, signal: string | null) => void,
-  ): this;
+  pid?: number;
   once(event: "error", listener: (error: Error) => void): this;
-  once(
-    event: "exit",
-    listener: (code: number | null, signal: string | null) => void,
-  ): this;
   once(event: "spawn", listener: () => void): this;
   unref(): void;
 }
@@ -62,7 +56,7 @@ interface LaunchDeps {
     options: {
       detached: true;
       env: NodeJS.ProcessEnv;
-      stdio: ["ignore", "pipe", "pipe"];
+      stdio: ["ignore", "ignore", "ignore"];
     },
   ): SpawnedEditorProcess;
 }
@@ -127,6 +121,7 @@ export function buildOpenWithUserdataCommand(input: {
   appRoot: string;
   storeRoot: string;
   workspace: WorkspaceShape;
+  editorVersion?: string;
   logger?: LaunchLogger;
 }): LaunchCommand {
   const editorCli = input.host.discoverEditorCli(input.appRoot, {
@@ -155,6 +150,7 @@ export function buildOpenWithUserdataCommand(input: {
 function validateManagedUserdataSocketPath(input: {
   entry: UserdataEntry;
   host: SupportedHostAdapter;
+  editorVersion?: string;
   logger?: LaunchLogger;
   storeRoot: string;
 }): void {
@@ -166,10 +162,16 @@ function validateManagedUserdataSocketPath(input: {
     return;
   }
 
-  const socketPath = `${resolveManagedDataDir(
+  const managedDataDir = resolveManagedDataDir(
     input.storeRoot,
     input.entry.relativeDataDir,
-  )}/${VSCODE_MAIN_SOCKET_BASENAME}`;
+  );
+  const socketPaths = listMainSocketPaths(managedDataDir, input.editorVersion);
+  const socketPath =
+    socketPaths[0] ??
+    `${managedDataDir}/${mainSocketBasenameForEditorVersion(
+      input.editorVersion ?? "1.12.0",
+    )}`;
   input.logger?.info(
     `macOS socket path length=${socketPath.length}/${MACOS_UNIX_SOCKET_PATH_LIMIT}: ${socketPath}`,
   );
@@ -186,6 +188,7 @@ export async function openWithUserdata(input: {
   appRoot: string;
   storeRoot: string;
   workspace: WorkspaceShape;
+  editorVersion?: string;
   logger?: LaunchLogger;
   launchEditorImpl?: LaunchEditor;
 }): Promise<void> {
@@ -239,29 +242,12 @@ export function launchEditor(
       child = deps.spawn(spawnCommand.command, spawnCommand.args, {
         detached: true,
         env,
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: ["ignore", "ignore", "ignore"],
       });
     } catch (error) {
       reject(error);
       return;
     }
-
-    child.stdout?.on("data", (data) => {
-      logProcessOutput(logger, "stdout", data);
-    });
-    child.stderr?.on("data", (data) => {
-      logProcessOutput(logger, "stderr", data);
-    });
-    child.once("exit", (code, signal) => {
-      logger?.info(
-        `Editor CLI exit event: code=${formatExitValue(code)} signal=${formatExitValue(signal)}`,
-      );
-    });
-    child.once("close", (code, signal) => {
-      logger?.info(
-        `Editor CLI close event: code=${formatExitValue(code)} signal=${formatExitValue(signal)}`,
-      );
-    });
 
     let settled = false;
     child.once("error", (error) => {
@@ -275,7 +261,8 @@ export function launchEditor(
       if (!settled) {
         settled = true;
         child.unref();
-        logger?.info("Editor CLI spawned successfully");
+        const pid = typeof child.pid === "number" ? ` (pid=${child.pid})` : "";
+        logger?.info(`Editor CLI spawned successfully${pid}`);
         resolve();
       }
     });
@@ -327,21 +314,4 @@ function resolveSpawnCommand(
 
 function isWindowsCommandShim(command: string): boolean {
   return /\.(?:bat|cmd)$/i.test(command);
-}
-
-function logProcessOutput(
-  logger: LaunchLogger | undefined,
-  stream: "stderr" | "stdout",
-  data: unknown,
-): void {
-  const output = Buffer.isBuffer(data) ? data.toString("utf8") : String(data);
-  for (const line of output.split(/\r?\n/)) {
-    if (line.trim()) {
-      logger?.info(`Editor CLI ${stream}: ${line}`);
-    }
-  }
-}
-
-function formatExitValue(value: number | string | null): string {
-  return value === null ? "null" : String(value);
 }

@@ -3,10 +3,20 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
+import {
+  DELETE_BLOCKED_CURRENT_WINDOW_MESSAGE,
+  DELETE_NO_MANAGED_MESSAGE,
+  DELETE_QUIT_AND_DELETE_LABEL,
+  DELETE_QUIT_FAILED_MESSAGE,
+  DELETE_TRASH_FAILURE_MESSAGE,
+  DELETE_VERIFY_INSTANCE_STILL_RUNNING_MESSAGE,
+  DELETE_VERIFY_PATH_STILL_EXISTS_MESSAGE,
+} from "./deleteUserdata";
 import type { SupportedHostAdapter } from "./host";
 import type { LaunchCommand, LaunchEditor } from "./launcher";
 import {
   CREATE_USERDATA_LABEL,
+  DELETE_USERDATA_LABEL,
   RENAME_CURRENT_USERDATA_LABEL,
   REVEAL_CURRENT_USERDATA_LABEL,
 } from "./menu";
@@ -15,6 +25,7 @@ import { loadRegistry, saveRegistry } from "./registry";
 import {
   activateUserdataSwitcher,
   COMMAND_CREATE_USERDATA,
+  COMMAND_DELETE_USERDATA,
   COMMAND_OPEN_WITH_USERDATA,
   COMMAND_RENAME_CURRENT_USERDATA,
   COMMAND_REVEAL_CURRENT_USERDATA,
@@ -39,6 +50,7 @@ interface TestHarness {
   warnings: string[];
   infos: string[];
   revealedPaths: string[];
+  deletedPaths: string[];
   logs: string[];
   uiEvents: string[];
   quickPickItems: readonly QuickPickItem[][];
@@ -46,17 +58,8 @@ interface TestHarness {
   run(command: string): Promise<unknown>;
 }
 
-const START_FROM_CURRENT_SETTINGS_PICK: QuickPickItem = {
-  label: "Start from current settings",
-  description: "Recommended",
-  creationMode: "seedCurrent",
-};
-
-const START_EMPTY_PICK: QuickPickItem = {
-  label: "Start empty",
-  description: "Fresh editor defaults",
-  creationMode: "empty",
-};
+const START_FROM_CURRENT_SETTINGS_LABEL = "Start from current settings";
+const START_EMPTY_LABEL = "Start empty";
 
 function globalStoragePathFor(userdataRoot: string): string {
   return path.join(
@@ -97,6 +100,14 @@ function createTestHarness(input?: {
   inputBoxValues?: readonly (string | undefined)[];
   launchEditorImpl?: LaunchEditor;
   mkdirSync?: UserdataSwitcherActivation["mkdirSync"];
+  deletePathFailure?: boolean;
+  deletePathSkipRemoval?: boolean;
+  warningMessageChoice?: string;
+  warningMessageChoices?: readonly string[];
+  informationMessageChoice?: string;
+  informationMessageChoices?: readonly string[];
+  isManagedUserdataInUse?: UserdataSwitcherActivation["isManagedUserdataInUse"];
+  quitManagedUserdataInstance?: UserdataSwitcherActivation["quitManagedUserdataInstance"];
 }): TestHarness {
   const tempRoot = process.platform === "darwin" ? "/tmp" : os.tmpdir();
   const tempDir = fs.mkdtempSync(
@@ -121,6 +132,7 @@ function createTestHarness(input?: {
   const warnings: string[] = [];
   const infos: string[] = [];
   const revealedPaths: string[] = [];
+  const deletedPaths: string[] = [];
   const logs: string[] = [];
   const uiEvents: string[] = [];
   const quickPickItems: QuickPickItem[][] = [];
@@ -133,6 +145,18 @@ function createTestHarness(input?: {
   const inputBoxValues = [
     ...(input?.inputBoxValues ??
       (input?.inputBoxValue !== undefined ? [input.inputBoxValue] : [])),
+  ];
+  const warningMessageChoices = [
+    ...(input?.warningMessageChoices ??
+      (input?.warningMessageChoice !== undefined
+        ? [input.warningMessageChoice]
+        : [])),
+  ];
+  const informationMessageChoices = [
+    ...(input?.informationMessageChoices ??
+      (input?.informationMessageChoice !== undefined
+        ? [input.informationMessageChoice]
+        : [])),
   ];
 
   const host: SupportedHostAdapter = {
@@ -165,14 +189,28 @@ function createTestHarness(input?: {
     showErrorMessage: async (message) => {
       errors.push(message);
     },
-    showWarningMessage: async (message) => {
+    showWarningMessage: async (message, ...items) => {
       warnings.push(message);
+      const choice = warningMessageChoices.shift();
+      return choice ?? items[0];
     },
-    showInformationMessage: async (message) => {
+    showInformationMessage: async (message, ...items) => {
+      uiEvents.push("informationMessage");
       infos.push(message);
+      const choice = informationMessageChoices.shift();
+      return choice ?? items[0];
     },
     revealPathInOs: async (fsPath) => {
       revealedPaths.push(fsPath);
+    },
+    deletePath: async (fsPath) => {
+      if (input?.deletePathFailure) {
+        throw new Error("mock delete failure");
+      }
+      deletedPaths.push(fsPath);
+      if (!input?.deletePathSkipRemoval && fs.existsSync(fsPath)) {
+        fs.rmSync(fsPath, { recursive: true, force: true });
+      }
     },
   };
 
@@ -201,6 +239,8 @@ function createTestHarness(input?: {
         createdDirs.push(directory);
         fs.mkdirSync(directory, options);
       }),
+    isManagedUserdataInUse: input?.isManagedUserdataInUse,
+    quitManagedUserdataInstance: input?.quitManagedUserdataInstance,
   };
 
   return {
@@ -217,6 +257,7 @@ function createTestHarness(input?: {
     warnings,
     infos,
     revealedPaths,
+    deletedPaths,
     logs,
     uiEvents,
     quickPickItems,
@@ -312,13 +353,13 @@ describe("activateUserdataSwitcher", () => {
   it("launches the selected managed userdata from the open menu", async () => {
     const harness = createTestHarness({
       quickPickSelections: [
-        START_FROM_CURRENT_SETTINGS_PICK,
         {
           label: "Personal",
           intent: { kind: "open", userdataId: "personal" },
         },
       ],
       inputBoxValue: "Personal",
+      informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
     });
     harnesses.push(harness);
 
@@ -367,9 +408,9 @@ describe("activateUserdataSwitcher", () => {
           label: CREATE_USERDATA_LABEL,
           intent: { kind: "create" },
         },
-        START_FROM_CURRENT_SETTINGS_PICK,
       ],
       inputBoxValue: "Work",
+      informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
     });
     harnesses.push(harness);
 
@@ -387,8 +428,8 @@ describe("activateUserdataSwitcher", () => {
 
   it("passes intent metadata through the open menu items", async () => {
     const harness = createTestHarness({
-      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
       inputBoxValue: "Personal",
+      informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
     });
     harnesses.push(harness);
 
@@ -396,7 +437,7 @@ describe("activateUserdataSwitcher", () => {
     await harness.run(COMMAND_CREATE_USERDATA);
     await harness.run(COMMAND_OPEN_WITH_USERDATA);
 
-    assert.deepEqual(harness.quickPickItems[1], [
+    assert.deepEqual(harness.quickPickItems[0], [
       {
         label: "Personal",
         description: "Managed Userdata",
@@ -418,13 +459,18 @@ describe("activateUserdataSwitcher", () => {
         intent: { kind: "create" },
         alwaysShow: true,
       },
+      {
+        label: DELETE_USERDATA_LABEL,
+        intent: { kind: "delete" },
+        alwaysShow: true,
+      },
     ]);
   });
 
   it("creates managed userdata, persists the registry, and launches it", async () => {
     const harness = createTestHarness({
-      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
       inputBoxValue: "Personal",
+      informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
     });
     harnesses.push(harness);
 
@@ -449,27 +495,28 @@ describe("activateUserdataSwitcher", () => {
     ]);
   });
 
-  it("prompts for creation mode before the userdata label", async () => {
+  it("prompts for the userdata label before the creation mode", async () => {
     const harness = createTestHarness({
-      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
       inputBoxValue: "Personal",
+      informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
     });
     harnesses.push(harness);
 
     activateUserdataSwitcher(harness.activation);
     await harness.run(COMMAND_CREATE_USERDATA);
 
-    assert.deepEqual(harness.quickPickItems[0], [
-      START_FROM_CURRENT_SETTINGS_PICK,
-      START_EMPTY_PICK,
+    assert.deepEqual(harness.uiEvents.slice(0, 2), [
+      "inputBox",
+      "informationMessage",
     ]);
-    assert.deepEqual(harness.uiEvents.slice(0, 2), ["quickPick", "inputBox"]);
+    assert.equal(harness.infos[0], 'How should "Personal" be initialized?');
+    assert.equal(harness.quickPickItems.length, 0);
   });
 
   it("seeds new userdata from current settings without copying identity state", async () => {
     const harness = createTestHarness({
-      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
       inputBoxValue: "Personal",
+      informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
     });
     harnesses.push(harness);
     const currentUserDir = path.join(harness.defaultUserdataRoot, "User");
@@ -556,8 +603,8 @@ describe("activateUserdataSwitcher", () => {
   it("seeds from the current managed userdata when that window creates another", async () => {
     const sourceManagedDir = "u/personal";
     const harness = createTestHarness({
-      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
       inputBoxValue: "Client",
+      informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
     });
     harnesses.push(harness);
     harness.activation.globalStoragePath = globalStoragePathFor(
@@ -600,8 +647,8 @@ describe("activateUserdataSwitcher", () => {
 
   it("starts empty when creating userdata with fresh editor defaults", async () => {
     const harness = createTestHarness({
-      quickPickSelection: START_EMPTY_PICK,
       inputBoxValue: "Personal",
+      informationMessageChoice: START_EMPTY_LABEL,
     });
     harnesses.push(harness);
     const currentUserDir = path.join(harness.defaultUserdataRoot, "User");
@@ -623,8 +670,8 @@ describe("activateUserdataSwitcher", () => {
 
   it("does not persist a managed userdata when directory creation fails", async () => {
     const harness = createTestHarness({
-      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
       inputBoxValue: "Personal",
+      informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
       mkdirSync: () => {
         throw new Error("mkdir failed");
       },
@@ -839,6 +886,252 @@ describe("activateUserdataSwitcher", () => {
 
     assert.deepEqual(harness.errors, ["spawn failed"]);
   });
+
+  it("deletes the selected managed userdata, removes it from registry, and moves folder to trash", async () => {
+    const harness = createTestHarness({
+      quickPickSelection: {
+        label: "Personal",
+        intent: { kind: "open", userdataId: "personal" },
+      },
+      warningMessageChoice: "Delete",
+    });
+    harnesses.push(harness);
+
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.deepEqual(harness.deletedPaths, [
+      path.join(harness.storeRoot, "u/personal"),
+    ]);
+    const registry = loadRegistry(registryPath(harness.storeRoot));
+    assert.deepEqual(registry.userdatas, [
+      { id: "default", kind: "default", label: "Default" },
+    ]);
+    assert.deepEqual(harness.infos, ['Userdata "Personal" has been deleted.']);
+  });
+
+  it("does not delete the userdata if user cancels the confirmation dialog", async () => {
+    const harness = createTestHarness({
+      quickPickSelection: {
+        label: "Personal",
+        intent: { kind: "open", userdataId: "personal" },
+      },
+      warningMessageChoice: "Cancel",
+    });
+    harnesses.push(harness);
+
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.deepEqual(harness.deletedPaths, []);
+    const registry = loadRegistry(registryPath(harness.storeRoot));
+    assert.equal(registry.userdatas.length, 2);
+    assert.deepEqual(harness.infos, []);
+  });
+
+  it("shows warning when there are no managed userdatas to delete", async () => {
+    const harness = createTestHarness();
+    harnesses.push(harness);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.deepEqual(harness.warnings, [DELETE_NO_MANAGED_MESSAGE]);
+    assert.deepEqual(harness.deletedPaths, []);
+  });
+
+  it("blocks deleting the current window managed userdata", async () => {
+    const harness = createTestHarness();
+    harnesses.push(harness);
+
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+    harness.activation.globalStoragePath = globalStoragePathFor(
+      path.join(harness.storeRoot, "u/personal"),
+    );
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.deepEqual(harness.warnings, [DELETE_BLOCKED_CURRENT_WINDOW_MESSAGE]);
+    assert.deepEqual(harness.deletedPaths, []);
+  });
+
+  it("cancels deletion when the user dismisses the running-instance confirmation", async () => {
+    const harness = createTestHarness({
+      quickPickSelection: {
+        label: "Personal",
+        intent: { kind: "open", userdataId: "personal" },
+      },
+      warningMessageChoice: "Cancel",
+      isManagedUserdataInUse: async () => true,
+    });
+    harnesses.push(harness);
+
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.deepEqual(harness.deletedPaths, []);
+    const registry = loadRegistry(registryPath(harness.storeRoot));
+    assert.equal(registry.userdatas.length, 2);
+    assert.equal(harness.warnings.length, 1);
+    assert.match(harness.warnings[0], /still running/);
+    assert.match(harness.warnings[0], /Quit and delete/);
+  });
+
+  it("quits a running instance and deletes when the user confirms quit and delete", async () => {
+    let inUse = true;
+    const harness = createTestHarness({
+      quickPickSelection: {
+        label: "Personal",
+        intent: { kind: "open", userdataId: "personal" },
+      },
+      warningMessageChoice: DELETE_QUIT_AND_DELETE_LABEL,
+      isManagedUserdataInUse: async () => inUse,
+      quitManagedUserdataInstance: async () => {
+        inUse = false;
+        return true;
+      },
+    });
+    harnesses.push(harness);
+
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.deepEqual(harness.deletedPaths, [
+      path.join(harness.storeRoot, "u/personal"),
+    ]);
+    const registry = loadRegistry(registryPath(harness.storeRoot));
+    assert.deepEqual(registry.userdatas, [
+      { id: "default", kind: "default", label: "Default" },
+    ]);
+    assert.deepEqual(harness.infos, ['Userdata "Personal" has been deleted.']);
+  });
+
+  it("shows quit failure when the running instance cannot be stopped", async () => {
+    const harness = createTestHarness({
+      quickPickSelection: {
+        label: "Personal",
+        intent: { kind: "open", userdataId: "personal" },
+      },
+      warningMessageChoice: DELETE_QUIT_AND_DELETE_LABEL,
+      isManagedUserdataInUse: async () => true,
+      quitManagedUserdataInstance: async () => false,
+    });
+    harnesses.push(harness);
+
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.deepEqual(harness.deletedPaths, []);
+    const registry = loadRegistry(registryPath(harness.storeRoot));
+    assert.equal(registry.userdatas.length, 2);
+    assert.equal(harness.warnings.length, 2);
+    assert.match(harness.warnings[0], /still running/);
+    assert.deepEqual(harness.warnings[1], DELETE_QUIT_FAILED_MESSAGE);
+  });
+
+  it("handles deletion failure gracefully, keeping the entry in the registry", async () => {
+    const harness = createTestHarness({
+      quickPickSelection: {
+        label: "Personal",
+        intent: { kind: "open", userdataId: "personal" },
+      },
+      warningMessageChoice: "Delete",
+      deletePathFailure: true,
+    });
+    harnesses.push(harness);
+
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.equal(harness.warnings.length, 2);
+    assert.match(harness.warnings[0], /Delete userdata "Personal"/);
+    assert.deepEqual(harness.warnings[1], DELETE_TRASH_FAILURE_MESSAGE);
+    const registry = loadRegistry(registryPath(harness.storeRoot));
+    assert.equal(registry.userdatas.length, 2);
+    assert.ok(registry.userdatas.some((entry) => entry.id === "personal"));
+  });
+
+  it("keeps the registry entry when the folder still exists after delete", async () => {
+    const harness = createTestHarness({
+      quickPickSelection: {
+        label: "Personal",
+        intent: { kind: "open", userdataId: "personal" },
+      },
+      warningMessageChoice: "Delete",
+      deletePathSkipRemoval: true,
+    });
+    harnesses.push(harness);
+
+    fs.mkdirSync(path.join(harness.storeRoot, "u/personal"), {
+      recursive: true,
+    });
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.equal(harness.warnings.length, 2);
+    assert.match(harness.warnings[0], /Delete userdata "Personal"/);
+    assert.deepEqual(
+      harness.warnings[1],
+      DELETE_VERIFY_PATH_STILL_EXISTS_MESSAGE,
+    );
+    const registry = loadRegistry(registryPath(harness.storeRoot));
+    assert.equal(registry.userdatas.length, 2);
+    assert.ok(registry.userdatas.some((entry) => entry.id === "personal"));
+  });
+
+  it("keeps the registry entry when the instance is still running after delete", async () => {
+    let probeCount = 0;
+    const harness = createTestHarness({
+      quickPickSelection: {
+        label: "Personal",
+        intent: { kind: "open", userdataId: "personal" },
+      },
+      warningMessageChoice: DELETE_QUIT_AND_DELETE_LABEL,
+      isManagedUserdataInUse: async () => {
+        probeCount += 1;
+        return probeCount === 1 || probeCount === 4;
+      },
+    });
+    harnesses.push(harness);
+
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_DELETE_USERDATA);
+
+    assert.equal(harness.warnings.length, 2);
+    assert.match(harness.warnings[0], /still running/);
+    assert.deepEqual(
+      harness.warnings[1],
+      DELETE_VERIFY_INSTANCE_STILL_RUNNING_MESSAGE,
+    );
+    const registry = loadRegistry(registryPath(harness.storeRoot));
+    assert.equal(registry.userdatas.length, 2);
+    assert.ok(registry.userdatas.some((entry) => entry.id === "personal"));
+  });
 });
 
 describe("createVscodeUi", () => {
@@ -859,6 +1152,11 @@ describe("createVscodeUi", () => {
               if (cmd === "revealFileInOS") {
                 throw new Error("mock reveal failure");
               }
+            },
+          },
+          workspace: {
+            fs: {
+              delete: async () => {},
             },
           },
           Uri: {

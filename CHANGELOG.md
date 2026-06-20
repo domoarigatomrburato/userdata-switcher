@@ -5,6 +5,20 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.3.0
+
+### Added
+
+- Managed userdata deletion from the userdata menu and Command Palette, moving
+  files to the system trash and removing the registry entry (thanks
+  [@tazztone](https://github.com/tazztone)).
+- Running-instance preflight on macOS and Linux via the editor IPC socket, and on
+  Windows via matching editor processes for the target `--user-data-dir`.
+- **Quit and delete** action that terminates the stray editor process
+  (SIGTERM, then SIGKILL) when closing the window did not quit the singleton
+  instance. A single confirmation adapts when a running instance is detected;
+  success is reported only after quit and folder removal are verified.
+
 ## 1.2.0
 
 ### Added
