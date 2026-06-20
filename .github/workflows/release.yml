@@ -55,6 +55,14 @@ jobs:
           mkdir -p dist/release
           npm run package:vsix -- --out "dist/release/userdata-switcher-${{ steps.meta.outputs.version }}.vsix"
 
+      - name: Ensure release helper scripts
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ ! -f scripts/changelog-section.mjs ]; then
+            git fetch origin main --depth=1
+            git checkout origin/main -- scripts/changelog-section.mjs
+          fi
+
       - name: Extract release notes
         run: node scripts/changelog-section.mjs "${{ steps.meta.outputs.version }}" --out dist/release/notes.md
 
