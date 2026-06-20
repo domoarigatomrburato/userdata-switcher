@@ -89,10 +89,10 @@
   "scripts": {
     "vscode:prepublish": "npm run build",
     "preversion": "node scripts/assert-release-ready.mjs && npm run check && npm test && npm run build",
-    "postversion": "node scripts/package-release-vsix.mjs",
+    "postversion": "node scripts/push-release.mjs",
     "check": "knip && biome ci .",
     "fix": "knip --fix && biome check --write .",
-    "test": "tsc -p . && tsx --test src/**/*.test.ts",
+    "test": "tsc -p . && tsx --test src/**/*.test.ts scripts/**/*.test.mjs",
     "build": "node scripts/build.mjs",
     "package:vsix": "node scripts/package-vsix.mjs",
     "dogfood": "node scripts/dogfood.mjs"

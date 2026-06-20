@@ -78,8 +78,8 @@ The old source store was intentionally left in place as a backup.
 1. Publish readiness
 
    Tighten README, screenshots, install instructions, marketplace wording,
-   changelog, icon, and package metadata. CI is quality-only; releases produce a
-   local VSIX in `dist/release` for manual Marketplace upload.
+   changelog, icon, and package metadata. Tag pushes publish GitHub releases with
+   changelog notes and a VSIX asset; Marketplace upload stays manual.
 
 2. Delete managed userdata
 
@@ -90,8 +90,8 @@ The old source store was intentionally left in place as a backup.
 
 3. Release automation
 
-   Keep CI focused on checks, tests, build, and packaging. If Open VSX is added,
-   reuse the `dist/release` artifact shape before introducing any publishing
+   GitHub Actions publishes release assets from version tags. If Open VSX is
+   added, reuse the same VSIX artifact before introducing any publishing
    automation.
 
 4. UX polish

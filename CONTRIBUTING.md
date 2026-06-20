@@ -48,11 +48,14 @@ npm version patch
 
 Use `patch`, `minor`, or `major`. `preversion` checks the branch, changelog,
 remote sync, and runs `check`, `test`, and `build`. `npm version` bumps,
-commits, and tags. `postversion` writes the VSIX to `dist/release` and pushes
-`main` with tags.
+commits, and tags. `postversion` pushes `main` with tags.
 
-Upload the VSIX from `dist/release` manually in the Visual Studio Marketplace
-publisher portal. Open VSX can use the same release artifact later.
+Pushing a `v*` tag triggers the Release workflow: it builds the VSIX, creates or
+updates the GitHub release, sets the description from the matching
+`CHANGELOG.md` section, and attaches the VSIX.
+
+Upload the release VSIX manually in the Visual Studio Marketplace publisher
+portal. Open VSX can use the same GitHub release artifact later.
 
 ## Documentation Split
 
