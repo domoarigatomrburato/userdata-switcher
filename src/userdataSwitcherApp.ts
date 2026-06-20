@@ -57,7 +57,6 @@ export interface QuickPickItem {
   description?: string;
   kind?: number;
   intent?: UserdataMenuItemIntent;
-  creationMode?: UserdataCreationMode;
   alwaysShow?: boolean;
 }
 
@@ -96,7 +95,10 @@ export interface UserdataSwitcherUi {
     message: string,
     ...items: string[]
   ): PromiseLike<string | undefined>;
-  showInformationMessage(message: string): PromiseLike<unknown>;
+  showInformationMessage(
+    message: string,
+    ...items: string[]
+  ): PromiseLike<string | undefined>;
   revealPathInOs(fsPath: string): PromiseLike<unknown>;
   deletePath(fsPath: string, options: { useTrash: boolean }): PromiseLike<void>;
 }
@@ -122,19 +124,6 @@ type UserdataCreationMode = "seedCurrent" | "empty";
 
 const CREATE_FROM_CURRENT_SETTINGS_LABEL = "Start from current settings";
 const CREATE_EMPTY_LABEL = "Start empty";
-
-const USERDATA_CREATION_MODE_ITEMS: readonly QuickPickItem[] = [
-  {
-    label: CREATE_FROM_CURRENT_SETTINGS_LABEL,
-    description: "Recommended",
-    creationMode: "seedCurrent",
-  },
-  {
-    label: CREATE_EMPTY_LABEL,
-    description: "Fresh editor defaults",
-    creationMode: "empty",
-  },
-];
 
 function requireNonEmptyLabel(value: string): string | undefined {
   return value.trim() ? undefined : "Label is required";
@@ -260,26 +249,24 @@ export function activateUserdataSwitcher(
     }
   };
 
-  const pickUserdataCreationMode = async (): Promise<
-    UserdataCreationMode | undefined
-  > => {
-    const selected = await ui.showQuickPick(USERDATA_CREATION_MODE_ITEMS, {
-      title: "Create Userdata",
-      placeHolder: "Choose how to initialize the new userdata",
-    });
-    return selected?.creationMode;
+  const pickUserdataCreationMode = async (
+    label: string,
+  ): Promise<UserdataCreationMode | undefined> => {
+    const choice = await ui.showInformationMessage(
+      `How should "${label}" be initialized?`,
+      CREATE_FROM_CURRENT_SETTINGS_LABEL,
+      CREATE_EMPTY_LABEL,
+    );
+    if (choice === CREATE_FROM_CURRENT_SETTINGS_LABEL) {
+      return "seedCurrent";
+    }
+    if (choice === CREATE_EMPTY_LABEL) {
+      return "empty";
+    }
+    return undefined;
   };
 
   const createUserdata = async () => {
-    const creationMode = await pickUserdataCreationMode();
-    if (!creationMode) {
-      logger?.info("Create userdata cancelled");
-      return;
-    }
-    const sourceUserdataRoot =
-      creationMode === "seedCurrent"
-        ? (session.currentUserdataRoot(currentUserdata()) ?? undefined)
-        : undefined;
     const label = await ui.showInputBox({
       title: "Create Userdata",
       prompt: `Enter a label for the new ${host.displayName} Userdata`,
@@ -290,6 +277,15 @@ export function activateUserdataSwitcher(
       logger?.info("Create userdata cancelled");
       return;
     }
+    const creationMode = await pickUserdataCreationMode(label);
+    if (!creationMode) {
+      logger?.info("Create userdata cancelled");
+      return;
+    }
+    const sourceUserdataRoot =
+      creationMode === "seedCurrent"
+        ? (session.currentUserdataRoot(currentUserdata()) ?? undefined)
+        : undefined;
     try {
       if (creationMode === "seedCurrent" && !sourceUserdataRoot) {
         throw new Error(

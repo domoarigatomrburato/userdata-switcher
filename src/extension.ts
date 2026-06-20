@@ -65,8 +65,14 @@ export function createVscodeUi(logger: LaunchLogger): UserdataSwitcherUi {
     showErrorMessage: (message) => vscode.window.showErrorMessage(message),
     showWarningMessage: (message, ...items) =>
       vscode.window.showWarningMessage(message, ...items),
-    showInformationMessage: (message) =>
-      vscode.window.showInformationMessage(message),
+    showInformationMessage: (message, ...items) =>
+      items.length > 0
+        ? vscode.window.showInformationMessage(
+            message,
+            { modal: true },
+            ...items,
+          )
+        : vscode.window.showInformationMessage(message),
     revealPathInOs: async (fsPath) => {
       const uri = vscode.Uri.file(fsPath);
       logger.info(`revealFileInOS input.fsPath=${JSON.stringify(fsPath)}`);

@@ -58,17 +58,8 @@ interface TestHarness {
   run(command: string): Promise<unknown>;
 }
 
-const START_FROM_CURRENT_SETTINGS_PICK: QuickPickItem = {
-  label: "Start from current settings",
-  description: "Recommended",
-  creationMode: "seedCurrent",
-};
-
-const START_EMPTY_PICK: QuickPickItem = {
-  label: "Start empty",
-  description: "Fresh editor defaults",
-  creationMode: "empty",
-};
+const START_FROM_CURRENT_SETTINGS_LABEL = "Start from current settings";
+const START_EMPTY_LABEL = "Start empty";
 
 function globalStoragePathFor(userdataRoot: string): string {
   return path.join(
@@ -113,6 +104,8 @@ function createTestHarness(input?: {
   deletePathSkipRemoval?: boolean;
   warningMessageChoice?: string;
   warningMessageChoices?: readonly string[];
+  informationMessageChoice?: string;
+  informationMessageChoices?: readonly string[];
   isManagedUserdataInUse?: UserdataSwitcherActivation["isManagedUserdataInUse"];
   quitManagedUserdataInstance?: UserdataSwitcherActivation["quitManagedUserdataInstance"];
 }): TestHarness {
@@ -159,6 +152,12 @@ function createTestHarness(input?: {
         ? [input.warningMessageChoice]
         : [])),
   ];
+  const informationMessageChoices = [
+    ...(input?.informationMessageChoices ??
+      (input?.informationMessageChoice !== undefined
+        ? [input.informationMessageChoice]
+        : [])),
+  ];
 
   const host: SupportedHostAdapter = {
     id: "cursor",
@@ -195,8 +194,11 @@ function createTestHarness(input?: {
       const choice = warningMessageChoices.shift();
       return choice ?? items[0];
     },
-    showInformationMessage: async (message) => {
+    showInformationMessage: async (message, ...items) => {
+      uiEvents.push("informationMessage");
       infos.push(message);
+      const choice = informationMessageChoices.shift();
+      return choice ?? items[0];
     },
     revealPathInOs: async (fsPath) => {
       revealedPaths.push(fsPath);
@@ -351,13 +353,13 @@ describe("activateUserdataSwitcher", () => {
   it("launches the selected managed userdata from the open menu", async () => {
     const harness = createTestHarness({
       quickPickSelections: [
-        START_FROM_CURRENT_SETTINGS_PICK,
         {
           label: "Personal",
           intent: { kind: "open", userdataId: "personal" },
         },
       ],
       inputBoxValue: "Personal",
+      informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
     });
     harnesses.push(harness);
 
@@ -406,9 +408,9 @@ describe("activateUserdataSwitcher", () => {
           label: CREATE_USERDATA_LABEL,
           intent: { kind: "create" },
         },
-        START_FROM_CURRENT_SETTINGS_PICK,
       ],
       inputBoxValue: "Work",
+      informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
     });
     harnesses.push(harness);
 
@@ -426,8 +428,8 @@ describe("activateUserdataSwitcher", () => {
 
   it("passes intent metadata through the open menu items", async () => {
     const harness = createTestHarness({
-      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
       inputBoxValue: "Personal",
+      informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
     });
     harnesses.push(harness);
 
@@ -435,7 +437,7 @@ describe("activateUserdataSwitcher", () => {
     await harness.run(COMMAND_CREATE_USERDATA);
     await harness.run(COMMAND_OPEN_WITH_USERDATA);
 
-    assert.deepEqual(harness.quickPickItems[1], [
+    assert.deepEqual(harness.quickPickItems[0], [
       {
         label: "Personal",
         description: "Managed Userdata",
@@ -467,8 +469,8 @@ describe("activateUserdataSwitcher", () => {
 
   it("creates managed userdata, persists the registry, and launches it", async () => {
     const harness = createTestHarness({
-      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
       inputBoxValue: "Personal",
+      informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
     });
     harnesses.push(harness);
 
@@ -493,27 +495,28 @@ describe("activateUserdataSwitcher", () => {
     ]);
   });
 
-  it("prompts for creation mode before the userdata label", async () => {
+  it("prompts for the userdata label before the creation mode", async () => {
     const harness = createTestHarness({
-      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
       inputBoxValue: "Personal",
+      informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
     });
     harnesses.push(harness);
 
     activateUserdataSwitcher(harness.activation);
     await harness.run(COMMAND_CREATE_USERDATA);
 
-    assert.deepEqual(harness.quickPickItems[0], [
-      START_FROM_CURRENT_SETTINGS_PICK,
-      START_EMPTY_PICK,
+    assert.deepEqual(harness.uiEvents.slice(0, 2), [
+      "inputBox",
+      "informationMessage",
     ]);
-    assert.deepEqual(harness.uiEvents.slice(0, 2), ["quickPick", "inputBox"]);
+    assert.equal(harness.infos[0], 'How should "Personal" be initialized?');
+    assert.equal(harness.quickPickItems.length, 0);
   });
 
   it("seeds new userdata from current settings without copying identity state", async () => {
     const harness = createTestHarness({
-      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
       inputBoxValue: "Personal",
+      informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
     });
     harnesses.push(harness);
     const currentUserDir = path.join(harness.defaultUserdataRoot, "User");
@@ -600,8 +603,8 @@ describe("activateUserdataSwitcher", () => {
   it("seeds from the current managed userdata when that window creates another", async () => {
     const sourceManagedDir = "u/personal";
     const harness = createTestHarness({
-      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
       inputBoxValue: "Client",
+      informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
     });
     harnesses.push(harness);
     harness.activation.globalStoragePath = globalStoragePathFor(
@@ -644,8 +647,8 @@ describe("activateUserdataSwitcher", () => {
 
   it("starts empty when creating userdata with fresh editor defaults", async () => {
     const harness = createTestHarness({
-      quickPickSelection: START_EMPTY_PICK,
       inputBoxValue: "Personal",
+      informationMessageChoice: START_EMPTY_LABEL,
     });
     harnesses.push(harness);
     const currentUserDir = path.join(harness.defaultUserdataRoot, "User");
@@ -667,8 +670,8 @@ describe("activateUserdataSwitcher", () => {
 
   it("does not persist a managed userdata when directory creation fails", async () => {
     const harness = createTestHarness({
-      quickPickSelection: START_FROM_CURRENT_SETTINGS_PICK,
       inputBoxValue: "Personal",
+      informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
       mkdirSync: () => {
         throw new Error("mkdir failed");
       },
