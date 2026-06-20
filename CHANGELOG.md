@@ -5,6 +5,18 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.3.1
+
+### Fixed
+
+- Create userdata flow: ask for the label first, then choose initialization mode
+  via a modal dialog instead of a searchable quick pick.
+
+### Changed
+
+- Update transitive dev dependencies for published security advisories (`undici`,
+  `form-data`).
+
 ## 1.3.0
 
 ### Added
