@@ -34,9 +34,9 @@ view and search for **Userdata Switcher**.
 1. Click the Userdata Switcher status bar item, such as `Work (default)`, or run
    `Userdata Switcher: Open With Userdata`.
 2. Choose `Create New Userdata...`.
-3. Choose `Start from current settings` to copy your user settings,
+3. Name the userdata, for example `Personal` or `Client A`.
+4. Choose `Start from current settings` to copy your user settings,
    keybindings, and snippets once, or choose `Start empty` for editor defaults.
-4. Name the userdata, for example `Personal` or `Client A`.
 5. The editor opens a new window for that userdata. Sign in to the account you
    want for that context.
 

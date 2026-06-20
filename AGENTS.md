@@ -15,12 +15,25 @@ Canonical five-role vocabulary with default label strings. See `docs/agents/tria
 
 Single-context — root `CONTEXT.md` and `docs/adr/`. See `docs/agents/domain.md`.
 
+## Validation gates
+
+**Always run gates in write mode.** Use `npm run fix`, not `npm run check`.
+
+- `npm run fix` — the agent gate. Runs Knip autofixes, then Biome formatting,
+  lint fixes, and import organization (`knip --fix && biome check --write .`).
+- `npm run check` — readonly CI gate (`knip && biome ci .`). Humans and CI use
+  this to verify a clean tree; agents should not substitute it for `fix`.
+
+Treat every automatic change from `fix` as **safe and expected** — formatting,
+lint autofixes, import organization, and Knip cleanup. When `fix` passes, do
+**not** rerun `npm run check`, tests, or other gates solely because `fix`
+mutated files. Rerun tests only when you still need behavioral verification of
+your own code changes.
+
 ## Maintenance lessons
 
 - When changing repository layout, update build scripts, editor tasks, ignore
   rules, packaging rules, and validation commands in the same pass.
-- Use `npm run fix` as the autofixing command. `npm run check` is the readonly
-  CI-style gate and should not mutate files.
 - When deleting an implementation path, remove its runnable commands and stale
   documentation references in the same pass.
 - After packaging-related changes, inspect the produced artifact contents. The
