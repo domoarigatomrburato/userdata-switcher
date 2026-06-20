@@ -73,4 +73,3 @@ jobs:
           name: ${{ steps.meta.outputs.version }}
           body_path: dist/release/notes.md
           files: dist/release/*.vsix
-          allow_updates: true
