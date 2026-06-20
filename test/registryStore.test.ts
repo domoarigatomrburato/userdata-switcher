@@ -9,8 +9,8 @@ import {
   loadRegistry,
   renameUserdata,
   saveRegistry,
-} from "./registry";
-import { UserdataRegistryStore } from "./registryStore";
+} from "../src/registry";
+import { UserdataRegistryStore } from "../src/registryStore";
 
 const tempDir = fs.mkdtempSync(
   path.join(os.tmpdir(), "userdata-switcher-registry-store-test-"),

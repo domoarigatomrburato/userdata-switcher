@@ -5,26 +5,16 @@ import {
   deriveUserdataRootFromGlobalStorage,
   matchCurrentUserdata,
   resolveCurrentUserdataRoot,
-} from "./detect";
-import type { Registry } from "./registry";
+} from "../src/detect";
+import type { Registry } from "../src/registry";
+import { defaultAndPersonalRegistry } from "./registryFixtures";
 
 const DEFAULT_ROOT = path.join(path.sep, "default");
 const STORE_ROOT = path.join(path.sep, "store");
 const MANAGED_ROOT = path.join(STORE_ROOT, "u", "personal");
 const EXTERNAL_ROOT = path.join(path.sep, "external");
 
-const registry: Registry = {
-  version: 1,
-  userdatas: [
-    { id: "default", kind: "default", label: "Work" },
-    {
-      id: "personal",
-      kind: "managed",
-      label: "Personal",
-      relativeDataDir: "u/personal",
-    },
-  ],
-};
+const registry = defaultAndPersonalRegistry({ default: "Work" });
 
 function globalStoragePath(userdataRoot: string): string {
   return path.join(
@@ -60,6 +50,13 @@ describe("deriveUserdataRootFromGlobalStorage", () => {
       ),
     );
     assert.equal(root, path.join(path.sep, "tmp", "custom"));
+  });
+
+  it("returns null when the path does not contain a userdata root marker", () => {
+    assert.equal(
+      deriveUserdataRootFromGlobalStorage("/tmp/settings.json"),
+      null,
+    );
   });
 });
 

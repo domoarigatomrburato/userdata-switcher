@@ -36,8 +36,18 @@ export function registryPath(storeRoot: string): string {
   return path.join(storeRoot, "registry.json");
 }
 
-export function pathApiForPath(candidate: string): typeof path.posix {
+function pathApiForPath(candidate: string): typeof path.posix {
   return isWindowsPath(candidate) ? path.win32 : path;
+}
+
+export function pathsEqual(left: string, right: string): boolean {
+  const pathApi =
+    isWindowsPath(left) || isWindowsPath(right) ? path.win32 : path;
+  const normalizedLeft = pathApi.resolve(left);
+  const normalizedRight = pathApi.resolve(right);
+  return pathApi === path.win32
+    ? normalizedLeft.toLowerCase() === normalizedRight.toLowerCase()
+    : normalizedLeft === normalizedRight;
 }
 
 function isWindowsPath(candidate: string): boolean {

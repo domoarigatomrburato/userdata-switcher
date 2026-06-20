@@ -6,7 +6,7 @@ import {
   isUserdataEditorInstanceRunning,
   listMainProcessIdsForUserdataRoot,
   quitUserdataEditorInstance,
-} from "./runningEditorInstance";
+} from "../src/runningEditorInstance";
 
 describe("commandLineUsesUserdataRoot", () => {
   it("matches equals and spaced --user-data-dir forms", () => {
@@ -56,6 +56,33 @@ describe("commandLineUsesUserdataRoot", () => {
     assert.ok(
       commandLineUsesUserdataRoot(
         `4321 "C:\\Program Files\\Cursor\\Cursor.exe" --user-data-dir="${userdataRoot.toUpperCase()}"`,
+        userdataRoot,
+      ),
+    );
+  });
+
+  it("stops at the next flag when parsing equals-form values", () => {
+    const userdataRoot = "/store/u/personal";
+    assert.ok(
+      commandLineUsesUserdataRoot(
+        `/Applications/Cursor.app/Contents/MacOS/Cursor --user-data-dir=${userdataRoot} --reuse-window`,
+        userdataRoot,
+      ),
+    );
+    assert.equal(
+      commandLineUsesUserdataRoot(
+        `/Applications/Cursor.app/Contents/MacOS/Cursor --user-data-dir=${userdataRoot}-backup --reuse-window`,
+        userdataRoot,
+      ),
+      false,
+    );
+  });
+
+  it("matches when any repeated --user-data-dir value equals the target root", () => {
+    const userdataRoot = "/store/u/personal";
+    assert.ok(
+      commandLineUsesUserdataRoot(
+        `/Applications/Cursor.app/Contents/MacOS/Cursor --user-data-dir=/store/u/work --user-data-dir=${userdataRoot}`,
         userdataRoot,
       ),
     );

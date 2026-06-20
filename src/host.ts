@@ -299,12 +299,15 @@ function discoverBundledEditorExecutable(
   deps.logger?.info(
     `CLI discovery Windows app executable directories: ${directories.map(formatDiagnosticValue).join(", ")}`,
   );
-  return findExactFilesInDirectories({
+  const pathApi = pathForPlatform(platform);
+  return findFirstExistingInDirectories({
+    candidatesForDirectory: (directory) =>
+      host.windowsExecutableNames.map((filename) =>
+        pathApi.join(directory, filename),
+      ),
     directories,
     existsSync: deps.existsSync ?? fs.existsSync,
-    filenames: host.windowsExecutableNames,
     logger: deps.logger,
-    platform,
     purpose: "Windows app executable",
   });
 }
@@ -348,19 +351,15 @@ function findEditorOnPath(input: {
   });
 }
 
-function findExactFilesInDirectories(input: {
+function findFirstExistingInDirectories(input: {
+  candidatesForDirectory: (directory: string) => Iterable<string>;
   directories: string[];
   existsSync: (candidate: string) => boolean;
-  filenames: string[];
   logger?: CliDiscoveryLogger;
-  platform: NodeJS.Platform;
   purpose: string;
 }): string | null {
-  const pathApi = pathForPlatform(input.platform);
-
   for (const directory of input.directories) {
-    for (const filename of input.filenames) {
-      const candidate = pathApi.join(directory, filename);
+    for (const candidate of input.candidatesForDirectory(directory)) {
       const exists = input.existsSync(candidate);
       input.logger?.info(
         `CLI discovery checked ${input.purpose}: ${formatDiagnosticValue(candidate)} exists=${exists}`,
@@ -385,21 +384,18 @@ function findExecutableInDirectories(input: {
   const extensions = executableExtensions(input.platform, input.env);
   const pathApi = pathForPlatform(input.platform);
 
-  for (const directory of input.directories) {
-    for (const name of input.names) {
-      for (const extension of extensions) {
-        const candidate = pathApi.join(directory, `${name}${extension}`);
-        const exists = input.existsSync(candidate);
-        input.logger?.info(
-          `CLI discovery checked ${input.purpose}: ${formatDiagnosticValue(candidate)} exists=${exists}`,
-        );
-        if (exists) {
-          return candidate;
-        }
-      }
-    }
-  }
-  return null;
+  return findFirstExistingInDirectories({
+    directories: input.directories,
+    existsSync: input.existsSync,
+    logger: input.logger,
+    purpose: input.purpose,
+    candidatesForDirectory: (directory) =>
+      input.names.flatMap((name) =>
+        extensions.map((extension) =>
+          pathApi.join(directory, `${name}${extension}`),
+        ),
+      ),
+  });
 }
 
 function logPathDiscoverySummary(

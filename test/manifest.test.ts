@@ -9,7 +9,7 @@ import {
   COMMAND_RENAME_CURRENT_USERDATA,
   COMMAND_REVEAL_CURRENT_USERDATA,
   COMMAND_SHOW_CURRENT_USERDATA,
-} from "./userdataSwitcherApp";
+} from "../src/userdataSwitcherApp";
 
 interface CommandContribution {
   category?: string;
@@ -44,7 +44,7 @@ describe("extension manifest", () => {
     postversion: "git push origin main --follow-tags",
     check: "knip && biome ci .",
     fix: "knip --fix && biome check --write .",
-    test: "tsc -p . && tsx --test src/**/*.test.ts scripts/**/*.test.mjs",
+    test: "tsc -p . && tsx --test test/**/*.test.ts scripts/**/*.test.mjs",
     build: "node scripts/build.mjs",
     "package:vsix": "node scripts/package-vsix.mjs",
     dogfood: "node scripts/dogfood.mjs",

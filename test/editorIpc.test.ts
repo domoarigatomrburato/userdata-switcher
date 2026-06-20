@@ -5,7 +5,7 @@ import {
   mainSocketBasenameForEditorVersion,
   mainSocketPath,
   probeRunningUserdataInstance,
-} from "./editorIpc";
+} from "../src/editorIpc";
 
 describe("mainSocketBasenameForEditorVersion", () => {
   it("matches VS Code socket naming for API versions", () => {

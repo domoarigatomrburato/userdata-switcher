@@ -3,8 +3,8 @@ import { describe, it } from "node:test";
 import {
   buildDeleteUserdataConfirmation,
   executeManagedUserdataDeletion,
-} from "./deleteManagedUserdata";
-import { DELETE_QUIT_AND_DELETE_LABEL } from "./deleteUserdata";
+} from "../src/deleteManagedUserdata";
+import { DELETE_QUIT_AND_DELETE_LABEL } from "../src/deleteUserdata";
 
 describe("buildDeleteUserdataConfirmation", () => {
   it("offers a simple delete confirmation when no instance is running", () => {

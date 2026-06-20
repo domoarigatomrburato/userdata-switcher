@@ -9,7 +9,7 @@ import {
   loadRegistry,
   removeUserdata,
   renameUserdata,
-} from "./registry";
+} from "../src/registry";
 
 const tempDir = fs.mkdtempSync(
   path.join(os.tmpdir(), "userdata-switcher-registry-test-"),

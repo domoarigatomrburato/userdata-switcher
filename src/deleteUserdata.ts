@@ -8,14 +8,15 @@ export const DELETE_NO_MANAGED_MESSAGE = "No managed userdatas to delete.";
 
 export const DELETE_QUIT_AND_DELETE_LABEL = "Quit and delete";
 
+const DELETE_QUIT_RUNNING_INSTANCE_INSTRUCTION =
+  "Quit any running instance for it, then try again.";
+
 export const DELETE_QUIT_FAILED_MESSAGE =
   "Could not quit the editor instance for this userdata. Quit that editor instance manually, then try again.";
 
-export const DELETE_TRASH_FAILURE_MESSAGE =
-  "Could not delete the userdata folder. Quit any running instance for it, then try again.";
+export const DELETE_TRASH_FAILURE_MESSAGE = `Could not delete the userdata folder. ${DELETE_QUIT_RUNNING_INSTANCE_INSTRUCTION}`;
 
-export const DELETE_VERIFY_PATH_STILL_EXISTS_MESSAGE =
-  "The userdata folder could not be removed. Quit any running instance for it, then try again.";
+export const DELETE_VERIFY_PATH_STILL_EXISTS_MESSAGE = `The userdata folder could not be removed. ${DELETE_QUIT_RUNNING_INSTANCE_INSTRUCTION}`;
 
 export const DELETE_VERIFY_INSTANCE_STILL_RUNNING_MESSAGE =
   "The editor instance for this userdata is still running after deletion was attempted. Quit it manually, then try again.";

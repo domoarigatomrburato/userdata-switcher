@@ -4,7 +4,7 @@ import {
   formatOpenWithUserdataPickerTitle,
   formatStatusBarText,
   formatUserdataLabel,
-} from "./labels";
+} from "../src/labels";
 
 describe("formatUserdataLabel", () => {
   it("shows known default userdata with the default suffix", () => {

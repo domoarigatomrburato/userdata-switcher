@@ -1,6 +1,23 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { resolveManagedDataDir } from "./paths";
+import { pathsEqual, resolveManagedDataDir } from "../src/paths";
+
+describe("pathsEqual", () => {
+  it("compares Windows paths case-insensitively", () => {
+    assert.equal(
+      pathsEqual(
+        "C:\\Users\\ale\\AppData\\Local\\udsw",
+        "c:\\users\\ale\\appdata\\local\\udsw",
+      ),
+      true,
+    );
+  });
+
+  it("compares POSIX paths case-sensitively", () => {
+    assert.equal(pathsEqual("/store/u/work", "/store/u/work"), true);
+    assert.equal(pathsEqual("/store/u/work", "/store/u/Work"), false);
+  });
+});
 
 describe("resolveManagedDataDir", () => {
   it("joins the store root with the registry relative path", () => {

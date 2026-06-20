@@ -3,9 +3,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
-import { provisionManagedUserdata } from "./managedUserdataProvisioner";
-import { loadRegistry, saveRegistry } from "./registry";
-import { UserdataRegistryStore } from "./registryStore";
+import { provisionManagedUserdata } from "../src/managedUserdataProvisioner";
+import { loadRegistry, saveRegistry } from "../src/registry";
+import { UserdataRegistryStore } from "../src/registryStore";
 
 const tempDir = fs.mkdtempSync(
   path.join(os.tmpdir(), "userdata-switcher-provisioner-test-"),
@@ -37,6 +37,30 @@ describe("provisionManagedUserdata", () => {
     assert.deepEqual(
       loadRegistry(file).userdatas.map((entry) => entry.id),
       ["default", "personal"],
+    );
+  });
+
+  it("seeds preferences from the current userdata when sourceUserdataRoot is provided", () => {
+    const file = registryFile("seed-current");
+    const storeRoot = path.join(tempDir, "store-seed-current");
+    const sourceUserdataRoot = path.join(tempDir, "source-userdata");
+    const settingsPath = path.join(sourceUserdataRoot, "User", "settings.json");
+    fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+    fs.writeFileSync(settingsPath, '{"editor.formatOnSave": true}');
+
+    const result = provisionManagedUserdata({
+      label: "Personal",
+      registryStore: new UserdataRegistryStore(file),
+      sourceUserdataRoot,
+      storeRoot,
+    });
+
+    assert.equal(
+      fs.readFileSync(
+        path.join(result.managedDataDir, "User", "settings.json"),
+        "utf8",
+      ),
+      '{"editor.formatOnSave": true}',
     );
   });
 

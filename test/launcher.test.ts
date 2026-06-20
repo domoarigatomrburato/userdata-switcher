@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { describe, it } from "node:test";
-import type { SupportedHostAdapter } from "./host";
+import type { SupportedHostAdapter } from "../src/host";
 import {
   buildLaunchCommand,
   buildOpenWithUserdataCommand,
@@ -9,8 +9,8 @@ import {
   openWithUserdata,
   resolveWorkspaceArg,
   sanitizeEditorLaunchEnvironment,
-} from "./launcher";
-import type { UserdataEntry } from "./registry";
+} from "../src/launcher";
+import type { UserdataEntry } from "../src/registry";
 
 const managedEntry: UserdataEntry = {
   id: "personal",

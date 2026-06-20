@@ -1,10 +1,9 @@
-import { spawnSync } from "node:child_process";
-import path from "node:path";
+import { type SpawnSyncReturns, spawnSync } from "node:child_process";
 import {
   probeRunningUserdataInstance,
   type RunningInstanceProbeDeps,
 } from "./editorIpc";
-import { pathApiForPath } from "./paths";
+import { pathsEqual } from "./paths";
 
 const HELPER_PROCESS_MARKERS = [
   " Helper",
@@ -23,22 +22,9 @@ export function commandLineUsesUserdataRoot(
   command: string,
   userdataRoot: string,
 ): boolean {
-  for (const candidate of parseUserDataDirArgs(command)) {
-    if (userdataRootsEqual(candidate, userdataRoot)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function userdataRootsEqual(left: string, right: string): boolean {
-  const pathApi =
-    pathApiForPath(left) === path.win32 ? path.win32 : pathApiForPath(right);
-  const normalizedLeft = pathApi.resolve(left);
-  const normalizedRight = pathApi.resolve(right);
-  return pathApi === path.win32
-    ? normalizedLeft.toLowerCase() === normalizedRight.toLowerCase()
-    : normalizedLeft === normalizedRight;
+  return parseUserDataDirArgs(command).some((candidate) =>
+    pathsEqual(candidate, userdataRoot),
+  );
 }
 
 function parseUserDataDirArgs(command: string): string[] {
@@ -192,25 +178,28 @@ function createDefaultKillProcess(
 }
 
 function defaultUnixProcessLines(): string[] {
-  const result = spawnSync("ps", ["ax", "-o", "pid=", "-o", "command="], {
-    encoding: "utf8",
-  });
-  if (result.status !== 0) {
-    return [];
-  }
-  return result.stdout.split(/\r?\n/).filter(Boolean);
+  return linesFromSpawnOutput(
+    spawnSync("ps", ["ax", "-o", "pid=", "-o", "command="], {
+      encoding: "utf8",
+    }),
+  );
 }
 
 function defaultWindowsProcessLines(): string[] {
-  const result = spawnSync(
-    "powershell",
-    [
-      "-NoProfile",
-      "-Command",
-      'Get-CimInstance Win32_Process | Where-Object { $_.CommandLine } | ForEach-Object { "$($_.ProcessId) $($_.CommandLine)" }',
-    ],
-    { encoding: "utf8", timeout: 10_000 },
+  return linesFromSpawnOutput(
+    spawnSync(
+      "powershell",
+      [
+        "-NoProfile",
+        "-Command",
+        'Get-CimInstance Win32_Process | Where-Object { $_.CommandLine } | ForEach-Object { "$($_.ProcessId) $($_.CommandLine)" }',
+      ],
+      { encoding: "utf8", timeout: 10_000 },
+    ),
   );
+}
+
+function linesFromSpawnOutput(result: SpawnSyncReturns<string>): string[] {
   if (result.status !== 0) {
     return [];
   }

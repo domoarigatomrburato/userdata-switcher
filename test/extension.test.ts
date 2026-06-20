@@ -11,17 +11,17 @@ import {
   DELETE_TRASH_FAILURE_MESSAGE,
   DELETE_VERIFY_INSTANCE_STILL_RUNNING_MESSAGE,
   DELETE_VERIFY_PATH_STILL_EXISTS_MESSAGE,
-} from "./deleteUserdata";
-import type { SupportedHostAdapter } from "./host";
-import type { LaunchCommand, LaunchEditor } from "./launcher";
+} from "../src/deleteUserdata";
+import type { SupportedHostAdapter } from "../src/host";
+import type { LaunchCommand, LaunchEditor } from "../src/launcher";
 import {
   CREATE_USERDATA_LABEL,
   DELETE_USERDATA_LABEL,
   RENAME_CURRENT_USERDATA_LABEL,
   REVEAL_CURRENT_USERDATA_LABEL,
-} from "./menu";
-import { registryPath } from "./paths";
-import { loadRegistry, saveRegistry } from "./registry";
+} from "../src/menu";
+import { registryPath } from "../src/paths";
+import { loadRegistry, saveRegistry } from "../src/registry";
 import {
   activateUserdataSwitcher,
   COMMAND_CREATE_USERDATA,
@@ -34,7 +34,7 @@ import {
   type StatusBarItem,
   type UserdataSwitcherActivation,
   type UserdataSwitcherUi,
-} from "./userdataSwitcherApp";
+} from "../src/userdataSwitcherApp";
 
 interface TestHarness {
   tempDir: string;
@@ -1171,9 +1171,9 @@ describe("createVscodeUi", () => {
 
     try {
       // Clear the cache so we actually require with the mocked vscode
-      delete require.cache[require.resolve("./extension.ts")];
+      delete require.cache[require.resolve("../src/extension.ts")];
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { createVscodeUi } = require("./extension.ts");
+      const { createVscodeUi } = require("../src/extension.ts");
       ui = createVscodeUi({
         info: (msg: string) => logs.push(`info:${msg}`),
         error: (msg: string) => logs.push(`error:${msg}`),
@@ -1181,7 +1181,7 @@ describe("createVscodeUi", () => {
     } finally {
       Module.prototype.require = origRequire;
       // Remove the polluted module from the cache so future requires get the real one
-      delete require.cache[require.resolve("./extension.ts")];
+      delete require.cache[require.resolve("../src/extension.ts")];
     }
 
     try {

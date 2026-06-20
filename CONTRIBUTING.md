@@ -74,6 +74,8 @@ portal. Open VSX can use the same GitHub release artifact later.
 
 ## Testing And Packaging
 
+- TypeScript tests and shared fixtures live in `test/`; extension runtime code
+  lives in `src/`.
 - Prefer focused behavior tests for product changes.
 - After packaging-related changes, rebuild the VSIX and inspect its contents.
 - Keep runtime artifacts in the VSIX; exclude source, tests, docs, scripts, and
@@ -83,4 +85,3 @@ portal. Open VSX can use the same GitHub release artifact later.
 
 - `CONTEXT.md`
 - `docs/adr/0001-use-supported-editor-userdata-roots.md`
-- `docs/strategy/mvp-contract.md`

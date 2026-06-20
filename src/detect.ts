@@ -1,5 +1,4 @@
-import path from "node:path";
-import { pathApiForPath, resolveManagedDataDir } from "./paths";
+import { pathsEqual, resolveManagedDataDir } from "./paths";
 import type { Registry, UserdataEntry } from "./registry";
 
 export type CurrentUserdata =
@@ -75,14 +74,4 @@ export function resolveCurrentUserdataRoot(input: {
   return current.entry.relativeDataDir
     ? resolveManagedDataDir(storeRoot, current.entry.relativeDataDir)
     : null;
-}
-
-function pathsEqual(left: string, right: string): boolean {
-  const pathApi =
-    pathApiForPath(left) === path.win32 ? path.win32 : pathApiForPath(right);
-  const normalizedLeft = pathApi.resolve(left);
-  const normalizedRight = pathApi.resolve(right);
-  return pathApi === path.win32
-    ? normalizedLeft.toLowerCase() === normalizedRight.toLowerCase()
-    : normalizedLeft === normalizedRight;
 }

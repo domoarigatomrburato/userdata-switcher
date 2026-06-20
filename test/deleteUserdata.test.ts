@@ -5,36 +5,19 @@ import {
   DELETE_NO_MANAGED_MESSAGE,
   describeDeleteUserdataBlockedReason,
   listDeletableManagedUserdatas,
-} from "./deleteUserdata";
-import type { Registry } from "./registry";
+} from "../src/deleteUserdata";
+import {
+  defaultAndPersonalRegistry,
+  defaultOnlyRegistry,
+  workAndPersonalRegistry,
+} from "./registryFixtures";
 
-const defaultOnlyRegistry: Registry = {
-  version: 1,
-  userdatas: [{ id: "default", kind: "default", label: "Default" }],
-};
-
-const workAndPersonalRegistry: Registry = {
-  version: 1,
-  userdatas: [
-    { id: "default", kind: "default", label: "Default" },
-    {
-      id: "work",
-      kind: "managed",
-      label: "Work",
-      relativeDataDir: "u/work",
-    },
-    {
-      id: "personal",
-      kind: "managed",
-      label: "Personal",
-      relativeDataDir: "u/personal",
-    },
-  ],
-};
+const defaultOnly = defaultOnlyRegistry();
+const workAndPersonal = workAndPersonalRegistry();
 
 describe("listDeletableManagedUserdatas", () => {
   it("excludes the current managed userdata", () => {
-    const deletable = listDeletableManagedUserdatas(workAndPersonalRegistry, {
+    const deletable = listDeletableManagedUserdatas(workAndPersonal, {
       kind: "known",
       entry: {
         id: "work",
@@ -51,7 +34,7 @@ describe("listDeletableManagedUserdatas", () => {
   });
 
   it("never includes the default userdata", () => {
-    const deletable = listDeletableManagedUserdatas(workAndPersonalRegistry, {
+    const deletable = listDeletableManagedUserdatas(workAndPersonal, {
       kind: "known",
       entry: {
         id: "default",
@@ -69,18 +52,7 @@ describe("listDeletableManagedUserdatas", () => {
 
 describe("describeDeleteUserdataBlockedReason", () => {
   it("explains when the current window is the only managed userdata", () => {
-    const registry: Registry = {
-      version: 1,
-      userdatas: [
-        { id: "default", kind: "default", label: "Default" },
-        {
-          id: "personal",
-          kind: "managed",
-          label: "Personal",
-          relativeDataDir: "u/personal",
-        },
-      ],
-    };
+    const registry = defaultAndPersonalRegistry();
 
     assert.equal(
       describeDeleteUserdataBlockedReason(registry, {
@@ -98,7 +70,7 @@ describe("describeDeleteUserdataBlockedReason", () => {
 
   it("reports when there are no managed userdatas to delete", () => {
     assert.equal(
-      describeDeleteUserdataBlockedReason(defaultOnlyRegistry, {
+      describeDeleteUserdataBlockedReason(defaultOnly, {
         kind: "known",
         entry: {
           id: "default",

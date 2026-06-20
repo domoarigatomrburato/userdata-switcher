@@ -92,6 +92,7 @@ function isForbiddenPackageFile(file) {
     file.startsWith("docs/") ||
     file.startsWith("scripts/") ||
     file.startsWith("src/") ||
+    file.startsWith("test/") ||
     file.startsWith("node_modules/") ||
     FORBIDDEN_PACKAGE_FILES.has(file) ||
     file.endsWith(".map") ||

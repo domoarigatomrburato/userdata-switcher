@@ -9,28 +9,17 @@ import {
   REVEAL_CURRENT_USERDATA_LABEL,
   resolveOpenWithUserdataMenuIntent,
   type UserdataMenuItem,
-} from "./menu";
-import type { Registry } from "./registry";
+} from "../src/menu";
+import {
+  defaultAndPersonalRegistry,
+  defaultOnlyRegistry,
+} from "./registryFixtures";
 
 describe("buildOpenWithUserdataMenuItems", () => {
-  const registry: Registry = {
-    version: 1,
-    userdatas: [
-      { id: "default", kind: "default", label: "Default" },
-      {
-        id: "personal",
-        kind: "managed",
-        label: "Personal",
-        relativeDataDir: "u/personal",
-      },
-    ],
-  };
+  const registry = defaultAndPersonalRegistry();
 
   it("lists rename and create when there are no other userdatas", () => {
-    const onlyDefault: Registry = {
-      version: 1,
-      userdatas: [{ id: "default", kind: "default", label: "Default" }],
-    };
+    const onlyDefault = defaultOnlyRegistry();
     const [current] = onlyDefault.userdatas;
     assert.ok(current);
 
@@ -149,18 +138,9 @@ describe("buildOpenWithUserdataMenuItems", () => {
 });
 
 describe("resolveOpenWithUserdataMenuIntent", () => {
-  const registry: Registry = {
-    version: 1,
-    userdatas: [
-      { id: "default", kind: "default", label: "Default" },
-      {
-        id: "personal",
-        kind: "managed",
-        label: CREATE_USERDATA_LABEL,
-        relativeDataDir: "u/personal",
-      },
-    ],
-  };
+  const registry = defaultAndPersonalRegistry({
+    personal: CREATE_USERDATA_LABEL,
+  });
 
   it("resolves a selected userdata item to an open intent", () => {
     const [current] = registry.userdatas;

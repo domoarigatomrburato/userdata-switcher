@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { resolveEditorHost } from "./host";
+import { resolveEditorHost } from "../src/host";
 
 const cursor = resolveEditorHost({ appName: "Cursor", uriScheme: "cursor" });
 const vscode = resolveEditorHost({

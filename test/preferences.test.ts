@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { seedUserdataPreferences } from "./preferences";
+import { seedUserdataPreferences } from "../src/preferences";
 
 describe("seedUserdataPreferences", () => {
   let tmpDir: string;
