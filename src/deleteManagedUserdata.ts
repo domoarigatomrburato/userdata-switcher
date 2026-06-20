@@ -24,6 +24,7 @@ export interface ManagedUserdataDeletionDeps {
   confirmDeletion: (message: string, confirmLabel: string) => Promise<boolean>;
   logInfo?: (message: string) => void;
   logError?: (message: string) => void;
+  platform?: NodeJS.Platform;
 }
 
 export function buildDeleteUserdataConfirmation(
@@ -51,15 +52,7 @@ export async function executeManagedUserdataDeletion(
   const logInfo = deps.logInfo ?? (() => {});
   const logError = deps.logError ?? (() => {});
 
-  const socketCandidates = listMainSocketPaths(
-    deps.targetPath,
-    deps.editorVersion,
-  );
-  logInfo(
-    `Delete preflight socket candidates: ${
-      socketCandidates.length > 0 ? socketCandidates.join(", ") : "(none)"
-    }`,
-  );
+  logDeletePreflight(deps, logInfo);
 
   const instanceRunning = await deps.isManagedUserdataInUse(deps.targetPath);
   const { message, confirmLabel } = buildDeleteUserdataConfirmation(
@@ -98,6 +91,32 @@ export async function executeManagedUserdataDeletion(
   }
 
   return { status: "success" };
+}
+
+function logDeletePreflight(
+  deps: Pick<
+    ManagedUserdataDeletionDeps,
+    "targetPath" | "editorVersion" | "platform"
+  >,
+  logInfo: (message: string) => void,
+): void {
+  const platform = deps.platform ?? process.platform;
+  if (platform === "win32") {
+    logInfo(
+      "Delete preflight: checking for running editor processes (Windows)",
+    );
+    return;
+  }
+
+  const socketCandidates = listMainSocketPaths(
+    deps.targetPath,
+    deps.editorVersion,
+  );
+  logInfo(
+    `Delete preflight socket candidates: ${
+      socketCandidates.length > 0 ? socketCandidates.join(", ") : "(none)"
+    }`,
+  );
 }
 
 async function ensureUserdataInstanceStopped(

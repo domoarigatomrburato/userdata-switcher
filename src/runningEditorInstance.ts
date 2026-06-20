@@ -4,6 +4,7 @@ import {
   probeRunningUserdataInstance,
   type RunningInstanceProbeDeps,
 } from "./editorIpc";
+import { pathApiForPath } from "./paths";
 
 const HELPER_PROCESS_MARKERS = [
   " Helper",
@@ -22,13 +23,22 @@ export function commandLineUsesUserdataRoot(
   command: string,
   userdataRoot: string,
 ): boolean {
-  const resolvedRoot = path.resolve(userdataRoot);
   for (const candidate of parseUserDataDirArgs(command)) {
-    if (path.resolve(candidate) === resolvedRoot) {
+    if (userdataRootsEqual(candidate, userdataRoot)) {
       return true;
     }
   }
   return false;
+}
+
+function userdataRootsEqual(left: string, right: string): boolean {
+  const pathApi =
+    pathApiForPath(left) === path.win32 ? path.win32 : pathApiForPath(right);
+  const normalizedLeft = pathApi.resolve(left);
+  const normalizedRight = pathApi.resolve(right);
+  return pathApi === path.win32
+    ? normalizedLeft.toLowerCase() === normalizedRight.toLowerCase()
+    : normalizedLeft === normalizedRight;
 }
 
 function parseUserDataDirArgs(command: string): string[] {
@@ -52,7 +62,11 @@ function parseUserDataDirArgs(command: string): string[] {
 
     if (rawValue !== undefined) {
       const nextFlag = rawValue.indexOf(" --");
-      values.push(nextFlag === -1 ? rawValue : rawValue.slice(0, nextFlag));
+      values.push(
+        normalizeArgValue(
+          nextFlag === -1 ? rawValue : rawValue.slice(0, nextFlag),
+        ),
+      );
     }
 
     searchFrom = flagIndex + flag.length;
@@ -61,15 +75,27 @@ function parseUserDataDirArgs(command: string): string[] {
   return values;
 }
 
+function normalizeArgValue(raw: string): string {
+  const trimmed = raw.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
 export function isMainEditorProcess(command: string): boolean {
   return !HELPER_PROCESS_MARKERS.some((marker) => command.includes(marker));
 }
 
 export function listMainProcessIdsForUserdataRoot(
   userdataRoot: string,
-  deps: Pick<QuitUserdataInstanceDeps, "listProcessLines"> = {},
+  deps: Pick<QuitUserdataInstanceDeps, "listProcessLines" | "platform"> = {},
 ): number[] {
-  const lines = deps.listProcessLines ?? defaultProcessLines;
+  const platform = deps.platform ?? process.platform;
+  const lines = deps.listProcessLines ?? createDefaultProcessLines(platform);
   const processIds = new Set<number>();
 
   for (const line of lines()) {
@@ -89,17 +115,24 @@ export function listMainProcessIdsForUserdataRoot(
   return [...processIds];
 }
 
-export async function quitUserdataEditorInstance(
+export async function isUserdataEditorInstanceRunning(
   userdataRoot: string,
   deps: QuitUserdataInstanceDeps = {},
 ): Promise<boolean> {
   const platform = deps.platform ?? process.platform;
   if (platform === "win32") {
-    return false;
+    return listMainProcessIdsForUserdataRoot(userdataRoot, deps).length > 0;
   }
 
-  const killProcess =
-    deps.killProcess ?? ((pid, signal) => process.kill(pid, signal));
+  return (await probeRunningUserdataInstance(userdataRoot, deps)) === "running";
+}
+
+export async function quitUserdataEditorInstance(
+  userdataRoot: string,
+  deps: QuitUserdataInstanceDeps = {},
+): Promise<boolean> {
+  const platform = deps.platform ?? process.platform;
+  const killProcess = deps.killProcess ?? createDefaultKillProcess(platform);
   const sleep =
     deps.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   const waitTimeoutMs = deps.waitTimeoutMs ?? 5_000;
@@ -107,10 +140,7 @@ export async function quitUserdataEditorInstance(
   const waitUntilStopped = async (deadlineMs: number): Promise<boolean> => {
     const deadline = Date.now() + deadlineMs;
     while (Date.now() < deadline) {
-      if (
-        (await probeRunningUserdataInstance(userdataRoot, deps)) ===
-        "not-running"
-      ) {
+      if (!(await isUserdataEditorInstanceRunning(userdataRoot, deps))) {
         return true;
       }
       await sleep(200);
@@ -137,10 +167,50 @@ export async function quitUserdataEditorInstance(
   return waitUntilStopped(2_000);
 }
 
-function defaultProcessLines(): string[] {
+function createDefaultProcessLines(platform: NodeJS.Platform): () => string[] {
+  return platform === "win32"
+    ? defaultWindowsProcessLines
+    : defaultUnixProcessLines;
+}
+
+function createDefaultKillProcess(
+  platform: NodeJS.Platform,
+): (pid: number, signal: NodeJS.Signals) => void {
+  if (platform === "win32") {
+    return (pid, signal) => {
+      const args =
+        signal === "SIGKILL"
+          ? ["/F", "/PID", String(pid)]
+          : ["/PID", String(pid)];
+      spawnSync("taskkill", args, { stdio: "ignore" });
+    };
+  }
+
+  return (pid, signal) => {
+    process.kill(pid, signal);
+  };
+}
+
+function defaultUnixProcessLines(): string[] {
   const result = spawnSync("ps", ["ax", "-o", "pid=", "-o", "command="], {
     encoding: "utf8",
   });
+  if (result.status !== 0) {
+    return [];
+  }
+  return result.stdout.split(/\r?\n/).filter(Boolean);
+}
+
+function defaultWindowsProcessLines(): string[] {
+  const result = spawnSync(
+    "powershell",
+    [
+      "-NoProfile",
+      "-Command",
+      'Get-CimInstance Win32_Process | Where-Object { $_.CommandLine } | ForEach-Object { "$($_.ProcessId) $($_.CommandLine)" }',
+    ],
+    { encoding: "utf8", timeout: 10_000 },
+  );
   if (result.status !== 0) {
     return [];
   }

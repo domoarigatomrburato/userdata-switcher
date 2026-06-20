@@ -10,7 +10,6 @@ import {
 } from "./deleteUserdata";
 import type { CurrentUserdata } from "./detect";
 import { EditorHostSession } from "./editorHostSession";
-import { probeRunningUserdataInstance } from "./editorIpc";
 import type { SupportedHostAdapter } from "./host";
 import {
   formatOpenWithUserdataPickerTitle,
@@ -38,7 +37,10 @@ import {
   type UserdataEntry,
 } from "./registry";
 import { UserdataRegistryStore } from "./registryStore";
-import { quitUserdataEditorInstance } from "./runningEditorInstance";
+import {
+  isUserdataEditorInstanceRunning,
+  quitUserdataEditorInstance,
+} from "./runningEditorInstance";
 
 export const COMMAND_OPEN_WITH_USERDATA = "userdataSwitcher.openWithUserdata";
 export const COMMAND_CREATE_USERDATA = "userdataSwitcher.createUserdata";
@@ -166,9 +168,9 @@ export function activateUserdataSwitcher(
     mkdirSync,
     editorVersion,
     isManagedUserdataInUse = async (managedUserdataRoot) =>
-      (await probeRunningUserdataInstance(managedUserdataRoot, {
+      isUserdataEditorInstanceRunning(managedUserdataRoot, {
         editorVersion,
-      })) === "running",
+      }),
     quitManagedUserdataInstance = async (managedUserdataRoot) =>
       quitUserdataEditorInstance(managedUserdataRoot, { editorVersion }),
   } = input;
@@ -394,9 +396,6 @@ export function activateUserdataSwitcher(
       isManagedUserdataInUse,
       quitManagedUserdataInstance,
       deletePath: async (managedUserdataRoot) => {
-        logger?.info(
-          `deletePath fsPath="${managedUserdataRoot}" useTrash=true`,
-        );
         await ui.deletePath(managedUserdataRoot, { useTrash: true });
       },
       pathExists: (managedUserdataRoot) => fs.existsSync(managedUserdataRoot),

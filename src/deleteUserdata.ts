@@ -9,7 +9,7 @@ export const DELETE_NO_MANAGED_MESSAGE = "No managed userdatas to delete.";
 export const DELETE_QUIT_AND_DELETE_LABEL = "Quit and delete";
 
 export const DELETE_QUIT_FAILED_MESSAGE =
-  "Could not quit the editor instance for this userdata. Quit it manually from its menu bar icon (Cmd+Q on macOS), then try again.";
+  "Could not quit the editor instance for this userdata. Quit that editor instance manually, then try again.";
 
 export const DELETE_TRASH_FAILURE_MESSAGE =
   "Could not delete the userdata folder. Quit any running instance for it, then try again.";

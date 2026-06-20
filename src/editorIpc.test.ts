@@ -88,7 +88,7 @@ describe("probeRunningUserdataInstance", () => {
     assert.equal(result, "not-running");
   });
 
-  it("skips the IPC probe on Windows and relies on delete failure instead", async () => {
+  it("skips Unix socket connect on Windows", async () => {
     const result = await probeRunningUserdataInstance("/store/u/personal", {
       platform: "win32",
       connect: async () => {

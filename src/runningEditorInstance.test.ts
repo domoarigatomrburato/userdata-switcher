@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   commandLineUsesUserdataRoot,
   isMainEditorProcess,
+  isUserdataEditorInstanceRunning,
   listMainProcessIdsForUserdataRoot,
   quitUserdataEditorInstance,
 } from "./runningEditorInstance";
@@ -40,6 +41,23 @@ describe("commandLineUsesUserdataRoot", () => {
         userdataRoot,
       ),
       false,
+    );
+  });
+
+  it("matches quoted Windows --user-data-dir values case-insensitively", () => {
+    const userdataRoot =
+      "C:\\Users\\ale\\AppData\\Local\\udsw\\cursor\\u\\ale-win-test-1";
+    assert.ok(
+      commandLineUsesUserdataRoot(
+        `4321 "C:\\Program Files\\Cursor\\Cursor.exe" --user-data-dir="${userdataRoot}"`,
+        userdataRoot,
+      ),
+    );
+    assert.ok(
+      commandLineUsesUserdataRoot(
+        `4321 "C:\\Program Files\\Cursor\\Cursor.exe" --user-data-dir="${userdataRoot.toUpperCase()}"`,
+        userdataRoot,
+      ),
     );
   });
 });
@@ -128,5 +146,64 @@ describe("quitUserdataEditorInstance", () => {
       { pid: 4321, signal: "SIGTERM" },
       { pid: 4321, signal: "SIGKILL" },
     ]);
+  });
+});
+
+describe("isUserdataEditorInstanceRunning", () => {
+  it("detects a running Windows editor process by command line", async () => {
+    const userdataRoot =
+      "C:\\Users\\ale\\AppData\\Local\\udsw\\cursor\\u\\ale-win-test-1";
+    const running = await isUserdataEditorInstanceRunning(userdataRoot, {
+      platform: "win32",
+      listProcessLines: () => [
+        `4321 "C:\\Program Files\\Cursor\\Cursor.exe" --user-data-dir="${userdataRoot}"`,
+      ],
+    });
+
+    assert.equal(running, true);
+  });
+
+  it("reports not running on Windows when no process matches the userdata root", async () => {
+    const running = await isUserdataEditorInstanceRunning(
+      "C:\\Users\\ale\\AppData\\Local\\udsw\\cursor\\u\\ale-win-test-1",
+      {
+        platform: "win32",
+        listProcessLines: () => [
+          '4321 "C:\\Program Files\\Cursor\\Cursor.exe" --user-data-dir="C:\\Users\\ale\\AppData\\Local\\udsw\\cursor\\u\\other"',
+        ],
+      },
+    );
+
+    assert.equal(running, false);
+  });
+});
+
+describe("quitUserdataEditorInstance on Windows", () => {
+  it("terminates matching processes via taskkill and waits until they are gone", async () => {
+    const userdataRoot =
+      "C:\\Users\\ale\\AppData\\Local\\udsw\\cursor\\u\\ale-win-test-1";
+    const killed: Array<{ pid: number; signal: NodeJS.Signals }> = [];
+    let running = true;
+
+    const quit = await quitUserdataEditorInstance(userdataRoot, {
+      platform: "win32",
+      listProcessLines: () =>
+        running
+          ? [
+              `4321 "C:\\Program Files\\Cursor\\Cursor.exe" --user-data-dir="${userdataRoot}"`,
+            ]
+          : [],
+      killProcess: (pid, signal) => {
+        killed.push({ pid, signal });
+        if (signal === "SIGTERM") {
+          running = false;
+        }
+      },
+      sleep: async () => {},
+      waitTimeoutMs: 1_000,
+    });
+
+    assert.equal(quit, true);
+    assert.deepEqual(killed, [{ pid: 4321, signal: "SIGTERM" }]);
   });
 });

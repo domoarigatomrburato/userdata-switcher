@@ -156,4 +156,43 @@ describe("executeManagedUserdataDeletion", () => {
       reason: "instance-still-running",
     });
   });
+
+  it("logs Windows process preflight instead of Unix socket candidates", async () => {
+    const logs: string[] = [];
+
+    await executeManagedUserdataDeletion({
+      targetPath: "C:\\Users\\ale\\AppData\\Local\\udsw\\cursor\\u\\testone",
+      label: "testone",
+      platform: "win32",
+      isManagedUserdataInUse: async () => false,
+      quitManagedUserdataInstance: async () => false,
+      deletePath: async () => {},
+      pathExists: () => false,
+      confirmDeletion: async () => false,
+      logInfo: (message) => logs.push(message),
+    });
+
+    assert.deepEqual(logs, [
+      "Delete preflight: checking for running editor processes (Windows)",
+    ]);
+  });
+
+  it("logs Unix socket candidates during preflight on macOS and Linux", async () => {
+    const logs: string[] = [];
+
+    await executeManagedUserdataDeletion({
+      targetPath: "/store/u/personal",
+      label: "Personal",
+      editorVersion: "1.105.1",
+      platform: "linux",
+      isManagedUserdataInUse: async () => false,
+      quitManagedUserdataInstance: async () => false,
+      deletePath: async () => {},
+      pathExists: () => false,
+      confirmDeletion: async () => false,
+      logInfo: (message) => logs.push(message),
+    });
+
+    assert.match(logs[0] ?? "", /^Delete preflight socket candidates:/);
+  });
 });

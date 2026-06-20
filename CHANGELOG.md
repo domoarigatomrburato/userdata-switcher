@@ -12,8 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Managed userdata deletion from the userdata menu and Command Palette, moving
   files to the system trash and removing the registry entry (thanks
   [@tazztone](https://github.com/tazztone)).
-- Running-instance preflight on macOS and Linux that blocks deletion while the
-  editor IPC socket for the target userdata is still live.
+- Running-instance preflight on macOS and Linux via the editor IPC socket, and on
+  Windows via matching editor processes for the target `--user-data-dir`.
 - **Quit and delete** action that terminates the stray editor process
   (SIGTERM, then SIGKILL) when closing the window did not quit the singleton
   instance. A single confirmation adapts when a running instance is detected;

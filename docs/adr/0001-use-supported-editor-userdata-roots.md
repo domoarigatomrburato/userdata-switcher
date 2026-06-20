@@ -110,15 +110,16 @@ removes the registry entry, and refuses deletion when:
 
 - the target is the current window's userdata,
 - the target is the default userdata,
-- or a Running Userdata Instance is detected for the target on macOS/Linux via
-  the editor IPC socket under the userdata root.
+- or a Running Userdata Instance is detected for the target via the editor IPC
+  socket under the userdata root on macOS/Linux, or via matching editor
+  processes for the target `--user-data-dir` on Windows.
 
-When a running instance is detected on macOS/Linux, the confirmation dialog
+When a running instance is detected, the confirmation dialog
 offers **Quit and delete**, which quits that instance before trashing files.
 Success is reported only after quit and folder removal are verified.
 
-On Windows, open-file locking during trash is the secondary guard when IPC
-probing and quit-and-delete are unavailable.
+On Windows, open-file locking during trash remains a secondary guard when
+process detection cannot enumerate command lines.
 
 ## Consequences
 

@@ -52,7 +52,8 @@ If you no longer need a managed userdata, you can delete it:
 
 You cannot delete the userdata of the currently active window or the default editor
 userdata. If an editor instance for the target userdata is still running, the
-confirmation dialog offers **Quit and delete** (macOS and Linux). Closing a window
+confirmation dialog offers **Quit and delete** when a running instance is detected.
+Closing a window
 is not enough — the extension quits the singleton process before trashing files.
 Success is reported only after the instance is gone and the folder is removed.
 

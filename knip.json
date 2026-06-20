@@ -2,7 +2,7 @@
   "$schema": "./node_modules/knip/schema.json",
   "exclude": ["devDependencies"],
   "includeEntryExports": true,
-  "ignoreBinaries": ["ps"],
+  "ignoreBinaries": ["ps", "powershell", "taskkill"],
   "treatConfigHintsAsErrors": true,
   "treatTagHintsAsErrors": true
 }
