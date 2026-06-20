@@ -41,7 +41,7 @@ describe("extension manifest", () => {
     "vscode:prepublish": "npm run build",
     preversion:
       "node scripts/assert-release-ready.mjs && npm run check && npm test && npm run build",
-    postversion: "node scripts/push-release.mjs",
+    postversion: "git push origin main --follow-tags",
     check: "knip && biome ci .",
     fix: "knip --fix && biome check --write .",
     test: "tsc -p . && tsx --test src/**/*.test.ts scripts/**/*.test.mjs",

@@ -81,26 +81,13 @@ The old source store was intentionally left in place as a backup.
    changelog, icon, and package metadata. Tag pushes publish GitHub releases with
    changelog notes and a VSIX asset; Marketplace upload stays manual.
 
-2. Delete managed userdata
-
-   Add a user-facing way to delete a non-default managed userdata. This needs
-   careful UX because deletion removes an editor userdata directory containing
-   settings, extension state, caches, and login/session data. The default
-   userdata must never be deletable.
-
-3. Release automation
-
-   GitHub Actions publishes release assets from version tags. If Open VSX is
-   added, reuse the same VSIX artifact before introducing any publishing
-   automation.
-
-4. UX polish
+2. UX polish
 
    Review the command palette commands, picker actions, status bar copy,
    diagnostics output, and screenshots from the point of view of a first-time VS
    Code user and a Cursor user.
 
-5. Migration behavior
+3. Migration behavior
 
    The local migration was manual. Decide whether the extension should include
    one-time migration from the old storage layout. Because the extension was not
@@ -108,7 +95,7 @@ The old source store was intentionally left in place as a backup.
 
 ## Suggested Skills
 
-- `santommaso`: use for delete-userdata or any behavior-changing product slice.
+- `santommaso`: use for any behavior-changing product slice.
 - `simplify`: use after a feature slice to remove incidental complexity without
   changing behavior.
 - `grill-with-docs`: use before publishing or adding deletion semantics, because

@@ -3,6 +3,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { extractChangelogSection } from "./changelog-section.mjs";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 process.chdir(repoRoot);
@@ -50,11 +51,7 @@ function ensureNotBehindOriginMain() {
 
 function ensureChangelogEntry(version) {
   const changelog = readFileSync("CHANGELOG.md", "utf8");
-  if (!changelog.includes(`## ${version}`)) {
-    throw new Error(
-      `Add a CHANGELOG.md entry for ## ${version} before release.`,
-    );
-  }
+  extractChangelogSection(changelog, version);
 }
 
 function runGit(args, options = {}) {

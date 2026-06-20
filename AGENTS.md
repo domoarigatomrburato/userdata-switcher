@@ -47,8 +47,7 @@ your own code changes.
   `postversion` pushes the tag. GitHub Actions publishes the release, notes from
   `CHANGELOG.md`, and the VSIX asset.
 - Marketplace publishing is manual for now: download the VSIX from the GitHub
-  release (or run `npm run package:vsix` locally) and upload it in the publisher
-  portal.
+  release and upload it in the publisher portal.
 - For bug fixes, prefer behavior tests that fail before the change and pass after
   it. Cover the public contract rather than private implementation shape.
 - For shared persisted state, assume multiple windows or processes may write in

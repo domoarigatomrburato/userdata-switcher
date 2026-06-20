@@ -4,12 +4,6 @@ on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Tag to publish (for example v1.3.3)
-        required: true
-        type: string
 
 permissions:
   contents: write
@@ -21,16 +15,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
-          fetch-depth: 0
-
-      - name: Ensure release helper scripts
-        run: |
-          if [ ! -f scripts/changelog-section.mjs ]; then
-            git fetch origin main --depth=1
-            git checkout origin/main -- scripts/changelog-section.mjs
-          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -47,29 +31,19 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Resolve release metadata
-        id: meta
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ inputs.tag }}"
-          else
-            TAG="${{ github.ref_name }}"
-          fi
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
-
       - name: Package release VSIX
-        run: |
-          mkdir -p dist/release
-          npm run package:vsix -- --out "dist/release/userdata-switcher-${{ steps.meta.outputs.version }}.vsix"
+        run: npm run package:vsix
 
-      - name: Extract release notes
-        run: node scripts/changelog-section.mjs "${{ steps.meta.outputs.version }}" --out dist/release/notes.md
+      - id: release
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          node scripts/changelog-section.mjs "$VERSION" > dist/notes.md
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          name: ${{ steps.meta.outputs.version }}
-          body_path: dist/release/notes.md
-          files: dist/release/*.vsix
+          tag_name: ${{ github.ref_name }}
+          name: ${{ steps.release.outputs.version }}
+          body_path: dist/notes.md
+          files: dist/userdata-switcher-*.vsix
