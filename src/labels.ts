@@ -18,8 +18,8 @@ export function formatStatusBarText(current: CurrentUserdata): string {
   return `${STATUS_BAR_ICON} ${formatUserdataLabel(current)}`;
 }
 
-export function formatOpenWithUserdataPickerTitle(
+export function formatCurrentWindowHeaderLabel(
   current: CurrentUserdata,
 ): string {
-  return `Current: ${formatUserdataLabel(current)}`;
+  return `Current window: ${formatUserdataLabel(current)}`;
 }

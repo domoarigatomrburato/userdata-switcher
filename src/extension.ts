@@ -35,14 +35,19 @@ export function activate(context: vscode.ExtensionContext): void {
     subscribe: (disposable) => {
       context.subscriptions.push(disposable);
     },
-    ui: createVscodeUi(logger),
+    ui: createVscodeUi(logger, () => {
+      outputChannel.show(true);
+    }),
     logger,
   });
 }
 
 export function deactivate(): void {}
 
-export function createVscodeUi(logger: LaunchLogger): UserdataSwitcherUi {
+export function createVscodeUi(
+  logger: LaunchLogger,
+  showOutput: () => void,
+): UserdataSwitcherUi {
   return {
     StatusBarAlignment: vscode.StatusBarAlignment,
     QuickPickItemKind: vscode.QuickPickItemKind,
@@ -62,7 +67,8 @@ export function createVscodeUi(logger: LaunchLogger): UserdataSwitcherUi {
         options,
       ) as PromiseLike<QuickPickItem | undefined>,
     showInputBox: (options) => vscode.window.showInputBox(options),
-    showErrorMessage: (message) => vscode.window.showErrorMessage(message),
+    showErrorMessage: (message, ...items) =>
+      vscode.window.showErrorMessage(message, ...items),
     showWarningMessage: (message, ...items) =>
       vscode.window.showWarningMessage(message, ...items),
     showInformationMessage: (message, ...items) =>
@@ -74,13 +80,11 @@ export function createVscodeUi(logger: LaunchLogger): UserdataSwitcherUi {
           )
         : vscode.window.showInformationMessage(message),
     revealPathInOs: async (fsPath) => {
-      const uri = vscode.Uri.file(fsPath);
-      logger.info(`revealFileInOS input.fsPath=${JSON.stringify(fsPath)}`);
-      logger.info(`revealFileInOS uri.fsPath=${JSON.stringify(uri.fsPath)}`);
-      logger.info(`revealFileInOS uri.toString()=${uri.toString()}`);
       try {
-        await vscode.commands.executeCommand("revealFileInOS", uri);
-        logger.info("revealFileInOS completed");
+        await vscode.commands.executeCommand(
+          "revealFileInOS",
+          vscode.Uri.file(fsPath),
+        );
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         logger.error(`revealFileInOS failed: ${message}`);
@@ -97,6 +101,7 @@ export function createVscodeUi(logger: LaunchLogger): UserdataSwitcherUi {
         useTrash: options.useTrash,
       });
     },
+    showOutput,
   };
 }
 

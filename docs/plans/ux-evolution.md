@@ -1,6 +1,8 @@
 # UX Evolution Proposal
 
-Status: Draft for discussion. No implementation committed.
+Status: Scoped. Committed near-term work is **Phase 1 (best-possible quick
+launcher, no sidebar)** plus **Phase 1b (create an app shortcut for a userdata)**.
+Everything else is parked (Section 11) until those land and prove worth more.
 Scope: Evolve the Cursor/VS Code UI for the **current** feature set. No new
 capabilities, no settings sync (explicitly out of scope — see "Decisions").
 
@@ -64,8 +66,12 @@ into looking like a profile switcher.
 2. **Open = new window** — never imply hot-swap of the current window.
 3. **Parallel by default** — optimize for "Work and Personal side by side."
 4. **Progressive disclosure** — launch is one click; admin is one level deeper.
-5. **Running state is pull, not push** — surface it when the user looks, never
-   via a background poller (see Section 6, constraint C3).
+5. **Running-state cost scales with attention** — refresh is driven by user
+   attention, not a blind clock. An ephemeral surface (Quick Pick) computes once
+   on open. A persistent surface (tree) refreshes on attention signals
+   (visibility, window focus, the extension's own mutations, manual Refresh), and
+   may run a timer **only while the view is visible**. No work happens when no
+   one is looking. See Section 6, constraint C3.
 6. **Native, zero-friction surfaces only** — status bar, Quick Pick, tree view.
    No webview dashboards.
 
@@ -80,19 +86,35 @@ into looking like a profile switcher.
   single-owner `settings.json` model. Theme drift is arguably a *feature*
   (window identity), not a bug.
 - **No webview.** A stepped Quick Pick covers every wizard need.
-- **No in-window "switch userdata."** Violates the boundary model.
+- **No in-window "switch userdata."** Violates the boundary model. `--user-data-dir`
+  is a process-launch argument; a running window's process is bound to its
+  userdata root for its lifetime, so "switch" always means launch a new process
+  (a new window) — never an in-place swap. See Section 11 for the parked
+  chooser/launcher exploration that ran into this wall.
+- **No sidebar / tree view for now.** Decided to keep the surface to the quick
+  launcher only. The tree (old Phase 2) is parked, not cancelled (Section 11).
+- **App shortcuts have no lifecycle management.** Creating a shortcut is
+  fire-and-forget — no rename-sync, no delete-cleanup. Note the actual blast
+  radius is small: a shortcut encodes the userdata **path**
+  (`relativeDataDir = u/<id>`), not the label, and `renameUserdata` only changes
+  the label (`id`/`relativeDataDir` are immutable). So **rename leaves the
+  shortcut fully functional** — only its own display name is cosmetically out of
+  date. **Only delete** (which trashes the folder) yields a truly
+  non-functioning shortcut. Both are **accepted**; keeps the feature trivial and
+  side-effect-free.
 
 ---
 
 ## 5. Recommended evolution (phased)
 
-Phases are ordered by leverage-to-effort. The project's stated appetite is
-MVP-minimal, so Phase 1 is the committed near-term target; later phases are
-deferred until management actually hurts.
+Phases are ordered by leverage-to-effort. **Committed near-term work is Phase 1
+and Phase 1b only.** Phases 2–5 are parked (Section 11) — kept for the record,
+not scheduled.
 
-### Phase 1 — Reshape the picker (low effort, high impact) — DO NOW
+### Phase 1 — Best-possible quick launcher (committed) — DO NOW
 
-Fix the mental model without adding any new surface.
+Make the existing status-bar Quick Pick as good as it can be, with **no new
+surface** (no sidebar). Fix the mental model in place.
 
 ```
 +- Open with Userdata ------------------------------+
@@ -116,9 +138,27 @@ Changes:
 - **Move admin behind "Manage userdatas..."** -> a second Quick Pick where
   rename / reveal / delete can target **any** userdata (fixes tension #2),
   with destructive actions one level deeper (principle 4).
-- **Clarify copy**: keep the command id `userdataSwitcher.openWithUserdata`
-  (renaming it breaks keybindings/muscle memory), but adjust labels/tooltip to
-  teach "opens another window."
+- **Rename the user-facing copy to teach "new window"** (decided: breaking
+  muscle memory is acceptable). Two separable changes:
+  - *Title + picker/tooltip copy* — free, no compatibility cost; this alone
+    fixes the "sounds like switch" problem. Recommended title:
+    `Open Userdata in New Window`; placeholder:
+    `Select a userdata to open in a new window`; keep the "Current window: ..."
+    header.
+  - *Command id* (optional tidiness) — if renamed to e.g.
+    `userdataSwitcher.openInNewWindow`, keep the old id working as a **hidden
+    runtime alias** bound to the same handler (not listed in
+    `contributes.commands`, so it stays out of the palette) so existing
+    user-authored keybindings don't silently break. The extension ships no
+    default keybindings, so only user keybindings are at risk. Bind both ids to
+    the same handler directly — do not forward via `executeCommand`. Note the
+    deprecation in `CHANGELOG.md`; drop the alias in a future major.
+  - *Keep docs in sync*: `CONTEXT.md` defines "Open With Userdata" and
+    "Userdata Menu" as canonical terms. If the user-facing concept name changes,
+    update `CONTEXT.md` and `README.md` in the same pass (per the `AGENTS.md`
+    maintenance lessons on updating cross-references together).
+  - Recommendation: renaming the title/copy is the high-value, zero-risk move;
+    the id rename is cosmetic and optional.
 
 Touch points: `src/menu.ts` (grouping, current-as-header, running metadata),
 `src/userdataSwitcherApp.ts` (orchestration of the "Manage" sub-pick), and the
@@ -130,7 +170,49 @@ Also cheap and worth bundling:
 - **Launch-failure notification** with an "Open Output" action (the channel is
   already wired in `src/extension.ts`).
 
-### Phase 2 — Sidebar "Userdatas" tree view (medium effort, best long-term home)
+### Phase 1b — Create an app shortcut for a userdata (committed)
+
+Removes the daily two-step launch (open default editor -> then open the custom
+userdata) by generating a native, double-clickable launcher per userdata that
+boots the editor straight into that userdata from the OS.
+
+A command **"Create app shortcut for this userdata"** (offered per userdata in
+the launcher's "Manage" entry, and/or as a palette command) writes the
+platform-native launcher. Everything it needs is already computed by
+`buildLaunchCommand` (`src/launcher.ts`): the editor binary
+(`discoverEditorCli`), `--user-data-dir`, and `--extensions-dir`
+(`resolveSharedExtensionsDirectory`).
+
+Per-platform artifact:
+- **macOS** — a minimal generated `.app` bundle (`Info.plist` + a shell stub that
+  execs the editor binary with the args). Dock-pinnable, Spotlight-searchable,
+  named `Cursor — Work`. Locally generated (not downloaded), so it carries no
+  `com.apple.quarantine` attribute and should launch without the "unidentified
+  developer" wall — verify on a clean machine.
+- **Windows** — a `.lnk` (target = `.exe`, args baked in) on Desktop / Start
+  Menu; pin-to-taskbar works. Creatable via PowerShell `WScript.Shell` (already
+  shelled out to on Windows).
+- **Linux** — a `.desktop` file in `~/.local/share/applications/`.
+
+Native launchers start fresh from the OS shell, so they sidestep the
+`ELECTRON_*`/`VSCODE_*` env that `sanitizeEditorLaunchEnvironment` strips when
+launching from inside the editor.
+
+**Decided: no lifecycle management.** Fire-and-forget — no rename-sync, no
+delete-cleanup, no stale-shortcut detection. The blast radius is small because a
+shortcut encodes the userdata **path** (`relativeDataDir`), not the label:
+- **Rename** changes only the label (`id`/`relativeDataDir` are immutable), so
+  the shortcut keeps launching the right userdata — only its own display name is
+  cosmetically out of date.
+- **Delete** trashes the folder, so only then does the shortcut stop working.
+Both are accepted. This keeps the feature trivial and free of cross-surface
+bookkeeping.
+
+Reframe to keep in mind: the very first editor launch is always the default
+userdata (the extension only exists once an editor runs), so this is a one-time
+setup cost — create the shortcuts once, then launch userdatas directly forever.
+
+### Phase 2 — (PARKED) Sidebar "Userdatas" tree view (medium effort, best long-term home)
 
 A `TreeDataProvider` is the honest fit: a list of entities with state, not a
 settings panel. Per-item context menus are natively better than Quick Pick
@@ -146,15 +228,32 @@ USERDATAS (Cursor)
 
 - Per-item context menu (`contributes.menus`): Open in new window · Reveal ·
   Rename · Delete.
-- Title-bar actions: Create, Refresh running state (manual, see C3).
+- Title-bar actions: Create, Refresh running state (manual).
 - `viewsWelcome` markdown for the empty state (addresses onboarding, tension #5):
   "No managed userdata yet — create one."
 - Coexists with the status bar, which stays the compact "this window" mirror.
 
+**Running state on a persistent surface (resolves the "pull, not push"
+tension).** A Quick Pick computes once on open because it is ephemeral; a tree
+is persistent, so badges that never refresh would go *stale and misleading*
+(close a window elsewhere, the tree still says `running`). The fix is
+attention-driven refresh, not a blind background poller:
+
+- Refresh on `TreeView.onDidChangeVisibility` (becomes visible), on
+  `window.onDidChangeWindowState` (editor refocus), after the extension's own
+  open/launch and delete/quit actions, on expand, and on a manual Refresh button.
+- If true liveness is wanted, run a timer **only while the view is visible**
+  (start on visibility, stop on hide). Cost is paid only when there is a viewer.
+- Debounce/coalesce bursts and guard against overlapping async probes.
+- **Backed by a batched probe** (see C3 / Section 10): enumerate processes once
+  and match all userdata roots in a single pass so a full refresh is O(1)
+  process listings, not O(N). This is what makes event-driven refresh — or a
+  visibility-gated timer — affordable.
+
 This is a real commitment (new contribution points, new UI maintenance). Build
 it only when picker-based management becomes the bottleneck.
 
-### Phase 3 — Onboarding (medium effort)
+### Phase 3 — (PARKED) Onboarding (medium effort)
 
 - **`viewsWelcome` / a `contributes.walkthroughs` walkthrough** that teaches the
   *create-your-second-userdata* workflow. NOTE: the common fresh user is in the
@@ -166,7 +265,7 @@ it only when picker-based management becomes the bottleneck.
   replacing the input-box-then-modal chain. Reuses `pickUserdataCreationMode`
   and `provisionManagedUserdata`; mostly UI sequencing.
 
-### Phase 4 — Workspace affinity (high daily value, has a gotcha)
+### Phase 4 — (PARKED) Workspace affinity (high daily value, has a gotcha)
 
 "This repo usually opens as Personal." Turns the tool from "launcher when I
 remember" into "habit per project."
@@ -182,14 +281,15 @@ remember" into "habit per project."
   userdata means **relaunching** into another window. The real feature is
   "detect mismatch -> offer to reopen elsewhere," not a silent switch.
 
-### Phase 5 — Polish & power user
+### Phase 5 — (PARKED) Polish & power user
 
 - Recent userdatas at top of the picker (last 2-3 launches).
 - Per-userdata icon/glyph (codicon or emoji prefix) for visual scanning.
   Constraint: status bar background color is limited to warning/error theme
   colors only — identity must come from text/icon, not arbitrary color (C2).
 - A few settings: default creation mode, status bar visibility, confirm-delete.
-  (No "poll interval" — there is no poller; C3.)
+  (No "poll interval" setting — running-state refresh is attention-driven and
+  batched, not a configurable clock; C3.)
 
 ---
 
@@ -207,12 +307,22 @@ wrong against this codebase.
 - **C2 — Status bar color is limited.** VS Code only allows
   `statusBarItem.warningBackground` / `errorBackground` theme colors. Arbitrary
   per-userdata colors are impossible. Window identity must be text/icon-based.
-- **C3 — No background poller.** Running detection is costly: the Windows path
-  spawns PowerShell and enumerates *all* system processes per call; the mac path
-  is a socket probe per userdata. A 5s poll, per userdata, is a real CPU/battery
-  cost and conflicts with the MVP appetite. Compute running state **lazily** on
-  menu open / tree expand, plus a manual Refresh. This also removes the need for
-  a "poll interval" setting.
+- **C3 — Running-state cost scales with attention; no free-running poller.**
+  Running detection is costly: the Windows path spawns PowerShell and enumerates
+  *all* system processes per call; the mac path is a socket probe per userdata. A
+  5s timer that runs whether or not anyone is looking is the thing to avoid.
+  Instead:
+  - Ephemeral surfaces (Quick Pick): compute once on open.
+  - Persistent surfaces (tree): refresh on attention signals — visibility,
+    window focus, post-mutation, expand, manual Refresh — and optionally a timer
+    gated to **only while the view is visible**.
+  - **Batch the probe** so a full refresh is one process listing, not N: today
+    `isUserdataEditorInstanceRunning` is per-root, so refreshing N userdatas on
+    Windows means N `Get-CimInstance` enumerations. Add a batch variant that
+    enumerates once and matches all roots (mac socket probes are individually
+    cheap). This makes occasional refresh affordable and is the enabler for the
+    tree.
+  - There is therefore no "poll interval" setting.
 - **C4 — "Focus running window" is not a real capability.** No extension API
   focuses another instance's window. Relaunching with a running userdata relies
   on the editor's singleton behavior to focus the existing window. Offer one
@@ -236,7 +346,8 @@ wrong against this codebase.
   right abstraction).
 - Auto-sync settings between userdatas (contradicts "copy once, then drift";
   Section 4).
-- Continuous background polling of running state (C3).
+- A free-running running-state poller that works when nothing is visible. Refresh
+  is attention-driven and batched instead (C3).
 
 ---
 
@@ -258,7 +369,7 @@ flowchart TB
 
   subgraph state [State already available]
     REG[Registry]
-    RUN[Running detection - on demand]
+    RUN[Running detection - attention-driven, batched]
     CUR[Current window detection]
   end
 
@@ -279,11 +390,13 @@ flowchart TB
 
 | Priority | Change | Why |
 |----------|--------|-----|
-| **P0** | Phase 1 picker reshape: current-as-header, on-open running badges, "Manage..." sub-pick; + keybinding + launch-failure notification | Fixes confusion and the current-only management wart without new surfaces; fits MVP appetite |
-| **P1** | Phase 2 sidebar tree view | Permanent home for the existing feature set; build when picker management hurts |
-| **P1** | Phase 3 onboarding (`viewsWelcome` / walkthrough, stepped create) | Unblocks users who installed but never created a second userdata |
-| **P2** | Phase 4 workspace affinity (registry-keyed) | Biggest daily win for multi-client workflows; mind the relaunch friction and storage location |
-| **P3** | Phase 5 recents, icons, settings | Delight and polish |
+| **P0 (committed)** | Phase 1 quick launcher: current-as-header, on-open running badges, "Manage..." sub-pick; + keybinding + launch-failure notification | Fixes confusion and the current-only management wart without new surfaces; fits MVP appetite |
+| **P0 (committed)** | Phase 1b create app shortcut for a userdata (no lifecycle) | Removes the daily two-step launch; trivial because launch args are already computed |
+| **Parked** | Phase 2 sidebar tree view | Permanent home for the feature set; revisit only if picker management hurts |
+| **Parked** | Phase 3 onboarding (`viewsWelcome` / walkthrough, stepped create) | Unblocks users who never created a second userdata |
+| **Parked** | Phase 4 workspace affinity (registry-keyed) | Daily win for multi-client workflows; mind relaunch friction and storage location |
+| **Parked** | Phase 5 recents, icons, settings | Delight and polish |
+| **Parked** | Companion menu-bar/tray app (Section 11) | Best answer to cold-start launch, but a second artifact: shared-core refactor + signing/notarization |
 
 ---
 
@@ -293,17 +406,88 @@ flowchart TB
   "Manage" sub-menu items.
 - `src/userdataSwitcherApp.ts` — orchestration; add the tree provider alongside
   existing commands when Phase 2 lands.
-- `UserdataSwitcherUi` (the seam) — extend with tree-view registration and,
-  if richer pickers are wanted, a persistent `createQuickPick`.
+- `UserdataSwitcherUi` (the seam) — extend with tree-view registration, view
+  visibility (`onDidChangeVisibility`) and window-focus (`onDidChangeWindowState`)
+  signals for attention-driven refresh, and — if richer pickers are wanted — a
+  persistent `createQuickPick`.
 - `src/runningEditorInstance.ts` — already the right primitive; call it on
-  demand. Do not add a poller (C3).
+  demand. Add a **batched** variant that enumerates processes once and matches
+  all userdata roots in a single pass (Section 6, C3), so a tree refresh is O(1)
+  process listings. Do not add a free-running poller; any timer is gated to view
+  visibility.
+- For the command rename (Phase 1): the new id is the only entry in
+  `contributes.commands`; bind the legacy id `userdataSwitcher.openWithUserdata`
+  as a hidden runtime alias to the same handler. Update `CONTEXT.md` and
+  `README.md` if the canonical concept name changes.
+- For Phase 1b (app shortcut): reuse `buildLaunchCommand` /
+  `discoverEditorCli` / `resolveSharedExtensionsDirectory` to assemble the
+  binary + args; add a platform-dispatched shortcut writer (`.app` / `.lnk` /
+  `.desktop`). Keep the artifact builders pure (input: binary, args, label,
+  target path; output: file contents) so they test like the existing pure
+  helpers. No registry coupling — shortcuts are not tracked (no lifecycle).
 - Tests — the `menu.test.ts` / `extension.test.ts` pattern ports directly to
   tree-item builders, the same way `buildOpenWithUserdataMenuItems` is tested
-  today.
+  today. The batched running-state matcher is pure and testable like
+  `commandLineUsesUserdataRoot` already is.
 
 ---
 
 The through-line: stop treating everything as one Quick Pick. Status bar answers
 "where am I?", a tree (eventually) answers "what exists and what's running?",
-and pickers stay for fast "open X" — with workspace memory on top. Every piece
-of live state shown is computed on demand, never polled.
+and pickers stay for fast "open X" — with workspace memory on top. Live state is
+refreshed in proportion to attention — once on open for ephemeral surfaces,
+attention-driven and batched for the persistent tree — and never computed when
+no one is looking.
+
+---
+
+## 11. Parked ideas / future tracks
+
+Explored in discussion, deliberately **not** in current scope. Recorded so the
+reasoning isn't relearned later.
+
+### Companion menu-bar (macOS) / tray (Windows/Linux) app
+
+An optional standalone helper that lives in the menu bar / notification area and
+launches/manages userdatas even when no editor is running. It is the best answer
+to the cold-start problem (no need to open the default editor first), and a
+natural home for an always-on running-state dashboard.
+
+Why parked, not adopted:
+- **Make-or-break is the shared core, not the UI.** The app logic is already
+  decoupled from VS Code — `userdataSwitcherApp.ts` imports no `vscode` and
+  talks through the `UserdataSwitcherUi` seam; the registry lives under the store
+  root and already assumes multiple processes. So a companion is essentially a
+  second `UserdataSwitcherUi` implementation over the same core **if** it stays
+  in the TS/JS ecosystem. Going native (Swift/Rust/Go) means reimplementing the
+  whole launch/registry/detection contract in another language — permanent drift
+  risk in exactly the fiddly platform code. Recommendation if ever pursued:
+  extract a shared TS core consumed by both the VSIX and the app.
+- **"Optional" does not reduce the build cost.** A VSIX can't install a tray app,
+  so it needs its own signed/notarized installer (Apple Developer account;
+  Windows Authenticode), auto-start-at-login glue, and an update channel —
+  separate from the current `npm version` -> marketplace flow. Linux tray
+  support is unreliable.
+- **Responsibility split, to stay complementary:** extension owns "I'm in here"
+  (status bar) and create-from-current-settings; companion owns "from outside"
+  (always-available launcher + dashboard). Hold the companion to launcher +
+  dashboard; resist it becoming a second product.
+
+### Chooser / launcher as the editor entry point (and the in-window wall)
+
+Iteration that wanted a chooser to pop at startup and load a userdata into the
+*current* window, with a "load by default" option. Conclusions:
+- **In-window swap is impossible** (see Decisions). `--user-data-dir` is fixed at
+  process launch; an extension can't rebind its own host. "Load into current
+  window" can only be "launch a new process, close this window" — a relaunch,
+  not a swap, and not guaranteed to reuse this window (singleton focus).
+- **"Pop at start" / "load by default" belong to the external entry point**, not
+  the in-editor extension. From inside the extension the editor has already
+  booted default, so it produces a visible default-then-switch bounce plus an
+  infinite-relaunch guard. A launcher/companion that starts the *first* process
+  in the chosen userdata avoids the bounce entirely. (Phase 1b shortcuts are a
+  static, no-process version of this entry point.)
+- **The honest version of "load into this window"** is "reopen current workspace
+  as X": open the same folder in a new window for userdata X (reuse
+  `resolveWorkspaceArg`), then close the current window. This is the Phase 4
+  affinity flow plus a close-current step; also parked.

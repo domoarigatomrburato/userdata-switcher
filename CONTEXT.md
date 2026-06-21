@@ -49,15 +49,15 @@ The platform-specific app data location where this tool stores its registry and
 automatically created Managed Userdata for one Supported Host.
 _Avoid_: hard-coded absolute path, extension globalStorage
 
-**Open With Userdata**:
-Open or focus the current Editor Host using a selected known Userdata, usually
-for the current workspace.
-_Avoid_: apply sign-in, reload window
+**Open Userdata in New Window**:
+Launch or focus the current Editor Host in a new window using a selected known
+Userdata, usually for the current workspace.
+_Avoid_: apply sign-in, reload window, switch userdata
 
 **Userdata Menu**:
-The status-bar menu whose title shows the Current Userdata and whose items list
-other known Userdata choices plus actions such as renaming the Current Userdata
-or creating a new Userdata.
+The status-bar menu that opens **Open Userdata in New Window**, showing the
+current window context, other known Userdata launch targets with running state,
+and links to create or manage userdatas.
 _Avoid_: sign-in menu, profile selector
 
 **Running Userdata Instance**:

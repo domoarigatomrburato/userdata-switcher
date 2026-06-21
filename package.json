@@ -55,8 +55,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "userdataSwitcher.openWithUserdata",
-        "title": "Open With Userdata",
+        "command": "userdataSwitcher.openInNewWindow",
+        "title": "Open Userdata in New Window",
         "category": "Userdata Switcher"
       },
       {
@@ -83,6 +83,13 @@
         "command": "userdataSwitcher.deleteUserdata",
         "title": "Delete Userdata",
         "category": "Userdata Switcher"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "userdataSwitcher.openInNewWindow",
+        "key": "ctrl+shift+u",
+        "mac": "cmd+shift+u"
       }
     ]
   },

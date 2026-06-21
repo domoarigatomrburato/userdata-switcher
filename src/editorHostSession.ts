@@ -1,6 +1,5 @@
 import {
   type CurrentUserdata,
-  deriveUserdataRootFromGlobalStorage,
   matchCurrentUserdata,
   resolveCurrentUserdataRoot,
 } from "./detect";
@@ -31,9 +30,5 @@ export class EditorHostSession {
       defaultUserdataRoot: this.input.defaultUserdataRoot,
       storeRoot: this.input.storeRoot,
     });
-  }
-
-  derivedUserdataRoot(): string | null {
-    return deriveUserdataRootFromGlobalStorage(this.input.globalStoragePath);
   }
 }

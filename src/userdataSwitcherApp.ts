@@ -8,12 +8,12 @@ import {
   describeDeleteUserdataBlockedReason,
   listDeletableManagedUserdatas,
 } from "./deleteUserdata";
-import type { CurrentUserdata } from "./detect";
+import { resolveUserdataEntryRoot } from "./detect";
 import { EditorHostSession } from "./editorHostSession";
 import type { SupportedHostAdapter } from "./host";
 import {
-  formatOpenWithUserdataPickerTitle,
   formatStatusBarText,
+  formatUserdataEntryLabel,
   formatUserdataLabel,
 } from "./labels";
 import {
@@ -24,10 +24,21 @@ import {
 } from "./launcher";
 import { provisionManagedUserdata } from "./managedUserdataProvisioner";
 import {
-  buildOpenWithUserdataMenuItems,
-  resolveOpenWithUserdataMenuIntent,
+  buildDeleteUserdataMenuItems,
+  buildManageUserdataActionMenuItems,
+  buildManageUserdatasMenuItems,
+  buildOpenInNewWindowMenuItems,
+  DELETE_USERDATA_PLACEHOLDER,
+  DELETE_USERDATA_TITLE,
+  MANAGE_USERDATAS_PLACEHOLDER,
+  MANAGE_USERDATAS_TITLE,
+  OPEN_USERDATA_IN_NEW_WINDOW_PLACEHOLDER,
+  OPEN_USERDATA_IN_NEW_WINDOW_TITLE,
+  resolveUserdataMenuIntent,
+  type UserdataMenuIntent,
   type UserdataMenuItem,
   type UserdataMenuItemIntent,
+  type UserdataRunningState,
 } from "./menu";
 import { registryPath, resolveManagedDataDir } from "./paths";
 import {
@@ -42,7 +53,7 @@ import {
   quitUserdataEditorInstance,
 } from "./runningEditorInstance";
 
-export const COMMAND_OPEN_WITH_USERDATA = "userdataSwitcher.openWithUserdata";
+export const COMMAND_OPEN_IN_NEW_WINDOW = "userdataSwitcher.openInNewWindow";
 export const COMMAND_CREATE_USERDATA = "userdataSwitcher.createUserdata";
 export const COMMAND_RENAME_CURRENT_USERDATA =
   "userdataSwitcher.renameCurrentUserdata";
@@ -90,7 +101,10 @@ export interface UserdataSwitcherUi {
     value?: string;
     validateInput?(value: string): string | undefined;
   }): PromiseLike<string | undefined>;
-  showErrorMessage(message: string): PromiseLike<unknown>;
+  showErrorMessage(
+    message: string,
+    ...items: string[]
+  ): PromiseLike<string | undefined>;
   showWarningMessage(
     message: string,
     ...items: string[]
@@ -101,6 +115,7 @@ export interface UserdataSwitcherUi {
   ): PromiseLike<string | undefined>;
   revealPathInOs(fsPath: string): PromiseLike<unknown>;
   deletePath(fsPath: string, options: { useTrash: boolean }): PromiseLike<void>;
+  showOutput(): void;
 }
 
 export interface UserdataSwitcherActivation {
@@ -124,6 +139,7 @@ type UserdataCreationMode = "seedCurrent" | "empty";
 
 const CREATE_FROM_CURRENT_SETTINGS_LABEL = "Start from current settings";
 const CREATE_EMPTY_LABEL = "Start empty";
+const OPEN_OUTPUT_LABEL = "Open Output";
 
 function requireNonEmptyLabel(value: string): string | undefined {
   return value.trim() ? undefined : "Label is required";
@@ -140,6 +156,32 @@ function toQuickPickItems(
     const { kind: _kind, ...quickPickItem } = item;
     return quickPickItem;
   });
+}
+
+async function resolveRunningByUserdataId(input: {
+  registry: Registry;
+  storeRoot: string;
+  defaultUserdataRoot: string;
+  isRunning: (root: string) => Promise<boolean>;
+}): Promise<Map<string, UserdataRunningState>> {
+  const runningByUserdataId = new Map<string, UserdataRunningState>();
+  await Promise.all(
+    input.registry.userdatas.map(async (entry) => {
+      const root = resolveUserdataEntryRoot({
+        entry,
+        storeRoot: input.storeRoot,
+        defaultUserdataRoot: input.defaultUserdataRoot,
+      });
+      if (!root) {
+        return;
+      }
+      runningByUserdataId.set(
+        entry.id,
+        (await input.isRunning(root)) ? "running" : "idle",
+      );
+    }),
+  );
+  return runningByUserdataId;
 }
 
 export function activateUserdataSwitcher(
@@ -168,6 +210,17 @@ export function activateUserdataSwitcher(
   const defaultUserdataRoot = host.resolveDefaultUserdataRoot();
   const registryFile = registryPath(storeRoot);
   const registryStore = new UserdataRegistryStore(registryFile);
+  const pickMenuIntent = async (
+    registry: Registry,
+    menuItems: UserdataMenuItem[],
+    options: { title: string; placeHolder: string },
+  ): Promise<UserdataMenuIntent> => {
+    const selected = await ui.showQuickPick(
+      toQuickPickItems(menuItems, ui.QuickPickItemKind.Separator),
+      options,
+    );
+    return resolveUserdataMenuIntent(registry, selected);
+  };
   const session = new EditorHostSession({
     globalStoragePath,
     defaultUserdataRoot,
@@ -187,7 +240,7 @@ export function activateUserdataSwitcher(
     session.currentUserdata(registry);
 
   const statusBarItem = ui.createStatusBarItem(ui.StatusBarAlignment.Left, 100);
-  statusBarItem.command = COMMAND_OPEN_WITH_USERDATA;
+  statusBarItem.command = COMMAND_OPEN_IN_NEW_WINDOW;
 
   const refreshStatusBar = (registry?: Registry) => {
     const current = currentUserdata(registry);
@@ -196,31 +249,30 @@ export function activateUserdataSwitcher(
     statusBarItem.show();
   };
 
+  const revealUserdata = async (entry: UserdataEntry) => {
+    const userdataRoot = resolveUserdataEntryRoot({
+      entry,
+      storeRoot,
+      defaultUserdataRoot,
+    });
+    if (!userdataRoot) {
+      await ui.showWarningMessage(
+        "Could not determine the userdata directory.",
+      );
+      return;
+    }
+    logger?.info(`Reveal userdata ${entry.id}: ${userdataRoot}`);
+    await ui.revealPathInOs(userdataRoot);
+  };
+
   const revealCurrentUserdata = async () => {
     const current = currentUserdata();
-    const derivedRoot = session.derivedUserdataRoot();
-    const userdataRoot = session.currentUserdataRoot(current);
-
-    logger?.info(
-      `Reveal diagnostics current=${describeCurrentUserdata(current)}`,
-    );
-    logger?.info(`Reveal diagnostics globalStoragePath=${globalStoragePath}`);
-    logger?.info(
-      `Reveal diagnostics derivedRootFromGlobalStorage=${derivedRoot ?? "(none)"}`,
-    );
-    logger?.info(`Reveal diagnostics storeRoot=${storeRoot}`);
-    logger?.info(
-      `Reveal diagnostics defaultUserdataRoot=${defaultUserdataRoot}`,
-    );
-    logger?.info(
-      `Reveal diagnostics resolvedUserdataRoot=${userdataRoot ?? "(none)"}`,
-    );
-    if (userdataRoot) {
-      logger?.info(
-        `Reveal diagnostics resolvedPathExists=${fs.existsSync(userdataRoot)}`,
-      );
+    if (current.kind === "known") {
+      await revealUserdata(current.entry);
+      return;
     }
 
+    const userdataRoot = session.currentUserdataRoot(current);
     if (!userdataRoot) {
       await ui.showWarningMessage(
         "Could not determine the current userdata directory.",
@@ -245,7 +297,10 @@ export function activateUserdataSwitcher(
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger?.error(`Launch failed: ${message}`);
-      await ui.showErrorMessage(message);
+      const choice = await ui.showErrorMessage(message, OPEN_OUTPUT_LABEL);
+      if (choice === OPEN_OUTPUT_LABEL) {
+        ui.showOutput();
+      }
     }
   };
 
@@ -311,6 +366,24 @@ export function activateUserdataSwitcher(
     }
   };
 
+  const renameUserdataEntry = async (entry: UserdataEntry) => {
+    const label = await ui.showInputBox({
+      title: "Rename Userdata",
+      prompt: "Enter a new label",
+      value: entry.label,
+      validateInput: requireNonEmptyLabel,
+    });
+    if (!label) {
+      logger?.info("Rename userdata cancelled");
+      return;
+    }
+    const updatedRegistry = registryStore.update((latest) =>
+      renameUserdata(latest, entry.id, label),
+    );
+    refreshStatusBar(updatedRegistry);
+    logger?.info(`Renamed userdata ${entry.id} to ${label}`);
+  };
+
   const renameCurrentUserdata = async () => {
     const current = currentUserdata();
     if (current.kind === "unmanaged") {
@@ -319,56 +392,11 @@ export function activateUserdataSwitcher(
       );
       return;
     }
-    const label = await ui.showInputBox({
-      title: "Rename Current Userdata",
-      prompt: "Enter a new label",
-      value: current.entry.label,
-      validateInput: requireNonEmptyLabel,
-    });
-    if (!label) {
-      logger?.info("Rename userdata cancelled");
-      return;
-    }
-    const updatedRegistry = registryStore.update((latest) =>
-      renameUserdata(latest, current.entry.id, label),
-    );
-    refreshStatusBar(updatedRegistry);
-    logger?.info(`Renamed userdata ${current.entry.id} to ${label}`);
+    await renameUserdataEntry(current.entry);
   };
 
-  const deleteUserdata = async () => {
-    const currentRegistry = registryStore.read();
-    const current = currentUserdata(currentRegistry);
-    const deletable = listDeletableManagedUserdatas(currentRegistry, current);
-    const blockedReason = describeDeleteUserdataBlockedReason(
-      currentRegistry,
-      current,
-    );
-
-    if (blockedReason) {
-      await ui.showWarningMessage(blockedReason);
-      return;
-    }
-
-    const items: QuickPickItem[] = deletable.map((entry) => ({
-      label: formatUserdataLabel({ kind: "known", entry }),
-      description: entry.relativeDataDir,
-      intent: { kind: "open", userdataId: entry.id },
-    }));
-
-    const selected = await ui.showQuickPick(items, {
-      title: "Delete Userdata",
-      placeHolder: "Select a userdata to delete",
-    });
-
-    if (selected?.intent?.kind !== "open") {
-      logger?.info("Delete userdata cancelled");
-      return;
-    }
-
-    const targetId = selected.intent.userdataId;
-    const targetEntry = deletable.find((entry) => entry.id === targetId);
-    if (!targetEntry?.relativeDataDir) {
+  const deleteManagedUserdataEntry = async (targetEntry: UserdataEntry) => {
+    if (!targetEntry.relativeDataDir) {
       return;
     }
 
@@ -396,11 +424,7 @@ export function activateUserdataSwitcher(
       },
       pathExists: (managedUserdataRoot) => fs.existsSync(managedUserdataRoot),
       confirmDeletion: async (message, confirmLabel) => {
-        const choice = await ui.showWarningMessage(
-          message,
-          confirmLabel,
-          "Cancel",
-        );
+        const choice = await ui.showInformationMessage(message, confirmLabel);
         return choice === confirmLabel;
       },
       logInfo: (message) => logger?.info(message),
@@ -448,53 +472,134 @@ export function activateUserdataSwitcher(
     }
   };
 
-  const openWithUserdataMenu = async () => {
+  const deleteUserdata = async () => {
+    const currentRegistry = registryStore.read();
+    const current = currentUserdata(currentRegistry);
+    const deletable = listDeletableManagedUserdatas(currentRegistry, current);
+    const blockedReason = describeDeleteUserdataBlockedReason(
+      currentRegistry,
+      current,
+      deletable,
+    );
+    if (blockedReason) {
+      await ui.showWarningMessage(blockedReason);
+      return;
+    }
+
+    const intent = await pickMenuIntent(
+      currentRegistry,
+      buildDeleteUserdataMenuItems(deletable),
+      {
+        title: DELETE_USERDATA_TITLE,
+        placeHolder: DELETE_USERDATA_PLACEHOLDER,
+      },
+    );
+    if (intent.kind !== "delete") {
+      logger?.info("Delete userdata cancelled");
+      return;
+    }
+
+    await deleteManagedUserdataEntry(intent.entry);
+  };
+
+  const manageUserdataActions = async (entry: UserdataEntry) => {
+    const registry = registryStore.read();
+    const intent = await pickMenuIntent(
+      registry,
+      buildManageUserdataActionMenuItems(entry, currentUserdata(registry)),
+      {
+        title: formatUserdataEntryLabel(entry),
+        placeHolder: "Choose an action",
+      },
+    );
+    if (intent.kind === "cancel") {
+      logger?.info("Manage userdata action cancelled");
+      return;
+    }
+    if (intent.kind === "rename") {
+      logger?.info(`Menu intent: rename userdata ${intent.entry.id}`);
+      await renameUserdataEntry(intent.entry);
+      return;
+    }
+    if (intent.kind === "reveal") {
+      logger?.info(`Menu intent: reveal userdata ${intent.entry.id}`);
+      await revealUserdata(intent.entry);
+      return;
+    }
+    if (intent.kind === "delete") {
+      logger?.info(`Menu intent: delete userdata ${intent.entry.id}`);
+      await deleteManagedUserdataEntry(intent.entry);
+    }
+  };
+
+  const manageUserdatas = async () => {
+    const currentRegistry = registryStore.read();
+    const intent = await pickMenuIntent(
+      currentRegistry,
+      buildManageUserdatasMenuItems(currentRegistry),
+      {
+        title: MANAGE_USERDATAS_TITLE,
+        placeHolder: MANAGE_USERDATAS_PLACEHOLDER,
+      },
+    );
+    if (intent.kind === "cancel") {
+      logger?.info("Manage userdatas cancelled");
+      return;
+    }
+    if (intent.kind === "managePick") {
+      logger?.info(`Menu intent: manage userdata ${intent.entry.id}`);
+      await manageUserdataActions(intent.entry);
+    }
+  };
+
+  const openInNewWindowMenu = async () => {
     const currentRegistry = registryStore.read();
     const current = currentUserdata(currentRegistry);
     logger?.info(
       `Opening menu from current userdata: ${formatUserdataLabel(current)}`,
     );
     refreshStatusBar(currentRegistry);
-    const items = toQuickPickItems(
-      buildOpenWithUserdataMenuItems(currentRegistry, current),
-      ui.QuickPickItemKind.Separator,
-    );
-
-    const selected = await ui.showQuickPick(items, {
-      title: formatOpenWithUserdataPickerTitle(current),
-      placeHolder: "Select a userdata to open",
+    const runningByUserdataId = await resolveRunningByUserdataId({
+      registry: currentRegistry,
+      storeRoot,
+      defaultUserdataRoot,
+      isRunning: isManagedUserdataInUse,
     });
-    const intent = resolveOpenWithUserdataMenuIntent(currentRegistry, selected);
-    switch (intent.kind) {
-      case "cancel":
-        logger?.info("Menu cancelled");
-        return;
-      case "create":
-        logger?.info("Menu intent: create userdata");
-        await createUserdata();
-        return;
-      case "rename":
-        logger?.info("Menu intent: rename current userdata");
-        await renameCurrentUserdata();
-        return;
-      case "reveal":
-        logger?.info("Menu intent: reveal current userdata");
-        await revealCurrentUserdata();
-        return;
-      case "delete":
-        logger?.info("Menu intent: delete userdata");
-        await deleteUserdata();
-        return;
-      case "open":
-        logger?.info(`Menu intent: open userdata ${intent.entry.id}`);
-        await launchEntrySafely(intent.entry);
-        return;
+    const intent = await pickMenuIntent(
+      currentRegistry,
+      buildOpenInNewWindowMenuItems(
+        currentRegistry,
+        current,
+        runningByUserdataId,
+      ),
+      {
+        title: OPEN_USERDATA_IN_NEW_WINDOW_TITLE,
+        placeHolder: OPEN_USERDATA_IN_NEW_WINDOW_PLACEHOLDER,
+      },
+    );
+    if (intent.kind === "cancel") {
+      logger?.info("Menu cancelled");
+      return;
+    }
+    if (intent.kind === "create") {
+      logger?.info("Menu intent: create userdata");
+      await createUserdata();
+      return;
+    }
+    if (intent.kind === "manage") {
+      logger?.info("Menu intent: manage userdatas");
+      await manageUserdatas();
+      return;
+    }
+    if (intent.kind === "open") {
+      logger?.info(`Menu intent: open userdata ${intent.entry.id}`);
+      await launchEntrySafely(intent.entry);
     }
   };
 
   subscribe(statusBarItem as unknown as Disposable);
   subscribe(
-    ui.registerCommand(COMMAND_OPEN_WITH_USERDATA, openWithUserdataMenu),
+    ui.registerCommand(COMMAND_OPEN_IN_NEW_WINDOW, openInNewWindowMenu),
   );
   subscribe(ui.registerCommand(COMMAND_CREATE_USERDATA, createUserdata));
   subscribe(
@@ -513,14 +618,4 @@ export function activateUserdataSwitcher(
   subscribe(ui.registerCommand(COMMAND_DELETE_USERDATA, deleteUserdata));
 
   refreshStatusBar();
-}
-
-function describeCurrentUserdata(current: CurrentUserdata): string {
-  if (current.kind === "unmanaged") {
-    return "kind=unmanaged";
-  }
-
-  const { entry } = current;
-  const relativeDataDir = entry.relativeDataDir ?? "(none)";
-  return `kind=known id=${entry.id} entryKind=${entry.kind} relativeDataDir=${relativeDataDir}`;
 }
