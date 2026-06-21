@@ -39,9 +39,6 @@ your own code changes.
 - After packaging-related changes, inspect the produced artifact contents. The
   artifact should include runtime files only, not source, tests, local tooling,
   or generated development metadata.
-- Use `npm run dogfood` when explicitly asked to build and install a local
-  pre-release VSIX into VS Code and Cursor. Do not run it casually because it
-  mutates the user's installed editor extensions.
 - Use `npm version <patch|minor|major>` only when explicitly asked to release.
   `preversion` validates, `npm version` bumps/commits/tags on a clean tree,
   `postversion` pushes the tag. GitHub Actions publishes the release, notes from

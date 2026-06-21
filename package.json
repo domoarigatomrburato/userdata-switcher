@@ -101,8 +101,7 @@
     "fix": "knip --fix && biome check --write .",
     "test": "tsc -p . && tsx --test test/**/*.test.ts scripts/**/*.test.mjs",
     "build": "node scripts/build.mjs",
-    "package:vsix": "node scripts/package-vsix.mjs",
-    "dogfood": "node scripts/dogfood.mjs"
+    "package:vsix": "node scripts/package-vsix.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",

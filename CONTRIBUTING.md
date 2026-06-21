@@ -26,17 +26,6 @@ npm run package:vsix
 `npm run check` is the readonly quality gate. `npm run fix` applies safe Knip
 cleanup first, then Biome formatting, lint fixes, and import organization.
 
-## Dogfood
-
-Build and install a local pre-release VSIX into VS Code and Cursor:
-
-```sh
-npm run dogfood
-```
-
-The script writes `dist/userdata-switcher-<version>-dogfood.vsix`, installs it
-with `--force`, and does not change `package.json`.
-
 ## Release
 
 Before releasing, add the next version entry to `CHANGELOG.md` and commit all
