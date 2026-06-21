@@ -21,22 +21,31 @@ export const DELETE_VERIFY_PATH_STILL_EXISTS_MESSAGE = `The userdata folder coul
 export const DELETE_VERIFY_INSTANCE_STILL_RUNNING_MESSAGE =
   "The editor instance for this userdata is still running after deletion was attempted. Quit it manually, then try again.";
 
+export function isDeletableManagedUserdata(
+  entry: UserdataEntry,
+  current: CurrentUserdata,
+): boolean {
+  return (
+    entry.kind === "managed" &&
+    (current.kind === "unmanaged" || entry.id !== current.entry.id)
+  );
+}
+
 export function listDeletableManagedUserdatas(
   registry: Registry,
   current: CurrentUserdata,
 ): UserdataEntry[] {
-  return registry.userdatas.filter(
-    (entry) =>
-      entry.kind === "managed" &&
-      (current.kind === "unmanaged" || entry.id !== current.entry.id),
+  return registry.userdatas.filter((entry) =>
+    isDeletableManagedUserdata(entry, current),
   );
 }
 
 export function describeDeleteUserdataBlockedReason(
   registry: Registry,
   current: CurrentUserdata,
+  deletable: UserdataEntry[] = listDeletableManagedUserdatas(registry, current),
 ): string | null {
-  if (listDeletableManagedUserdatas(registry, current).length > 0) {
+  if (deletable.length > 0) {
     return null;
   }
 

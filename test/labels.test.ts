@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  formatOpenWithUserdataPickerTitle,
+  formatCurrentWindowHeaderLabel,
   formatStatusBarText,
   formatUserdataLabel,
 } from "../src/labels";
@@ -37,10 +37,10 @@ describe("formatUserdataLabel", () => {
   });
 });
 
-describe("formatOpenWithUserdataPickerTitle", () => {
-  it("shows the current userdata in the picker title", () => {
+describe("formatCurrentWindowHeaderLabel", () => {
+  it("shows the current userdata as a picker header", () => {
     assert.equal(
-      formatOpenWithUserdataPickerTitle({
+      formatCurrentWindowHeaderLabel({
         kind: "known",
         entry: {
           id: "default",
@@ -48,7 +48,7 @@ describe("formatOpenWithUserdataPickerTitle", () => {
           label: "Default",
         },
       }),
-      "Current: Default (default)",
+      "Current window: Default (default)",
     );
   });
 });

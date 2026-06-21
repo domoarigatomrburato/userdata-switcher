@@ -13,12 +13,14 @@ import {
   DELETE_VERIFY_PATH_STILL_EXISTS_MESSAGE,
 } from "../src/deleteUserdata";
 import type { SupportedHostAdapter } from "../src/host";
+import { formatCurrentWindowHeaderLabel } from "../src/labels";
 import type { LaunchCommand, LaunchEditor } from "../src/launcher";
 import {
   CREATE_USERDATA_LABEL,
   DELETE_USERDATA_LABEL,
-  RENAME_CURRENT_USERDATA_LABEL,
-  REVEAL_CURRENT_USERDATA_LABEL,
+  MANAGE_USERDATAS_LABEL,
+  RENAME_USERDATA_LABEL,
+  REVEAL_USERDATA_LABEL,
 } from "../src/menu";
 import { registryPath } from "../src/paths";
 import { loadRegistry, saveRegistry } from "../src/registry";
@@ -26,7 +28,7 @@ import {
   activateUserdataSwitcher,
   COMMAND_CREATE_USERDATA,
   COMMAND_DELETE_USERDATA,
-  COMMAND_OPEN_WITH_USERDATA,
+  COMMAND_OPEN_IN_NEW_WINDOW,
   COMMAND_RENAME_CURRENT_USERDATA,
   COMMAND_REVEAL_CURRENT_USERDATA,
   COMMAND_SHOW_CURRENT_USERDATA,
@@ -105,7 +107,8 @@ function createTestHarness(input?: {
   warningMessageChoice?: string;
   warningMessageChoices?: readonly string[];
   informationMessageChoice?: string;
-  informationMessageChoices?: readonly string[];
+  informationMessageChoices?: readonly (string | undefined)[];
+  errorMessageChoices?: readonly string[];
   isManagedUserdataInUse?: UserdataSwitcherActivation["isManagedUserdataInUse"];
   quitManagedUserdataInstance?: UserdataSwitcherActivation["quitManagedUserdataInstance"];
 }): TestHarness {
@@ -158,6 +161,7 @@ function createTestHarness(input?: {
         ? [input.informationMessageChoice]
         : [])),
   ];
+  const errorMessageChoices = [...(input?.errorMessageChoices ?? [])];
 
   const host: SupportedHostAdapter = {
     id: "cursor",
@@ -186,8 +190,10 @@ function createTestHarness(input?: {
       uiEvents.push("inputBox");
       return inputBoxValues.shift();
     },
-    showErrorMessage: async (message) => {
+    showErrorMessage: async (message, ...items) => {
       errors.push(message);
+      const choice = errorMessageChoices.shift();
+      return choice ?? items[0];
     },
     showWarningMessage: async (message, ...items) => {
       warnings.push(message);
@@ -197,8 +203,10 @@ function createTestHarness(input?: {
     showInformationMessage: async (message, ...items) => {
       uiEvents.push("informationMessage");
       infos.push(message);
-      const choice = informationMessageChoices.shift();
-      return choice ?? items[0];
+      if (informationMessageChoices.length > 0) {
+        return informationMessageChoices.shift();
+      }
+      return items[0];
     },
     revealPathInOs: async (fsPath) => {
       revealedPaths.push(fsPath);
@@ -211,6 +219,9 @@ function createTestHarness(input?: {
       if (!input?.deletePathSkipRemoval && fs.existsSync(fsPath)) {
         fs.rmSync(fsPath, { recursive: true, force: true });
       }
+    },
+    showOutput: () => {
+      uiEvents.push("showOutput");
     },
   };
 
@@ -289,7 +300,7 @@ describe("activateUserdataSwitcher", () => {
 
     activateUserdataSwitcher(harness.activation);
 
-    assert.ok(harness.commands.has(COMMAND_OPEN_WITH_USERDATA));
+    assert.ok(harness.commands.has(COMMAND_OPEN_IN_NEW_WINDOW));
     assert.ok(harness.commands.has(COMMAND_CREATE_USERDATA));
     assert.ok(harness.commands.has(COMMAND_RENAME_CURRENT_USERDATA));
     assert.ok(harness.commands.has(COMMAND_SHOW_CURRENT_USERDATA));
@@ -307,7 +318,7 @@ describe("activateUserdataSwitcher", () => {
       harness.statusBar.tooltip,
       "Current Cursor Userdata: Default (default)",
     );
-    assert.equal(harness.statusBar.command, COMMAND_OPEN_WITH_USERDATA);
+    assert.equal(harness.statusBar.command, COMMAND_OPEN_IN_NEW_WINDOW);
     assert.deepEqual(harness.logs.slice(0, 3), [
       "info:Activated for Cursor",
       "info:appRoot=/Applications/Cursor.app/Contents/Resources/app",
@@ -360,12 +371,13 @@ describe("activateUserdataSwitcher", () => {
       ],
       inputBoxValue: "Personal",
       informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
+      isManagedUserdataInUse: async () => false,
     });
     harnesses.push(harness);
 
     activateUserdataSwitcher(harness.activation);
     await harness.run(COMMAND_CREATE_USERDATA);
-    await harness.run(COMMAND_OPEN_WITH_USERDATA);
+    await harness.run(COMMAND_OPEN_IN_NEW_WINDOW);
 
     const managedLaunch = harness.launched.at(-1);
     assert.ok(managedLaunch);
@@ -383,22 +395,35 @@ describe("activateUserdataSwitcher", () => {
     );
   });
 
-  it("routes the rename action in the open menu to rename current userdata", async () => {
+  it("routes rename in the manage menu to the selected userdata", async () => {
     const harness = createTestHarness({
-      quickPickSelection: {
-        label: RENAME_CURRENT_USERDATA_LABEL,
-        intent: { kind: "rename" },
-      },
-      inputBoxValue: "Work",
+      quickPickSelections: [
+        {
+          label: MANAGE_USERDATAS_LABEL,
+          intent: { kind: "manage" },
+        },
+        {
+          label: "Personal",
+          intent: { kind: "managePick", userdataId: "personal" },
+        },
+        {
+          label: RENAME_USERDATA_LABEL,
+          intent: { kind: "rename", userdataId: "personal" },
+        },
+      ],
+      inputBoxValue: "Client",
     });
     harnesses.push(harness);
 
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+
     activateUserdataSwitcher(harness.activation);
-    await harness.run(COMMAND_OPEN_WITH_USERDATA);
+    await harness.run(COMMAND_OPEN_IN_NEW_WINDOW);
 
     const registry = loadRegistry(registryPath(harness.storeRoot));
-    assert.equal(registry.userdatas[0]?.label, "Work");
-    assert.equal(harness.statusBar.text, "$(layers) Work (default)");
+    const managed = registry.userdatas.find((entry) => entry.id === "personal");
+    assert.equal(managed?.label, "Client");
   });
 
   it("routes the create action in the open menu to create userdata", async () => {
@@ -415,7 +440,7 @@ describe("activateUserdataSwitcher", () => {
     harnesses.push(harness);
 
     activateUserdataSwitcher(harness.activation);
-    await harness.run(COMMAND_OPEN_WITH_USERDATA);
+    await harness.run(COMMAND_OPEN_IN_NEW_WINDOW);
 
     const registry = loadRegistry(registryPath(harness.storeRoot));
     const managed = registry.userdatas.find(
@@ -430,38 +455,36 @@ describe("activateUserdataSwitcher", () => {
     const harness = createTestHarness({
       inputBoxValue: "Personal",
       informationMessageChoice: START_FROM_CURRENT_SETTINGS_LABEL,
+      isManagedUserdataInUse: async () => false,
     });
     harnesses.push(harness);
 
     activateUserdataSwitcher(harness.activation);
     await harness.run(COMMAND_CREATE_USERDATA);
-    await harness.run(COMMAND_OPEN_WITH_USERDATA);
+    await harness.run(COMMAND_OPEN_IN_NEW_WINDOW);
 
     assert.deepEqual(harness.quickPickItems[0], [
       {
+        label: formatCurrentWindowHeaderLabel({
+          kind: "known",
+          entry: { id: "default", kind: "default", label: "Default" },
+        }),
+        kind: -1,
+      },
+      {
         label: "Personal",
-        description: "Managed Userdata",
+        description: "idle",
         intent: { kind: "open", userdataId: "personal" },
       },
-      { label: "Actions", kind: -1 },
-      {
-        label: RENAME_CURRENT_USERDATA_LABEL,
-        intent: { kind: "rename" },
-        alwaysShow: true,
-      },
-      {
-        label: REVEAL_CURRENT_USERDATA_LABEL,
-        intent: { kind: "reveal" },
-        alwaysShow: true,
-      },
+      { label: "", kind: -1 },
       {
         label: CREATE_USERDATA_LABEL,
         intent: { kind: "create" },
         alwaysShow: true,
       },
       {
-        label: DELETE_USERDATA_LABEL,
-        intent: { kind: "delete" },
+        label: MANAGE_USERDATAS_LABEL,
+        intent: { kind: "manage" },
         alwaysShow: true,
       },
     ]);
@@ -751,19 +774,27 @@ describe("activateUserdataSwitcher", () => {
     assert.deepEqual(harness.revealedPaths, [harness.defaultUserdataRoot]);
     assert.ok(
       harness.logs.some((log) =>
-        log.includes(
-          `Reveal diagnostics resolvedUserdataRoot=${harness.defaultUserdataRoot}`,
-        ),
+        log.includes(`Reveal userdata default: ${harness.defaultUserdataRoot}`),
       ),
     );
   });
 
-  it("reveals managed userdata from the open menu", async () => {
+  it("reveals managed userdata from the manage menu", async () => {
     const harness = createTestHarness({
-      quickPickSelection: {
-        label: REVEAL_CURRENT_USERDATA_LABEL,
-        intent: { kind: "reveal" },
-      },
+      quickPickSelections: [
+        {
+          label: MANAGE_USERDATAS_LABEL,
+          intent: { kind: "manage" },
+        },
+        {
+          label: "Personal",
+          intent: { kind: "managePick", userdataId: "personal" },
+        },
+        {
+          label: REVEAL_USERDATA_LABEL,
+          intent: { kind: "reveal", userdataId: "personal" },
+        },
+      ],
     });
     harnesses.push(harness);
 
@@ -774,7 +805,7 @@ describe("activateUserdataSwitcher", () => {
     savePersonalRegistry(harness.storeRoot);
 
     activateUserdataSwitcher(harness.activation);
-    await harness.run(COMMAND_OPEN_WITH_USERDATA);
+    await harness.run(COMMAND_OPEN_IN_NEW_WINDOW);
 
     assert.deepEqual(harness.revealedPaths, [managedDir]);
   });
@@ -845,13 +876,15 @@ describe("activateUserdataSwitcher", () => {
     ]);
   });
 
-  it("surfaces launch failures through the error UI", async () => {
+  it("surfaces launch failures with an Open Output action", async () => {
     const harness = createTestHarness({
       quickPickSelection: {
         label: "Personal",
         intent: { kind: "open", userdataId: "personal" },
       },
       discoverEditorCli: () => null,
+      errorMessageChoices: ["Open Output"],
+      isManagedUserdataInUse: async () => false,
     });
     harnesses.push(harness);
 
@@ -859,11 +892,12 @@ describe("activateUserdataSwitcher", () => {
     savePersonalRegistry(harness.storeRoot);
 
     activateUserdataSwitcher(harness.activation);
-    await harness.run(COMMAND_OPEN_WITH_USERDATA);
+    await harness.run(COMMAND_OPEN_IN_NEW_WINDOW);
 
     assert.deepEqual(harness.errors, [
       "Could not find Cursor CLI in this installation.",
     ]);
+    assert.ok(harness.uiEvents.includes("showOutput"));
   });
 
   it("surfaces async launch failures through the error UI", async () => {
@@ -875,6 +909,7 @@ describe("activateUserdataSwitcher", () => {
       launchEditorImpl: async () => {
         throw new Error("spawn failed");
       },
+      isManagedUserdataInUse: async () => false,
     });
     harnesses.push(harness);
 
@@ -882,18 +917,57 @@ describe("activateUserdataSwitcher", () => {
     savePersonalRegistry(harness.storeRoot);
 
     activateUserdataSwitcher(harness.activation);
-    await harness.run(COMMAND_OPEN_WITH_USERDATA);
+    await harness.run(COMMAND_OPEN_IN_NEW_WINDOW);
 
     assert.deepEqual(harness.errors, ["spawn failed"]);
+  });
+
+  it("deletes managed userdata from the manage menu", async () => {
+    const harness = createTestHarness({
+      quickPickSelections: [
+        {
+          label: MANAGE_USERDATAS_LABEL,
+          intent: { kind: "manage" },
+        },
+        {
+          label: "Personal",
+          intent: { kind: "managePick", userdataId: "personal" },
+        },
+        {
+          label: DELETE_USERDATA_LABEL,
+          intent: { kind: "delete", userdataId: "personal" },
+        },
+      ],
+      informationMessageChoice: "Delete",
+    });
+    harnesses.push(harness);
+
+    fs.mkdirSync(harness.storeRoot, { recursive: true });
+    savePersonalRegistry(harness.storeRoot);
+
+    activateUserdataSwitcher(harness.activation);
+    await harness.run(COMMAND_OPEN_IN_NEW_WINDOW);
+
+    assert.deepEqual(harness.deletedPaths, [
+      path.join(harness.storeRoot, "u/personal"),
+    ]);
+    const registry = loadRegistry(registryPath(harness.storeRoot));
+    assert.deepEqual(registry.userdatas, [
+      { id: "default", kind: "default", label: "Default" },
+    ]);
+    assert.deepEqual(harness.infos, [
+      'Delete userdata "Personal"? Its settings and data files will be moved to the trash.',
+      'Userdata "Personal" has been deleted.',
+    ]);
   });
 
   it("deletes the selected managed userdata, removes it from registry, and moves folder to trash", async () => {
     const harness = createTestHarness({
       quickPickSelection: {
         label: "Personal",
-        intent: { kind: "open", userdataId: "personal" },
+        intent: { kind: "delete", userdataId: "personal" },
       },
-      warningMessageChoice: "Delete",
+      informationMessageChoice: "Delete",
     });
     harnesses.push(harness);
 
@@ -910,16 +984,19 @@ describe("activateUserdataSwitcher", () => {
     assert.deepEqual(registry.userdatas, [
       { id: "default", kind: "default", label: "Default" },
     ]);
-    assert.deepEqual(harness.infos, ['Userdata "Personal" has been deleted.']);
+    assert.deepEqual(harness.infos, [
+      'Delete userdata "Personal"? Its settings and data files will be moved to the trash.',
+      'Userdata "Personal" has been deleted.',
+    ]);
   });
 
   it("does not delete the userdata if user cancels the confirmation dialog", async () => {
     const harness = createTestHarness({
       quickPickSelection: {
         label: "Personal",
-        intent: { kind: "open", userdataId: "personal" },
+        intent: { kind: "delete", userdataId: "personal" },
       },
-      warningMessageChoice: "Cancel",
+      informationMessageChoices: [undefined],
     });
     harnesses.push(harness);
 
@@ -932,7 +1009,7 @@ describe("activateUserdataSwitcher", () => {
     assert.deepEqual(harness.deletedPaths, []);
     const registry = loadRegistry(registryPath(harness.storeRoot));
     assert.equal(registry.userdatas.length, 2);
-    assert.deepEqual(harness.infos, []);
+    assert.match(harness.infos[0] ?? "", /Delete userdata "Personal"/);
   });
 
   it("shows warning when there are no managed userdatas to delete", async () => {
@@ -967,9 +1044,9 @@ describe("activateUserdataSwitcher", () => {
     const harness = createTestHarness({
       quickPickSelection: {
         label: "Personal",
-        intent: { kind: "open", userdataId: "personal" },
+        intent: { kind: "delete", userdataId: "personal" },
       },
-      warningMessageChoice: "Cancel",
+      informationMessageChoices: [undefined],
       isManagedUserdataInUse: async () => true,
     });
     harnesses.push(harness);
@@ -983,9 +1060,9 @@ describe("activateUserdataSwitcher", () => {
     assert.deepEqual(harness.deletedPaths, []);
     const registry = loadRegistry(registryPath(harness.storeRoot));
     assert.equal(registry.userdatas.length, 2);
-    assert.equal(harness.warnings.length, 1);
-    assert.match(harness.warnings[0], /still running/);
-    assert.match(harness.warnings[0], /Quit and delete/);
+    assert.match(harness.infos[0] ?? "", /still running/);
+    assert.match(harness.infos[0] ?? "", /Quit and delete/);
+    assert.deepEqual(harness.warnings, []);
   });
 
   it("quits a running instance and deletes when the user confirms quit and delete", async () => {
@@ -993,9 +1070,9 @@ describe("activateUserdataSwitcher", () => {
     const harness = createTestHarness({
       quickPickSelection: {
         label: "Personal",
-        intent: { kind: "open", userdataId: "personal" },
+        intent: { kind: "delete", userdataId: "personal" },
       },
-      warningMessageChoice: DELETE_QUIT_AND_DELETE_LABEL,
+      informationMessageChoice: DELETE_QUIT_AND_DELETE_LABEL,
       isManagedUserdataInUse: async () => inUse,
       quitManagedUserdataInstance: async () => {
         inUse = false;
@@ -1017,16 +1094,19 @@ describe("activateUserdataSwitcher", () => {
     assert.deepEqual(registry.userdatas, [
       { id: "default", kind: "default", label: "Default" },
     ]);
-    assert.deepEqual(harness.infos, ['Userdata "Personal" has been deleted.']);
+    assert.deepEqual(harness.infos, [
+      'Delete userdata "Personal"? An editor instance for it is still running — closing its window is not enough. Quit and delete will quit that instance first, then delete the files. Its settings and data files will be moved to the trash.',
+      'Userdata "Personal" has been deleted.',
+    ]);
   });
 
   it("shows quit failure when the running instance cannot be stopped", async () => {
     const harness = createTestHarness({
       quickPickSelection: {
         label: "Personal",
-        intent: { kind: "open", userdataId: "personal" },
+        intent: { kind: "delete", userdataId: "personal" },
       },
-      warningMessageChoice: DELETE_QUIT_AND_DELETE_LABEL,
+      informationMessageChoice: DELETE_QUIT_AND_DELETE_LABEL,
       isManagedUserdataInUse: async () => true,
       quitManagedUserdataInstance: async () => false,
     });
@@ -1041,18 +1121,17 @@ describe("activateUserdataSwitcher", () => {
     assert.deepEqual(harness.deletedPaths, []);
     const registry = loadRegistry(registryPath(harness.storeRoot));
     assert.equal(registry.userdatas.length, 2);
-    assert.equal(harness.warnings.length, 2);
-    assert.match(harness.warnings[0], /still running/);
-    assert.deepEqual(harness.warnings[1], DELETE_QUIT_FAILED_MESSAGE);
+    assert.match(harness.infos[0] ?? "", /still running/);
+    assert.deepEqual(harness.warnings, [DELETE_QUIT_FAILED_MESSAGE]);
   });
 
   it("handles deletion failure gracefully, keeping the entry in the registry", async () => {
     const harness = createTestHarness({
       quickPickSelection: {
         label: "Personal",
-        intent: { kind: "open", userdataId: "personal" },
+        intent: { kind: "delete", userdataId: "personal" },
       },
-      warningMessageChoice: "Delete",
+      informationMessageChoice: "Delete",
       deletePathFailure: true,
     });
     harnesses.push(harness);
@@ -1063,9 +1142,8 @@ describe("activateUserdataSwitcher", () => {
     activateUserdataSwitcher(harness.activation);
     await harness.run(COMMAND_DELETE_USERDATA);
 
-    assert.equal(harness.warnings.length, 2);
-    assert.match(harness.warnings[0], /Delete userdata "Personal"/);
-    assert.deepEqual(harness.warnings[1], DELETE_TRASH_FAILURE_MESSAGE);
+    assert.match(harness.infos[0] ?? "", /Delete userdata "Personal"/);
+    assert.deepEqual(harness.warnings, [DELETE_TRASH_FAILURE_MESSAGE]);
     const registry = loadRegistry(registryPath(harness.storeRoot));
     assert.equal(registry.userdatas.length, 2);
     assert.ok(registry.userdatas.some((entry) => entry.id === "personal"));
@@ -1075,9 +1153,9 @@ describe("activateUserdataSwitcher", () => {
     const harness = createTestHarness({
       quickPickSelection: {
         label: "Personal",
-        intent: { kind: "open", userdataId: "personal" },
+        intent: { kind: "delete", userdataId: "personal" },
       },
-      warningMessageChoice: "Delete",
+      informationMessageChoice: "Delete",
       deletePathSkipRemoval: true,
     });
     harnesses.push(harness);
@@ -1090,12 +1168,10 @@ describe("activateUserdataSwitcher", () => {
     activateUserdataSwitcher(harness.activation);
     await harness.run(COMMAND_DELETE_USERDATA);
 
-    assert.equal(harness.warnings.length, 2);
-    assert.match(harness.warnings[0], /Delete userdata "Personal"/);
-    assert.deepEqual(
-      harness.warnings[1],
+    assert.match(harness.infos[0] ?? "", /Delete userdata "Personal"/);
+    assert.deepEqual(harness.warnings, [
       DELETE_VERIFY_PATH_STILL_EXISTS_MESSAGE,
-    );
+    ]);
     const registry = loadRegistry(registryPath(harness.storeRoot));
     assert.equal(registry.userdatas.length, 2);
     assert.ok(registry.userdatas.some((entry) => entry.id === "personal"));
@@ -1106,9 +1182,9 @@ describe("activateUserdataSwitcher", () => {
     const harness = createTestHarness({
       quickPickSelection: {
         label: "Personal",
-        intent: { kind: "open", userdataId: "personal" },
+        intent: { kind: "delete", userdataId: "personal" },
       },
-      warningMessageChoice: DELETE_QUIT_AND_DELETE_LABEL,
+      informationMessageChoice: DELETE_QUIT_AND_DELETE_LABEL,
       isManagedUserdataInUse: async () => {
         probeCount += 1;
         return probeCount === 1 || probeCount === 4;
@@ -1122,12 +1198,10 @@ describe("activateUserdataSwitcher", () => {
     activateUserdataSwitcher(harness.activation);
     await harness.run(COMMAND_DELETE_USERDATA);
 
-    assert.equal(harness.warnings.length, 2);
-    assert.match(harness.warnings[0], /still running/);
-    assert.deepEqual(
-      harness.warnings[1],
+    assert.match(harness.infos[0] ?? "", /still running/);
+    assert.deepEqual(harness.warnings, [
       DELETE_VERIFY_INSTANCE_STILL_RUNNING_MESSAGE,
-    );
+    ]);
     const registry = loadRegistry(registryPath(harness.storeRoot));
     assert.equal(registry.userdatas.length, 2);
     assert.ok(registry.userdatas.some((entry) => entry.id === "personal"));
@@ -1174,10 +1248,13 @@ describe("createVscodeUi", () => {
       delete require.cache[require.resolve("../src/extension.ts")];
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { createVscodeUi } = require("../src/extension.ts");
-      ui = createVscodeUi({
-        info: (msg: string) => logs.push(`info:${msg}`),
-        error: (msg: string) => logs.push(`error:${msg}`),
-      });
+      ui = createVscodeUi(
+        {
+          info: (msg: string) => logs.push(`info:${msg}`),
+          error: (msg: string) => logs.push(`error:${msg}`),
+        },
+        () => {},
+      );
     } finally {
       Module.prototype.require = origRequire;
       // Remove the polluted module from the cache so future requires get the real one

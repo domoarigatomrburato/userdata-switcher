@@ -5,6 +5,33 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## 1.4.0
+
+### Added
+
+- Default keybinding for **Open Userdata in New Window** (`Cmd+Shift+U` on macOS,
+  `Ctrl+Shift+U` elsewhere).
+- **Open Output** action on launch failure dialogs.
+
+### Changed
+
+- Userdata menu reworked for **Open Userdata in New Window**: the current window
+  is pinned as a header, other userdatas show **running** or **idle**, and
+  rename, reveal, and delete sit behind **Manage userdatas...** for any
+  registered userdata.
+- Delete confirmation uses the same modal information dialog as userdata
+  creation.
+- Command palette entry renamed to **Open Userdata in New Window**
+  (`userdataSwitcher.openInNewWindow`).
+- README updated for the new menu layout and flows.
+
+### Removed
+
+- Command id `userdataSwitcher.openWithUserdata`. Rebind custom keybindings to
+  `userdataSwitcher.openInNewWindow`.
+
 ## 1.3.4
 
 ### Changed

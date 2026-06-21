@@ -1,29 +1,45 @@
+import { isDeletableManagedUserdata } from "./deleteUserdata";
 import type { CurrentUserdata } from "./detect";
-import { formatUserdataEntryLabel } from "./labels";
+import {
+  formatCurrentWindowHeaderLabel,
+  formatUserdataEntryLabel,
+  formatUserdataLabel,
+} from "./labels";
 import type { Registry, UserdataEntry } from "./registry";
 
-export const ACTIONS_SEPARATOR_LABEL = "Actions";
-export const CREATE_USERDATA_LABEL = "$(add) Create New Userdata...";
-export const RENAME_CURRENT_USERDATA_LABEL =
-  "$(edit) Rename Current Userdata...";
-export const REVEAL_CURRENT_USERDATA_LABEL =
-  "$(folder-opened) Reveal Current Userdata...";
-export const DELETE_USERDATA_LABEL = "$(trash) Delete Userdata...";
+export const OPEN_USERDATA_IN_NEW_WINDOW_TITLE = "Open Userdata in New Window";
+export const OPEN_USERDATA_IN_NEW_WINDOW_PLACEHOLDER =
+  "Select a userdata to open in a new window";
+export const MANAGE_USERDATAS_TITLE = "Manage Userdatas";
+export const MANAGE_USERDATAS_PLACEHOLDER = "Select a userdata to manage";
+export const CREATE_USERDATA_LABEL = "$(add) Create new userdata...";
+export const MANAGE_USERDATAS_LABEL = "$(gear) Manage userdatas...";
+export const RENAME_USERDATA_LABEL = "$(edit) Rename...";
+export const REVEAL_USERDATA_LABEL = "$(folder-opened) Reveal...";
+export const DELETE_USERDATA_LABEL = "$(trash) Delete userdata...";
+export const DELETE_USERDATA_TITLE = "Delete Userdata";
+export const DELETE_USERDATA_PLACEHOLDER = "Select a userdata to delete";
 
-type MenuItemKind = "item" | "separator";
+export type UserdataRunningState = "running" | "idle";
+
+const FOOTER_SEPARATOR: UserdataMenuItem = { kind: "separator", label: "" };
 export type UserdataMenuItemIntent =
   | { kind: "create" }
-  | { kind: "rename" }
-  | { kind: "reveal" }
-  | { kind: "delete" }
+  | { kind: "manage" }
+  | { kind: "managePick"; userdataId: string }
+  | { kind: "rename"; userdataId: string }
+  | { kind: "reveal"; userdataId: string }
+  | { kind: "delete"; userdataId: string }
   | { kind: "open"; userdataId: string };
 
 export type UserdataMenuIntent =
   | { kind: "cancel" }
   | { kind: "create" }
-  | { kind: "rename" }
-  | { kind: "reveal" }
-  | { kind: "delete" }
+  | { kind: "manage" }
+  | { kind: "managePick"; entry: UserdataEntry }
+  | { kind: "rename"; entry: UserdataEntry }
+  | { kind: "reveal"; entry: UserdataEntry }
+  | { kind: "delete"; entry: UserdataEntry }
   | { kind: "open"; entry: UserdataEntry };
 
 export interface UserdataMenuSelection {
@@ -33,57 +49,96 @@ export interface UserdataMenuSelection {
 export interface UserdataMenuItem extends UserdataMenuSelection {
   label: string;
   description?: string;
-  kind?: MenuItemKind;
+  kind?: "item" | "separator";
   alwaysShow?: boolean;
 }
 
-export function buildOpenWithUserdataMenuItems(
+export function buildOpenInNewWindowMenuItems(
   registry: Registry,
   current: CurrentUserdata,
+  runningByUserdataId: ReadonlyMap<string, UserdataRunningState>,
 ): UserdataMenuItem[] {
-  const otherUserdatas: UserdataMenuItem[] = registry.userdatas
+  const header: UserdataMenuItem = {
+    kind: "separator",
+    label: formatCurrentWindowHeaderLabel(current),
+  };
+
+  const launchTargets: UserdataMenuItem[] = registry.userdatas
     .filter(
       (entry) => current.kind === "unmanaged" || entry.id !== current.entry.id,
     )
     .map((entry) => ({
       label: formatUserdataEntryLabel(entry),
-      description:
-        entry.kind === "default" ? "Default Userdata" : "Managed Userdata",
+      description: runningByUserdataId.get(entry.id) ?? "idle",
       intent: { kind: "open", userdataId: entry.id },
     }));
 
-  const renameItem: UserdataMenuItem = {
-    intent: { kind: "rename" },
-    label: RENAME_CURRENT_USERDATA_LABEL,
-    alwaysShow: true,
-  };
-  const actionItems: UserdataMenuItem[] = [
-    ...(current.kind === "known" ? [renameItem] : []),
-    {
-      intent: { kind: "reveal" },
-      label: REVEAL_CURRENT_USERDATA_LABEL,
-      alwaysShow: true,
-    },
+  const footerItems: UserdataMenuItem[] = [
     {
       intent: { kind: "create" },
       label: CREATE_USERDATA_LABEL,
       alwaysShow: true,
     },
     {
-      intent: { kind: "delete" },
-      label: DELETE_USERDATA_LABEL,
+      intent: { kind: "manage" },
+      label: MANAGE_USERDATAS_LABEL,
       alwaysShow: true,
     },
   ];
 
-  return [
-    ...otherUserdatas,
-    { kind: "separator", label: ACTIONS_SEPARATOR_LABEL },
-    ...actionItems,
-  ];
+  return [header, ...launchTargets, FOOTER_SEPARATOR, ...footerItems];
 }
 
-export function resolveOpenWithUserdataMenuIntent(
+export function buildDeleteUserdataMenuItems(
+  deletable: UserdataEntry[],
+): UserdataMenuItem[] {
+  return deletable.map((entry) => ({
+    label: formatUserdataLabel({ kind: "known", entry }),
+    description: entry.relativeDataDir,
+    intent: { kind: "delete", userdataId: entry.id },
+  }));
+}
+
+export function buildManageUserdatasMenuItems(
+  registry: Registry,
+): UserdataMenuItem[] {
+  return registry.userdatas.map((entry) => ({
+    label: formatUserdataEntryLabel(entry),
+    description:
+      entry.kind === "default" ? "Default Userdata" : "Managed Userdata",
+    intent: { kind: "managePick", userdataId: entry.id },
+  }));
+}
+
+export function buildManageUserdataActionMenuItems(
+  entry: UserdataEntry,
+  current: CurrentUserdata,
+): UserdataMenuItem[] {
+  const items: UserdataMenuItem[] = [
+    {
+      intent: { kind: "reveal", userdataId: entry.id },
+      label: REVEAL_USERDATA_LABEL,
+      alwaysShow: true,
+    },
+    {
+      intent: { kind: "rename", userdataId: entry.id },
+      label: RENAME_USERDATA_LABEL,
+      alwaysShow: true,
+    },
+  ];
+
+  if (isDeletableManagedUserdata(entry, current)) {
+    items.push(FOOTER_SEPARATOR, {
+      intent: { kind: "delete", userdataId: entry.id },
+      label: DELETE_USERDATA_LABEL,
+      alwaysShow: true,
+    });
+  }
+
+  return items;
+}
+
+export function resolveUserdataMenuIntent(
   registry: Registry,
   selection: UserdataMenuSelection | undefined,
 ): UserdataMenuIntent {
@@ -91,18 +146,15 @@ export function resolveOpenWithUserdataMenuIntent(
   if (!intent) {
     return { kind: "cancel" };
   }
-
-  switch (intent.kind) {
-    case "create":
-    case "rename":
-    case "reveal":
-    case "delete":
-      return intent;
-    case "open": {
-      const entry = registry.userdatas.find(
-        (candidate) => candidate.id === intent.userdataId,
-      );
-      return entry ? { kind: "open", entry } : { kind: "cancel" };
-    }
+  if (intent.kind === "create" || intent.kind === "manage") {
+    return intent;
   }
+
+  const entry = registry.userdatas.find(
+    (candidate) => candidate.id === intent.userdataId,
+  );
+  if (!entry) {
+    return { kind: "cancel" };
+  }
+  return { kind: intent.kind, entry };
 }

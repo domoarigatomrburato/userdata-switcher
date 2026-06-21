@@ -55,6 +55,20 @@ export function matchCurrentUserdata(input: {
   return { kind: "unmanaged" };
 }
 
+export function resolveUserdataEntryRoot(input: {
+  entry: UserdataEntry;
+  storeRoot: string;
+  defaultUserdataRoot: string;
+}): string | null {
+  if (input.entry.kind === "default") {
+    return input.defaultUserdataRoot;
+  }
+
+  return input.entry.relativeDataDir
+    ? resolveManagedDataDir(input.storeRoot, input.entry.relativeDataDir)
+    : null;
+}
+
 export function resolveCurrentUserdataRoot(input: {
   current: CurrentUserdata;
   globalStoragePath: string;
@@ -67,11 +81,9 @@ export function resolveCurrentUserdataRoot(input: {
     return deriveUserdataRootFromGlobalStorage(globalStoragePath);
   }
 
-  if (current.entry.kind === "default") {
-    return defaultUserdataRoot;
-  }
-
-  return current.entry.relativeDataDir
-    ? resolveManagedDataDir(storeRoot, current.entry.relativeDataDir)
-    : null;
+  return resolveUserdataEntryRoot({
+    entry: current.entry,
+    storeRoot,
+    defaultUserdataRoot,
+  });
 }
