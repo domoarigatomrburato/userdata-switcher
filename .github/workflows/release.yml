@@ -28,9 +28,6 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Build
-        run: npm run build
-
       - name: Package release VSIX
         run: npm run package:vsix
 

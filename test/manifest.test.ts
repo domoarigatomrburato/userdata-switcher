@@ -38,9 +38,9 @@ const ENGINES_VSCODE = "^1.90.0";
 
 describe("extension manifest", () => {
   const expectedScripts = {
-    "vscode:prepublish": "npm run build",
+    "vscode:prepublish": "npm run build -- --production",
     preversion:
-      "node scripts/assert-release-ready.mjs && npm run check && npm test && npm run build",
+      "node scripts/assert-release-ready.mjs && npm run check && npm test && npm run build -- --production",
     postversion: "git push origin main --follow-tags",
     check: "knip && biome ci .",
     fix: "knip --fix && biome check --write .",

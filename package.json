@@ -94,8 +94,8 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run build",
-    "preversion": "node scripts/assert-release-ready.mjs && npm run check && npm test && npm run build",
+    "vscode:prepublish": "npm run build -- --production",
+    "preversion": "node scripts/assert-release-ready.mjs && npm run check && npm test && npm run build -- --production",
     "postversion": "git push origin main --follow-tags",
     "check": "knip && biome ci .",
     "fix": "knip --fix && biome check --write .",
@@ -108,6 +108,7 @@
     "@types/node": "^20",
     "@types/vscode": "1.90.0",
     "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.28.1",
     "knip": "^6.16.1",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3"

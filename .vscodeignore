@@ -3,7 +3,6 @@
 .github/**
 src/**
 test/**
-tsconfig.build.json
 tsconfig.json
 **/*.ts
 **/*.map

@@ -21,7 +21,6 @@ const FORBIDDEN_PACKAGE_FILES = new Set([
   "CONTRIBUTING.md",
   "biome.json",
   "knip.json",
-  "tsconfig.build.json",
   "tsconfig.json",
 ]);
 
