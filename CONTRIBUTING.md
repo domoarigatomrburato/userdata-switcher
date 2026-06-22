@@ -36,8 +36,8 @@ npm version patch
 ```
 
 Use `patch`, `minor`, or `major`. `preversion` checks the branch, changelog,
-remote sync, and runs `check`, `test`, and `build`. `npm version` bumps,
-commits, and tags. `postversion` pushes `main` with tags.
+remote sync, and runs `check`, `test`, and a production build. `npm version`
+bumps, commits, and tags. `postversion` pushes `main` with tags.
 
 Pushing a `v*` tag triggers the Release workflow: it builds the VSIX, creates or
 updates the GitHub release, sets the description from the matching
