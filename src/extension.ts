@@ -51,8 +51,9 @@ export function createVscodeUi(
   return {
     StatusBarAlignment: vscode.StatusBarAlignment,
     QuickPickItemKind: vscode.QuickPickItemKind,
-    createStatusBarItem: (alignment, priority) =>
+    createStatusBarItem: (id, alignment, priority) =>
       vscode.window.createStatusBarItem(
+        id,
         alignment,
         priority,
       ) as unknown as StatusBarItem,

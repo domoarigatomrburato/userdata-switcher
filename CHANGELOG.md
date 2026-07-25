@@ -5,6 +5,13 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),  
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.4.2
+
+### Fixed
+
+- Keep the status bar item visible when Cursor or VS Code is attached to a Dev
+Container or other remote window by giving it a stable id.
+
 ## 1.4.1
 
 ### Changed

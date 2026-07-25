@@ -33,6 +33,7 @@ import {
   COMMAND_REVEAL_CURRENT_USERDATA,
   COMMAND_SHOW_CURRENT_USERDATA,
   type QuickPickItem,
+  STATUS_BAR_ITEM_ID,
   type StatusBarItem,
   type UserdataSwitcherActivation,
   type UserdataSwitcherUi,
@@ -45,6 +46,11 @@ interface TestHarness {
   sharedExtensionsDirectory: string;
   host: SupportedHostAdapter;
   statusBar: StatusBarItem;
+  statusBarItemArgs: {
+    id: string;
+    alignment: number;
+    priority: number;
+  };
   commands: Map<string, (...args: unknown[]) => unknown>;
   launched: LaunchCommand[];
   createdDirs: string[];
@@ -128,6 +134,11 @@ function createTestHarness(input?: {
     command: "",
     show() {},
   };
+  const statusBarItemArgs = {
+    id: "",
+    alignment: 0,
+    priority: 0,
+  };
   const commands = new Map<string, (...args: unknown[]) => unknown>();
   const launched: LaunchCommand[] = [];
   const createdDirs: string[] = [];
@@ -176,7 +187,12 @@ function createTestHarness(input?: {
   const ui: UserdataSwitcherUi = {
     StatusBarAlignment: { Left: 1 },
     QuickPickItemKind: { Separator: -1 },
-    createStatusBarItem: () => statusBar,
+    createStatusBarItem: (id, alignment, priority) => {
+      statusBarItemArgs.id = id;
+      statusBarItemArgs.alignment = alignment;
+      statusBarItemArgs.priority = priority;
+      return statusBar;
+    },
     registerCommand: (command, callback) => {
       commands.set(command, callback);
       return { dispose: () => commands.delete(command) };
@@ -261,6 +277,7 @@ function createTestHarness(input?: {
     sharedExtensionsDirectory,
     host,
     statusBar,
+    statusBarItemArgs,
     commands,
     launched,
     createdDirs,
@@ -313,6 +330,11 @@ describe("activateUserdataSwitcher", () => {
 
     activateUserdataSwitcher(harness.activation);
 
+    assert.deepEqual(harness.statusBarItemArgs, {
+      id: STATUS_BAR_ITEM_ID,
+      alignment: 1,
+      priority: 100,
+    });
     assert.equal(harness.statusBar.text, "$(layers) Default (default)");
     assert.equal(
       harness.statusBar.tooltip,

@@ -62,6 +62,8 @@ export const COMMAND_SHOW_CURRENT_USERDATA =
 export const COMMAND_REVEAL_CURRENT_USERDATA =
   "userdataSwitcher.revealCurrentUserdata";
 export const COMMAND_DELETE_USERDATA = "userdataSwitcher.deleteUserdata";
+/** Stable id so the item survives remote/dev-container window remounts. */
+export const STATUS_BAR_ITEM_ID = "userdataSwitcher.current";
 
 export interface QuickPickItem {
   label: string;
@@ -85,7 +87,11 @@ export interface Disposable {
 export interface UserdataSwitcherUi {
   StatusBarAlignment: { Left: number };
   QuickPickItemKind: { Separator: number };
-  createStatusBarItem(alignment: number, priority: number): StatusBarItem;
+  createStatusBarItem(
+    id: string,
+    alignment: number,
+    priority: number,
+  ): StatusBarItem;
   registerCommand(
     command: string,
     callback: (...args: unknown[]) => unknown,
@@ -239,7 +245,11 @@ export function activateUserdataSwitcher(
   const currentUserdata = (registry: Registry = registryStore.read()) =>
     session.currentUserdata(registry);
 
-  const statusBarItem = ui.createStatusBarItem(ui.StatusBarAlignment.Left, 100);
+  const statusBarItem = ui.createStatusBarItem(
+    STATUS_BAR_ITEM_ID,
+    ui.StatusBarAlignment.Left,
+    100,
+  );
   statusBarItem.command = COMMAND_OPEN_IN_NEW_WINDOW;
 
   const refreshStatusBar = (registry?: Registry) => {
